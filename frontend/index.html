@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validador de Archivos Excel</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>Excel Validator Pro</h1>
+
+            <div class="toggle-container">
+                <button class="toggle-btn active" id="btnValidacion" onclick="setMode('validacion')">
+                    Validación
+                </button>
+                <button class="toggle-btn" id="btnFatiga" onclick="setMode('fatiga')">
+                    Fatiga
+                </button>
+            </div>
+
+            <div class="upload-zone" id="dropZone">
+                <i class="fas fa-cloud-upload-alt upload-icon"></i>
+                <h3 id="uploadText">Arrastra 2 archivos aquí</h3>
+                <p class="file-info">o haz clic para explorar</p>
+                <input type="file" id="fileInput" multiple accept=".xlsx, .xls">
+            </div>
+
+            <ul class="file-list" id="selectedFilesList"></ul>
+
+            <button class="btn-submit" id="submitBtn" disabled onclick="processFiles()">
+                Validar Archivos
+            </button>
+
+            <!-- Column Mapping Modal -->
+            <div id="mappingModal" class="modal">
+                <div class="modal-content">
+                    <h2>Manual de Selección de Columnas</h2>
+                    <p>No pudimos detectar algunas columnas automáticamente. Por favor, selecciónalas manualmente.</p>
+
+                    <div class="mapping-columns">
+                        <div class="file-mapping" id="mappingFile1">
+                            <h3 id="mappingTitle1">Archivo 1</h3>
+                            <!-- Generated dropdowns will go here -->
+                        </div>
+                        <div class="file-mapping" id="mappingFile2">
+                            <h3 id="mappingTitle2">Archivo 2</h3>
+                            <!-- Generated dropdowns will go here -->
+                        </div>
+                    </div>
+
+                    <button class="btn-submit" onclick="submitMapping()">Validar de nuevo</button>
+                    <button class="btn-cancel" onclick="closeMapping()">Cancelar</button>
+                </div>
+            </div>
+
+            <div id="loading">
+                <div class="spinner"></div>
+                <p>Procesando...</p>
+            </div>
+
+            <div id="resultArea" class="result-area">
+                <span class="result-title" id="resultTitle"></span>
+                <p id="resultMessage"></p>
+                <div id="errorDetails"></div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+
+</html>
