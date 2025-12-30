@@ -129,6 +129,18 @@ def debug_user_count(db: Session = Depends(database.get_db)):
         "usernames": [u.username for u in users]
     }
 
+@app.post("/debug/reset-admin")
+def debug_reset_admin(db: Session = Depends(database.get_db)):
+    """Temporary endpoint to force reset admin password"""
+    user = db.query(models.User).filter(models.User.username == "admin").first()
+    if user:
+        # Force reset password
+        user.hashed_password = auth.get_password_hash("admin123")
+        user.role = "superuser"
+        db.commit()
+        return {"status": "success", "message": "Admin password reset to admin123"}
+    return {"status": "error", "message": "Admin user not found"}
+
 
 @app.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
