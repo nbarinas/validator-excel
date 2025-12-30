@@ -29,27 +29,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Startup: Create Tables & Seed User
+# Startup: Create Tables & Seed Users
 @app.on_event("startup")
 def on_startup():
     models.Base.metadata.create_all(bind=database.engine)
     db = database.SessionLocal()
-    # Check if admin exists
+    
+    # Default users to create
+    default_users = [
+        {"username": "admin", "password": "admin123", "role": "superuser"},
+        {"username": "1032509485", "password": "1032509485", "role": "agent"},
+        {"username": "agente1", "password": "agente123", "role": "agent"},
+        {"username": "agente2", "password": "agente123", "role": "agent"},
+    ]
+    
     try:
-        user = db.query(models.User).filter(models.User.username == "admin").first()
-        if not user:
-            hashed = auth.get_password_hash("admin123")
-            # Default admin is now superuser
-            db_user = models.User(username="admin", hashed_password=hashed, role="superuser")
-            db.add(db_user)
-            db.commit()
-            print("Created default user: admin/admin123 (superuser)")
-        else:
-            # Ensure admin has superuser role if it was different
-            if user.role != "superuser":
-                user.role = "superuser"
-                db.commit()
-            print("Admin user exists")
+        for user_data in default_users:
+            user = db.query(models.User).filter(models.User.username == user_data["username"]).first()
+            if not user:
+                hashed = auth.get_password_hash(user_data["password"])
+                db_user = models.User(
+                    username=user_data["username"], 
+                    hashed_password=hashed, 
+                    role=user_data["role"]
+                )
+                db.add(db_user)
+                print(f"Created user: {user_data['username']} ({user_data['role']})")
+            else:
+                # Ensure role is correct
+                if user.role != user_data["role"]:
+                    user.role = user_data["role"]
+                    print(f"Updated role for {user_data['username']} to {user_data['role']}")
+        
+        db.commit()
+        print("User initialization complete")
+    except Exception as e:
+        print(f"Error during user initialization: {e}")
+        db.rollback()
     finally:
         db.close()
 
