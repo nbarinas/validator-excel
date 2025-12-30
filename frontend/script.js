@@ -7,6 +7,26 @@ const resultArea = document.getElementById('resultArea');
 const loading = document.getElementById('loading');
 
 // Mode Switching
+document.addEventListener('DOMContentLoaded', async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+        try {
+            const res = await fetch('/users/me', {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (res.ok) {
+                const user = await res.json();
+                const ui = document.getElementById('userInfo');
+                if (ui) ui.textContent = `Usuario: ${user.username}`;
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    }
+});
+
 function setMode(mode) {
     currentMode = mode;
     document.getElementById('btnValidacion').classList.toggle('active', mode === 'validacion');

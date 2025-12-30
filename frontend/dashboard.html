@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AZ Marketing</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Reset body padding if any, relying on style.css body flex center */
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 1200px;
+            padding: 2rem;
+            /* Container itself is centered by body flex, but let's ensure inner content is nice */
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5rem;
+            /* More space as requested */
+            padding: 0 2rem;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .btn-logout {
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            border: 1px solid rgba(255, 100, 100, 0.3);
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(220, 53, 69, 1);
+            transform: translateY(-2px);
+        }
+
+        /* Flex container for horizontal centering */
+        .modules-grid {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        /* Use .card style from style.css by copying/extending or just applying the class directly to the element */
+        .module-card {
+            background: var(--card-bg, rgba(30, 41, 59, 0.7));
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+            padding: 3rem 2rem;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-main, #f8fafc);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 300px;
+            /* Fixed width for better alignment */
+            min-height: 250px;
+        }
+
+        .module-card:hover {
+            transform: translateY(-10px);
+            background: rgba(30, 41, 59, 0.9);
+            border-color: var(--primary-color, #6366f1);
+        }
+
+        .module-icon {
+            font-size: 4rem;
+            color: var(--primary-color, #6366f1);
+            margin-bottom: 1.5rem;
+        }
+
+        .module-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--text-main, white);
+        }
+
+        .module-desc {
+            color: var(--text-muted, #94a3b8);
+            font-size: 1rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <header class="header">
+            <h1>AZ Marketing Portal</h1>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn-logout" style="background: var(--primary-color, #6366f1); border-color:transparent;"
+                    onclick="changeMyPassword()">Cambiar Clave</button>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <div class="modules-grid">
+            <a href="/validator-page" class="module-card">
+                <i class="fas fa-file-excel module-icon"></i>
+                <div class="module-title">In Home</div>
+                <div class="module-desc">Validador de Archivos Excel</div>
+            </a>
+
+            <a href="#" class="module-card" style="opacity: 0.6; cursor: not-allowed;">
+                <i class="fas fa-money-check-alt module-icon"></i>
+                <div class="module-title">Nómina</div>
+                <div class="module-desc">Próximamente</div>
+            </a>
+
+            <a href="/call-center-page" class="module-card">
+                <i class="fas fa-headset module-icon"></i>
+                <div class="module-title">Call Center</div>
+                <div class="module-desc">Gestión de llamadas y CRM</div>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Auth Check
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        async function checkUserRole() {
+            try {
+                const res = await fetch('/users/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    if (user.role === 'superuser') {
+                        const grid = document.querySelector('.modules-grid');
+                        const card = document.createElement('a');
+                        card.href = '/users-page';
+                        card.className = 'module-card';
+                        card.innerHTML = `
+                            <i class="fas fa-users-cog module-icon"></i>
+                            <div class="module-title">Usuarios</div>
+                            <div class="module-desc">Gestión de Usuarios y Permisos</div>
+                        `;
+                        grid.appendChild(card);
+                    }
+                }
+            } catch (e) {
+                console.error("Error checking role", e);
+            }
+        }
+
+        checkUserRole();
+
+        async function changeMyPassword() {
+            const oldPass = prompt("Ingresa tu contraseña actual:");
+            if (!oldPass) return;
+            const newPass = prompt("Ingresa tu nueva contraseña:");
+            if (!newPass) return;
+
+            try {
+                const res = await fetch('/users/me/password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ old_password: oldPass, new_password: newPass })
+                });
+
+                if (res.ok) {
+                    alert("Contraseña actualizada exitosamente.");
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + err.detail);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error de conexión");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+    </script>
+</body>
+
+</html>
