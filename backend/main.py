@@ -161,6 +161,28 @@ def debug_check_admin(db: Session = Depends(database.get_db)):
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/debug/test-verify")
+def debug_test_verify(db: Session = Depends(database.get_db)):
+    """Test password verification"""
+    try:
+        user = db.query(models.User).filter(models.User.username == "admin").first()
+        if not user:
+            return {"error": "Admin not found"}
+        
+        # Test verification
+        test_password = "admin123"
+        try:
+            result = auth.verify_password(test_password, user.hashed_password)
+            return {
+                "verification_result": result,
+                "password_tested": test_password,
+                "hash_used": user.hashed_password[:50]
+            }
+        except Exception as verify_error:
+            return {"verification_error": str(verify_error)}
+    except Exception as e:
+        return {"error": str(e)}
+
 
 @app.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
