@@ -135,13 +135,9 @@ def debug_reset_admin(db: Session = Depends(database.get_db)):
     try:
         user = db.query(models.User).filter(models.User.username == "admin").first()
         if user:
-            # Force reset password using passlib
-            from passlib.context import CryptContext
-            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-            
-            # Truncate password to 72 bytes to avoid bcrypt error
-            password = "admin123"[:72]
-            user.hashed_password = pwd_context.hash(password)
+            # Use pre-generated hash for "admin123" to avoid bcrypt version issues
+            # Generated locally with: passlib.context.CryptContext(schemes=["bcrypt"]).hash("admin123")
+            user.hashed_password = "$2b$12$JGM4KHyZ5kQGg.4HejqX2Ov545baXJkLphOSmkPQCILbXokU0VdBG"
             user.role = "superuser"
             db.commit()
             return {"status": "success", "message": "Admin password reset to admin123", "user": user.username}
