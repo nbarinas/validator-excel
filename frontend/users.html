@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Usuarios - AZ Marketing</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 2rem;
+            color: white;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.8rem;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+        }
+
+        button {
+            background: var(--primary-color, #6366f1);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Gestión de Usuarios</h1>
+            <a href="/" style="color: white; text-decoration: none;"><i class="fas fa-arrow-left"></i> Volver al
+                Dashboard</a>
+        </header>
+
+        <div class="card">
+            <h2>Crear Nuevo Usuario</h2>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label>Usuario (CC o Username)</label>
+                    <input type="text" id="username" required placeholder="Ej: 123456789">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="password" required placeholder="Contraseña">
+                </div>
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select id="role" required>
+                        <option value="agent">Encuestador / Operativo</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="superuser">Coordinador (Superusuario)</option>
+                    </select>
+                </div>
+                <!-- Toggle for allowing superuser creation? The select above handles it. The user said "option to create superusers or not". 
+                     This implies the logged-in superuser CHOOSES the role for the new user. -->
+                <button type="submit">Crear Usuario</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Usuarios Existentes</h2>
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Rol</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        const API_URL = '';
+
+        async function loadUsers() {
+            try {
+                const res = await fetch(API_URL + '/users', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.status === 403) {
+                    alert('No autorizado');
+                    window.location.href = '/';
+                    return;
+                }
+                const users = await res.json();
+                const tbody = document.querySelector('#usersTable tbody');
+                tbody.innerHTML = '';
+                users.forEach(u => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${u.id}</td>
+                        <td>${u.username}</td>
+                        <td>${u.role}</td>
+                        <td>
+                            <button class="btn-delete" style="background:var(--primary-color); margin-right:5px;" onclick="resetPassword(${u.id})"><i class="fas fa-key"></i></button>
+                            ${u.username !== 'admin' ?
+                            `<button class="btn-delete" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>`
+                            : ''}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function resetPassword(id) {
+            const newPass = prompt("Ingresa la nueva contraseña para este usuario:");
+            if (!newPass) return;
+
+            try {
+                const res = await fetch(API_URL + '/users/' + id + '/password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ new_password: newPass })
+                });
+                if (res.ok) {
+                    alert('Contraseña actualizada');
+                } else {
+                    alert('Error al actualizar');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
+
+            try {
+                const res = await fetch(API_URL + '/users/' + id, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    loadUsers();
+                } else {
+                    alert('Error al eliminar');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            try {
+                const res = await fetch(API_URL + '/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ username, password, role })
+                });
+
+                if (res.ok) {
+                    alert('Usuario creado exitosamente');
+                    document.getElementById('createUserForm').reset();
+                    loadUsers();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + err.detail);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión');
+            }
+        });
+
+        loadUsers();
+    </script>
+</body>
+
+</html>

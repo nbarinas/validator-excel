@@ -1,15 +1,23 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, status
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 import json
 import pandas as pd
 import io
 import os
-from typing import List
+from typing import List, Optional
+from pydantic import BaseModel
 
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-import os
+
+from . import models, database, auth
+
+# Determine the directory of the current file to build absolute paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# Frontend is sibling to backend
+FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
 
 app = FastAPI()
 
@@ -21,16 +29,401 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Determine the directory of the current file to build absolute paths
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# Frontend is sibling to backend
-FRONTEND_DIR = os.path.join(os.path.dirname(BASE_DIR), "frontend")
+# Startup: Create Tables & Seed User
+@app.on_event("startup")
+def on_startup():
+    models.Base.metadata.create_all(bind=database.engine)
+    db = database.SessionLocal()
+    # Check if admin exists
+    try:
+        user = db.query(models.User).filter(models.User.username == "admin").first()
+        if not user:
+            hashed = auth.get_password_hash("admin123")
+            # Default admin is now superuser
+            db_user = models.User(username="admin", hashed_password=hashed, role="superuser")
+            db.add(db_user)
+            db.commit()
+            print("Created default user: admin/admin123 (superuser)")
+        else:
+            # Ensure admin has superuser role if it was different
+            if user.role != "superuser":
+                user.role = "superuser"
+                db.commit()
+            print("Admin user exists")
+    finally:
+        db.close()
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
+class UserCreate(BaseModel):
+    username: str
+    password: str
+    role: str # superuser, supervisor, agent
+
+# --- AUTH ENDPOINTS ---
+
+@app.post("/token")
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.username == form_data.username).first()
+    if not user or not auth.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token = auth.create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer", "role": user.role}
+
+@app.get("/users/me")
+async def read_users_me(current_user: models.User = Depends(auth.get_current_user)):
+    return {"username": current_user.username, "role": current_user.role, "id": current_user.id}
+
+@app.post("/users", status_code=status.HTTP_201_CREATED)
+def create_user(user: UserCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Check if user exists
+    existing = db.query(models.User).filter(models.User.username == user.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already registered")
+    
+    hashed_password = auth.get_password_hash(user.password)
+    db_user = models.User(username=user.username, hashed_password=hashed_password, role=user.role)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return {"username": db_user.username, "role": db_user.role, "id": db_user.id}
+
+@app.get("/users")
+def list_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    users = db.query(models.User).all()
+    return [{"username": u.username, "role": u.role, "id": u.id} for u in users]
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    db.delete(user)
+    db.commit()
+    return {"status": "ok"}
+
+class UserPasswordReset(BaseModel):
+    new_password: str
+
+@app.put("/users/{user_id}/password")
+def reset_user_password(user_id: int, reset: UserPasswordReset, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    user.hashed_password = auth.get_password_hash(reset.new_password)
+    db.commit()
+    return {"status": "password updated"}
+
+class UserSelfPasswordUpdate(BaseModel):
+    old_password: str
+    new_password: str
+
+@app.put("/users/me/password")
+def change_own_password(update: UserSelfPasswordUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if not auth.verify_password(update.old_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect old password")
+    
+    current_user.hashed_password = auth.get_password_hash(update.new_password)
+    db.commit()
+    return {"status": "password updated"}
+
+@app.get("/users-page")
+def users_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "users.html"))
+
+
+# --- PAGE ROUTES ---
+
 @app.get("/")
 def read_root():
+    return FileResponse(os.path.join(FRONTEND_DIR, "dashboard.html"))
+
+@app.get("/login")
+def login_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "login.html"))
+
+@app.get("/validator-page")
+def validator_page():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+@app.get("/call-center-page")
+def call_center_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "call_center.html"))
+
+# --- CALL CENTER API ---
+
+class StudyCreate(BaseModel):
+    code: str
+    name: str
+
+@app.post("/studies")
+def create_study(study: StudyCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    db_study = models.Study(code=study.code, name=study.name)
+    db.add(db_study)
+    db.commit()
+    db.refresh(db_study)
+    return db_study
+
+@app.get("/studies")
+def get_studies(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    return db.query(models.Study).all()
+
+class CallCreate(BaseModel):
+    study_id: int
+    phone_number: str
+    person_cc: Optional[str] = None
+    corrected_phone: Optional[str] = None
+
+@app.post("/calls")
+def create_call(call: CallCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_call = models.Call(**call.dict())
+    db.add(db_call)
+    db.commit()
+    db.refresh(db_call)
+    return db_call
+
+@app.get("/calls")
+def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Join with Study to get status and name
+    query = db.query(models.Call).join(models.Study)
+    
+    if study_id:
+        query = query.filter(models.Call.study_id == study_id)
+        # VISIBILITY LOGIC:
+        if current_user.role != "superuser":
+             query = query.filter(models.Call.status == "pending")
+             query = query.filter(models.Call.user_id == current_user.id) # Only assigned
+    else:
+        # GLOBAL VIEW
+        query = query.filter(models.Study.status == "open")
+        query = query.filter(models.Call.status == "pending")
+        if current_user.role != "superuser":
+            query = query.filter(models.Call.user_id == current_user.id) # Only assigned
+
+
+    # Order by ID desc
+    query = query.order_by(models.Call.id.desc())
+    
+    # We need to return study name too. 
+    # Current models.Call serialization might not include study name unless we use Pydantic schemas with ORM mode
+    # Let's verify what `query.all()` returns. It returns Call objects.
+    # We can rely on frontend fetching study name if we return a custom dict, or just include it.
+    # Quick fix: return list of dicts with study_name
+    
+    calls = query.all()
+    result = []
+    for c in calls:
+        c_dict = c.__dict__.copy()
+        if 'study' in c_dict: del c_dict['study'] # Remove relationship obj
+        if 'user' in c_dict: del c_dict['user'] # Remove relationship obj
+        if '_sa_instance_state' in c_dict: del c_dict['_sa_instance_state']
+        c_dict['study_name'] = c.study.name if c.study else None
+        c_dict['study_type'] = c.study.study_type if c.study else None
+        c_dict['study_stage'] = c.study.stage if c.study else None
+        c_dict['agent_name'] = c.user.username if c.user else None
+        result.append(c_dict)
+        
+    return result
+
+class AssignCall(BaseModel):
+    user_id: int
+
+@app.put("/calls/{call_id}/assign")
+def assign_call(call_id: int, assignment: AssignCall, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    
+    # Check user exists
+    user = db.query(models.User).filter(models.User.id == assignment.user_id).first()
+    if not user:
+         raise HTTPException(status_code=404, detail="User not found")
+         
+    call.user_id = assignment.user_id
+    db.commit()
+    return {"status": "assigned", "agent": user.username}
+
+class BulkAssignCall(BaseModel):
+    call_ids: List[int]
+    user_id: int
+
+@app.put("/calls/assign-bulk")
+def assign_call_bulk(assignment: BulkAssignCall, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Check user exists
+    user = db.query(models.User).filter(models.User.id == assignment.user_id).first()
+    if not user:
+         raise HTTPException(status_code=404, detail="User not found")
+    
+    # Update all
+    db.query(models.Call).filter(models.Call.id.in_(assignment.call_ids)).update(
+        {models.Call.user_id: assignment.user_id}, synchronize_session=False
+    )
+    db.commit()
+    return {"status": "bulk_assigned", "count": len(assignment.call_ids)}
+
+@app.put("/calls/{call_id}/close")
+def close_call(call_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    
+    # Optional: check if user owns call or is superuser?
+    # User said: "el pending, que pueda gestionar a closed". Implies agent can do it.
+    
+    call.status = "closed"
+    db.commit()
+    return {"status": "closed"}
+
+@app.post("/upload-calls")
+async def upload_calls(
+    file: UploadFile = File(...),
+    study_name: str = Form(None),
+    study_id: int = Form(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    # Ensure study
+    if study_id:
+        db_study = db.query(models.Study).filter(models.Study.id == study_id).first()
+        if not db_study:
+             raise HTTPException(status_code=404, detail="Study not found")
+    elif study_name:
+        # Create new study
+        # Check if code maps? Assume code=study_name[:3].upper() + random? Or just name.
+        # User didn't specify code logic. Let's make a simple code.
+        import random
+        code = study_name[:4].upper() + str(random.randint(10,99))
+        db_study = models.Study(code=code, name=study_name)
+        db.add(db_study)
+        db.commit()
+        db.refresh(db_study)
+    else:
+        raise HTTPException(status_code=400, detail="Must provide study_id or study_name")
+
+    # Read File
+    try:
+        content = await file.read()
+        df = pd.read_excel(io.BytesIO(content))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid Excel file: {str(e)}")
+
+    # Map Columns
+    # Expected: Telefono, Ciudad, Observaciones, Hora de llamada, Marca de producto, Otro numero, Cedula, Nombre
+    # Normalize headers
+    cols = {str(c).strip().lower(): c for c in df.columns}
+    
+    mapping = {
+        "phone_number": ["telefono", "celular", "numero", "movil"],
+        "city": ["ciudad", "city"],
+        "initial_observation": ["observaciones", "observacion", "obs"],
+        "appointment_time": ["hora de llamada", "hora", "cita"],
+        "product_brand": ["marca de producto", "marca"],
+        "extra_phone": ["otro numero", "otro telefono", "telefono 2"],
+        "person_cc": ["cedula", "cc", "id", "identificacion"],
+        "person_name": ["nombre", "cliente", "usuario"]
+    }
+
+    calls_to_add = []
+    
+    # Pre-fetch study_id
+    sid = db_study.id
+    
+    for _, row in df.iterrows():
+        # Helper to get value
+        def get_val(key):
+            for alias in mapping[key]:
+                if alias in cols:
+                    val = row[cols[alias]]
+                    return str(val).strip() if pd.notna(val) else None
+            return None
+            
+        phone = get_val("phone_number")
+        if not phone:
+            continue # Skip row without phone
+            
+        call_obj = models.Call(
+            study_id=sid,
+            phone_number=phone,
+            city=get_val("city"),
+            initial_observation=get_val("initial_observation"),
+            appointment_time=get_val("appointment_time"),
+            product_brand=get_val("product_brand"),
+            extra_phone=get_val("extra_phone"),
+            person_cc=get_val("person_cc"),
+            person_name=get_val("person_name"),
+            status="pending"
+        )
+        calls_to_add.append(call_obj)
+        
+    if calls_to_add:
+        db.add_all(calls_to_add)
+        db.commit()
+        
+    return {"status": "ok", "count": len(calls_to_add), "study_id": sid, "study_name": db_study.name}
+
+
+@app.get("/calls")
+def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    q = db.query(models.Call)
+    if study_id:
+        q = q.filter(models.Call.study_id == study_id)
+    return q.all()
+
+class ObservationCreate(BaseModel):
+    text: str
+
+@app.post("/calls/{call_id}/observation")
+def add_observation(call_id: int, obs: ObservationCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_obs = models.Observation(call_id=call_id, user_id=current_user.id, text=obs.text)
+    db.add(db_obs)
+    db.commit()
+    db.refresh(db_obs)
+    return db_obs
+
+@app.get("/calls/{call_id}/observations")
+def get_observations(call_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Join user to get name? For now just return raw
+    return db.query(models.Observation).filter(models.Observation.call_id == call_id).all()
+
+class ScheduleCreate(BaseModel):
+    scheduled_time: str # ISO format
+
+@app.post("/calls/{call_id}/schedule")
+def schedule_call(call_id: int, sched: ScheduleCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    dt = pd.to_datetime(sched.scheduled_time).to_pydatetime()
+    db_sched = models.Schedule(call_id=call_id, user_id=current_user.id, scheduled_time=dt)
+    db.add(db_sched)
+    db.commit()
+    return {"status": "ok"}
 
 
 def normalize_columns(df, manual_mapping=None):

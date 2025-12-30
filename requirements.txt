@@ -3,3 +3,7 @@ uvicorn
 python-multipart
 pandas
 openpyxl
+
+sqlalchemy
+python-jose[cryptography]
+passlib[bcrypt]
