@@ -119,6 +119,17 @@ def list_users(db: Session = Depends(database.get_db), current_user: models.User
     users = db.query(models.User).all()
     return [{"username": u.username, "role": u.role, "id": u.id} for u in users]
 
+@app.get("/debug/user-count")
+def debug_user_count(db: Session = Depends(database.get_db)):
+    """Public endpoint to check if users were created"""
+    count = db.query(models.User).count()
+    users = db.query(models.User).all()
+    return {
+        "total_users": count,
+        "usernames": [u.username for u in users]
+    }
+
+
 @app.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "superuser":
