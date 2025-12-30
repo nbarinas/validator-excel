@@ -132,14 +132,19 @@ def debug_user_count(db: Session = Depends(database.get_db)):
 @app.get("/debug/reset-admin")
 def debug_reset_admin(db: Session = Depends(database.get_db)):
     """Temporary endpoint to force reset admin password"""
-    user = db.query(models.User).filter(models.User.username == "admin").first()
-    if user:
-        # Force reset password
-        user.hashed_password = auth.get_password_hash("admin123")
-        user.role = "superuser"
-        db.commit()
-        return {"status": "success", "message": "Admin password reset to admin123"}
-    return {"status": "error", "message": "Admin user not found"}
+    try:
+        user = db.query(models.User).filter(models.User.username == "admin").first()
+        if user:
+            # Force reset password using passlib
+            from passlib.context import CryptContext
+            pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+            user.hashed_password = pwd_context.hash("admin123")
+            user.role = "superuser"
+            db.commit()
+            return {"status": "success", "message": "Admin password reset to admin123", "user": user.username}
+        return {"status": "error", "message": "Admin user not found"}
+    except Exception as e:
+        return {"status": "error", "message": f"Error: {str(e)}"}
 
 
 @app.delete("/users/{user_id}")
