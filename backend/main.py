@@ -138,13 +138,32 @@ def debug_reset_admin(db: Session = Depends(database.get_db)):
             # Force reset password using passlib
             from passlib.context import CryptContext
             pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-            user.hashed_password = pwd_context.hash("admin123")
+            
+            # Truncate password to 72 bytes to avoid bcrypt error
+            password = "admin123"[:72]
+            user.hashed_password = pwd_context.hash(password)
             user.role = "superuser"
             db.commit()
             return {"status": "success", "message": "Admin password reset to admin123", "user": user.username}
         return {"status": "error", "message": "Admin user not found"}
     except Exception as e:
         return {"status": "error", "message": f"Error: {str(e)}"}
+
+@app.get("/debug/check-admin")
+def debug_check_admin(db: Session = Depends(database.get_db)):
+    """Check admin user details"""
+    try:
+        user = db.query(models.User).filter(models.User.username == "admin").first()
+        if user:
+            return {
+                "username": user.username,
+                "role": user.role,
+                "hash_length": len(user.hashed_password) if user.hashed_password else 0,
+                "hash_preview": user.hashed_password[:50] if user.hashed_password else None
+            }
+        return {"error": "Admin not found"}
+    except Exception as e:
+        return {"error": str(e)}
 
 
 @app.delete("/users/{user_id}")
