@@ -129,7 +129,7 @@ def debug_user_count(db: Session = Depends(database.get_db)):
         "usernames": [u.username for u in users]
     }
 
-@app.post("/debug/reset-admin")
+@app.get("/debug/reset-admin")
 def debug_reset_admin(db: Session = Depends(database.get_db)):
     """Temporary endpoint to force reset admin password"""
     user = db.query(models.User).filter(models.User.username == "admin").first()
