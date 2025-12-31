@@ -11,9 +11,16 @@ SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./az_marketing.db
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Fix for MySQL: Ensure pymysql driver is used if user provided mysql://
+if SQLALCHEMY_DATABASE_URL.startswith("mysql://"):
+    SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("mysql://", "mysql+pymysql://", 1)
+
 connect_args = {}
 if "sqlite" in SQLALCHEMY_DATABASE_URL:
     connect_args = {"check_same_thread": False}
+elif "mysql" in SQLALCHEMY_DATABASE_URL:
+    # MySQL connection pooling to avoid "MySQL server has gone away"
+    connect_args = {"pool_recycle": 280}
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL, connect_args=connect_args
