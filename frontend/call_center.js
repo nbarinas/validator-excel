@@ -144,9 +144,14 @@ function showGridView() {
     document.getElementById('callsGridView').style.display = 'block';
     document.getElementById('callDetailView').style.display = 'none';
 
-    // Restore sidebar
-    document.querySelector('.sidebar').style.display = 'flex';
-    document.getElementById('crmInterface').style.gridTemplateColumns = '300px 1fr';
+    // Restore sidebar only for superusers
+    if (currentUserRole === 'superuser') {
+        document.querySelector('.sidebar').style.display = 'flex';
+        document.getElementById('crmInterface').style.gridTemplateColumns = '300px 1fr';
+    } else {
+        document.querySelector('.sidebar').style.display = 'none';
+        document.getElementById('crmInterface').style.gridTemplateColumns = '1fr';
+    }
 }
 
 function showDetailView() {
@@ -154,7 +159,7 @@ function showDetailView() {
     document.getElementById('callsGridView').style.display = 'none';
     document.getElementById('callDetailView').style.display = 'block';
 
-    // Hide sidebar
+    // Hide sidebar always in detail view
     document.querySelector('.sidebar').style.display = 'none';
     document.getElementById('crmInterface').style.gridTemplateColumns = '1fr';
 }
@@ -168,6 +173,7 @@ async function loadStudyData(studyId) {
         const res = await fetch(url, { headers });
         const calls = await res.json();
         renderCallGrid(calls);
+        // showGridView will calculate layout based on role
         showGridView();
     } catch (e) { console.error(e); }
 }
@@ -177,7 +183,7 @@ function renderCallGrid(calls) {
     tbody.innerHTML = '';
 
     if (calls.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">No hay llamadas pendientes</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No hay llamadas pendientes</td></tr>';
         return;
     }
 
@@ -187,6 +193,13 @@ function renderCallGrid(calls) {
         tr.style.borderBottom = '1px solid #eee';
         tr.onmouseover = () => tr.style.background = '#f8f9fa';
         tr.onmouseout = () => tr.style.background = 'white';
+
+        // Format appointment time if exists
+        let alertTime = '-';
+        if (call.appointment_time) {
+            const dateObj = new Date(call.appointment_time);
+            alertTime = `<span style="color:#d97706; font-weight:bold;">${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+        }
 
         tr.innerHTML = `
             <td onclick="event.stopPropagation()"><input type="checkbox" class="call-checkbox" value="${call.id}"></td>
@@ -199,6 +212,7 @@ function renderCallGrid(calls) {
             <td><span style="font-size:0.8rem; color:${call.agent_name ? '#4caf50' : '#f44336'}; font-weight:bold;">${call.agent_name || 'Sin Asignar'}</span></td>
             <td>${call.person_name || '-'}</td>
             <td>${call.city || '-'}</td>
+            <td>${alertTime}</td>
             <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${call.status}</span></td>
             <td><button class="btn-submit" style="padding:0.3rem 0.6rem; font-size:0.8rem;">Gestionar</button></td>
         `;
