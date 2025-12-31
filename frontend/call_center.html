@@ -134,6 +134,26 @@
                     <label>Nombre del Nuevo Estudio</label>
                     <input type="text" id="uploadStudyName" placeholder="Ej: Estudio Diciembre 2025">
                 </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Tipo de Estudio</label>
+                        <select id="uploadStudyType" style="width: 100%; padding: 0.5rem;">
+                            <option value="validacion">Validación</option>
+                            <option value="fatiga">Fatiga</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Etapa (R)</label>
+                        <select id="uploadStudyStage" style="width: 100%; padding: 0.5rem;">
+                            <option value="R1">R1</option>
+                            <option value="R2">R2</option>
+                            <option value="R3">R3</option>
+                            <option value="R4">R4</option>
+                            <option value="R5">R5</option>
+                            <option value="Rf">Rf (Final)</option>
+                        </select>
+                    </div>
+                </div>
                 <!-- Or Append to existing? For now just create new as requested -->
                 <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
                     <button onclick="closeUploadModal()"
