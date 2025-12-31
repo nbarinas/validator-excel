@@ -78,6 +78,8 @@ function closeUploadModal() {
 async function uploadCalls() {
     const fileInput = document.getElementById('uploadFile');
     const studyName = document.getElementById('uploadStudyName').value;
+    const studyType = document.getElementById('uploadStudyType').value;
+    const studyStage = document.getElementById('uploadStudyStage').value;
 
     if (!fileInput.files[0]) {
         alert("Selecciona un archivo Excel");
@@ -92,6 +94,8 @@ async function uploadCalls() {
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     formData.append('study_name', studyName);
+    formData.append('study_type', studyType);
+    formData.append('study_stage', studyStage);
 
     alert("Cargando base de datos... Esto puede tomar unos segundos.");
 

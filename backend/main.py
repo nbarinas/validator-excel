@@ -390,6 +390,8 @@ def close_call(call_id: int, db: Session = Depends(database.get_db), current_use
 async def upload_calls(
     file: UploadFile = File(...),
     study_name: str = Form(None),
+    study_type: str = Form(None), # Added
+    study_stage: str = Form(None), # Added
     study_id: int = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
@@ -404,11 +406,14 @@ async def upload_calls(
              raise HTTPException(status_code=404, detail="Study not found")
     elif study_name:
         # Create new study
-        # Check if code maps? Assume code=study_name[:3].upper() + random? Or just name.
-        # User didn't specify code logic. Let's make a simple code.
         import random
         code = study_name[:4].upper() + str(random.randint(10,99))
-        db_study = models.Study(code=code, name=study_name)
+        db_study = models.Study(
+            code=code, 
+            name=study_name,
+            study_type=study_type, # Save type
+            stage=study_stage      # Save stage
+        )
         db.add(db_study)
         db.commit()
         db.refresh(db_study)
