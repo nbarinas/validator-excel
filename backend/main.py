@@ -464,16 +464,28 @@ async def upload_calls(
         if not phone:
             continue # Skip row without phone
             
+        # Safe Date Parsing
+        appt_raw = get_val("appointment_time")
+        appt_dt = None
+        if appt_raw:
+            try:
+                # Use pandas to parse, convert to pydatetime, set to None if NaT
+                ts = pd.to_datetime(appt_raw, errors='coerce')
+                if pd.notna(ts):
+                    appt_dt = ts.to_pydatetime()
+            except:
+                appt_dt = None
+
         call_obj = models.Call(
             study_id=sid,
-            phone_number=phone,
-            city=get_val("city"),
-            initial_observation=get_val("initial_observation"),
-            appointment_time=get_val("appointment_time"),
-            product_brand=get_val("product_brand"),
-            extra_phone=get_val("extra_phone"),
-            person_cc=get_val("person_cc"),
-            person_name=get_val("person_name"),
+            phone_number=phone[:20], # Truncate to fit VARCHAR(20)
+            city=get_val("city")[:100] if get_val("city") else None,
+            initial_observation=get_val("initial_observation")[:500] if get_val("initial_observation") else None,
+            appointment_time=appt_dt,
+            product_brand=get_val("product_brand")[:100] if get_val("product_brand") else None,
+            extra_phone=get_val("extra_phone")[:20] if get_val("extra_phone") else None,
+            person_cc=get_val("person_cc")[:20] if get_val("person_cc") else None,
+            person_name=get_val("person_name")[:100] if get_val("person_name") else None,
             status="pending"
         )
         calls_to_add.append(call_obj)
