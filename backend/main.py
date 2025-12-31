@@ -134,14 +134,19 @@ def debug_reset_admin(db: Session = Depends(database.get_db)):
     """Temporary endpoint to force reset admin password"""
     try:
         user = db.query(models.User).filter(models.User.username == "admin").first()
+        hashed_pwd = "$2b$12$JGM4KHyZ5kQGg.4HejqX2Ov545baXJkLphOSmkPQCILbXokU0VdBG" # admin123
+        
         if user:
-            # Use pre-generated hash for "admin123" to avoid bcrypt version issues
-            # Generated locally with: passlib.context.CryptContext(schemes=["bcrypt"]).hash("admin123")
-            user.hashed_password = "$2b$12$JGM4KHyZ5kQGg.4HejqX2Ov545baXJkLphOSmkPQCILbXokU0VdBG"
+            user.hashed_password = hashed_pwd
             user.role = "superuser"
-            db.commit()
-            return {"status": "success", "message": "Admin password reset to admin123", "user": user.username}
-        return {"status": "error", "message": "Admin user not found"}
+            action = "updated"
+        else:
+            user = models.User(username="admin", hashed_password=hashed_pwd, role="superuser")
+            db.add(user)
+            action = "created"
+            
+        db.commit()
+        return {"status": "success", "message": f"Admin user {action} successfully", "username": "admin"}
     except Exception as e:
         return {"status": "error", "message": f"Error: {str(e)}"}
 
