@@ -6,65 +6,68 @@ from .database import Base
 
 class User(Base):
     __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True) # CC or Email
-    hashed_password = Column(String)
-    role = Column(String, default="agent") # admin, agent
     
-    observations = relationship("Observation", back_populates="user")
-    schedules = relationship("Schedule", back_populates="user")
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True) # specified length for MySQL
+    hashed_password = Column(String(255)) # specified length
+    role = Column(String(20), default="agent") # specified length
+
+    calls = relationship("Call", back_populates="user")
 
 class Study(Base):
     __tablename__ = "studies"
     
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String, unique=True, index=True)
-    name = Column(String)
-    status = Column(String, default="open") # open, closed
+    code = Column(String(50), unique=True, index=True)
+    name = Column(String(100))
+    status = Column(String(20), default="open") # open, closed
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     # New Fields
-    study_type = Column(String, nullable=True) # 'validacion', 'fatiga'
-    stage = Column(String, nullable=True) # 'R1', 'R2', 'Rf', etc.
+    study_type = Column(String(50), nullable=True) # 'validacion', 'fatiga'
+    stage = Column(String(20), nullable=True) # 'R1', 'R2', 'Rf', etc.
 
     calls = relationship("Call", back_populates="study")
 
 class Call(Base):
     __tablename__ = "calls"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     study_id = Column(Integer, ForeignKey("studies.id"))
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
-    phone_number = Column(String, index=True)
-    corrected_phone = Column(String, nullable=True)
-    person_cc = Column(String, nullable=True) # CC of the person called
-    person_name = Column(String, nullable=True)
-    status = Column(String, default="pending") 
+    phone_number = Column(String(20), index=True)
+    person_name = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True)
+    status = Column(String(20), default="pending") # pending, managed, closed
     
     # New Fields
-    city = Column(String, nullable=True)
-    initial_observation = Column(Text, nullable=True)
-    appointment_time = Column(String, nullable=True) # "Hora de llamada" from Excel
-    product_brand = Column(String, nullable=True)
-    extra_phone = Column(String, nullable=True) # "Otro numero"
+    observation = Column(String(500), nullable=True) # Legacy simple obs
+    product_brand = Column(String(100), nullable=True)
+    initial_observation = Column(String(500), nullable=True)
+    appointment_time = Column(DateTime, nullable=True) # For scheduling
+    extra_phone = Column(String(20), nullable=True)
     
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Assigned Agent
+    # Contact info updates
+    corrected_phone = Column(String(20), nullable=True)
+    person_cc = Column(String(20), nullable=True)
     
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
     study = relationship("Study", back_populates="calls")
+    user = relationship("User", back_populates="calls")
     observations = relationship("Observation", back_populates="call")
-    schedules = relationship("Schedule", back_populates="call")
-    user = relationship("User") # Relationship to Agent
 
 class Observation(Base):
     __tablename__ = "observations"
     
     id = Column(Integer, primary_key=True, index=True)
     call_id = Column(Integer, ForeignKey("calls.id"))
-    user_id = Column(Integer, ForeignKey("users.id"))
+    user_id = Column(Integer, ForeignKey("users.id")) # Kept this as it was in the original, not removed as in the example.
     
-    text = Column(Text)
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    text = Column(String(1000))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     call = relationship("Call", back_populates="observations")
     user = relationship("User", back_populates="observations")
