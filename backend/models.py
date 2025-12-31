@@ -13,6 +13,8 @@ class User(Base):
     role = Column(String(20), default="agent") # specified length
 
     calls = relationship("Call", back_populates="user")
+    observations = relationship("Observation", back_populates="user")
+    schedules = relationship("Schedule", back_populates="user")
 
 class Study(Base):
     __tablename__ = "studies"
@@ -58,6 +60,7 @@ class Call(Base):
     study = relationship("Study", back_populates="calls")
     user = relationship("User", back_populates="calls")
     observations = relationship("Observation", back_populates="call")
+    schedules = relationship("Schedule", back_populates="call")
 
 class Observation(Base):
     __tablename__ = "observations"
