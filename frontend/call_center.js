@@ -91,6 +91,16 @@ async function uploadCalls() {
         return;
     }
 
+    if (!studyType || studyType === "") {
+        alert("Por favor selecciona el Tipo de Estudio (Validación o Fatiga)");
+        return;
+    }
+
+    if (!studyStage || studyStage === "") {
+        alert("Por favor selecciona la Etapa (R)");
+        return;
+    }
+
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     formData.append('study_name', studyName);

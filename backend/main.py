@@ -406,6 +406,9 @@ async def upload_calls(
              raise HTTPException(status_code=404, detail="Study not found")
     elif study_name:
         # Create new study
+        if not study_type or not study_stage:
+            raise HTTPException(status_code=400, detail="Study Type and Stage are required for new studies")
+            
         import random
         code = study_name[:4].upper() + str(random.randint(10,99))
         db_study = models.Study(
