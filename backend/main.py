@@ -554,105 +554,124 @@ async def upload_calls(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    if current_user.role != "superuser":
-        raise HTTPException(status_code=403, detail="Not authorized")
-        
-    # Ensure study
-    if study_id:
-        db_study = db.query(models.Study).filter(models.Study.id == study_id).first()
-        if not db_study:
-             raise HTTPException(status_code=404, detail="Study not found")
-    elif study_name:
-        # Create new study
-        if not study_type or not study_stage:
-            raise HTTPException(status_code=400, detail="Study Type and Stage are required for new studies")
-            
-        import random
-        code = study_name[:4].upper() + str(random.randint(10,99))
-        db_study = models.Study(
-            code=code, 
-            name=study_name,
-            study_type=study_type, # Save type
-            stage=study_stage      # Save stage
-        )
-        db.add(db_study)
-        db.commit()
-        db.refresh(db_study)
-    else:
-        raise HTTPException(status_code=400, detail="Must provide study_id or study_name")
-
-    # Read File
+    # Add Logging
+    print(f"DEBUG: upload_calls start. Study: {study_name}, Type: {study_type}, Stage: {study_stage}, ID: {study_id}")
+    
     try:
-        content = await file.read()
-        df = pd.read_excel(io.BytesIO(content))
+        if current_user.role != "superuser":
+            raise HTTPException(status_code=403, detail="Not authorized")
+            
+        # Ensure study
+        if study_id:
+            db_study = db.query(models.Study).filter(models.Study.id == study_id).first()
+            if not db_study:
+                 raise HTTPException(status_code=404, detail="Study not found")
+        elif study_name:
+            # Create new study
+            if not study_type or not study_stage:
+                # IMPORTANT: study_type from Form might be "null" string or actual None depending on browser?
+                # Javascript FormData with null value usually becomes "null" string or empty string.
+                raise HTTPException(status_code=400, detail="Study Type and Stage are required for new studies")
+                
+            import random
+            code = study_name[:4].upper() + str(random.randint(10,99))
+            db_study = models.Study(
+                code=code, 
+                name=study_name,
+                study_type=study_type, # Save type
+                stage=study_stage      # Save stage
+            )
+            db.add(db_study)
+            db.commit()
+            db.refresh(db_study)
+        else:
+            raise HTTPException(status_code=400, detail="Must provide study_id or study_name")
+
+        # Read File
+        print("DEBUG: Reading file...")
+        try:
+            content = await file.read()
+            df = pd.read_excel(io.BytesIO(content))
+            print(f"DEBUG: File read. Columns: {df.columns.tolist()}")
+        except Exception as e:
+            print(f"DEBUG: Excel Error: {e}")
+            raise HTTPException(status_code=400, detail=f"Invalid Excel file: {str(e)}")
+
+        # Map Columns
+        # Expected: Telefono, Ciudad, Observaciones, Hora de llamada, Marca de producto, Otro numero, Cedula, Nombre
+        # Normalize headers
+        cols = {str(c).strip().lower(): c for c in df.columns}
+        
+        mapping = {
+            "phone_number": ["telefono", "celular", "numero", "movil"],
+            "city": ["ciudad", "city"],
+            "initial_observation": ["observaciones", "observacion", "obs"],
+            "appointment_time": ["hora de llamada", "hora", "cita"],
+            "product_brand": ["marca de producto", "marca"],
+            "extra_phone": ["otro numero", "otro telefono", "telefono 2"],
+            "person_cc": ["cedula", "cc", "id", "identificacion"],
+            "person_name": ["nombre", "cliente", "usuario"]
+        }
+
+        calls_to_add = []
+        
+        # Pre-fetch study_id
+        sid = db_study.id
+        
+        for _, row in df.iterrows():
+            # Helper to get value
+            def get_val(key):
+                for alias in mapping[key]:
+                    if alias in cols:
+                        val = row[cols[alias]]
+                        return str(val).strip() if pd.notna(val) else None
+                return None
+                
+            phone = get_val("phone_number")
+            if not phone:
+                continue # Skip row without phone
+                
+            # Safe Date Parsing
+            appt_raw = get_val("appointment_time")
+            appt_dt = None
+            if appt_raw:
+                try:
+                    # Use pandas to parse, convert to pydatetime, set to None if NaT
+                    ts = pd.to_datetime(appt_raw, errors='coerce')
+                    if pd.notna(ts):
+                        appt_dt = ts.to_pydatetime()
+                except:
+                    appt_dt = None
+
+            call_obj = models.Call(
+                study_id=sid,
+                phone_number=phone[:20], # Truncate to fit VARCHAR(20)
+                city=get_val("city")[:100] if get_val("city") else None,
+                initial_observation=get_val("initial_observation")[:500] if get_val("initial_observation") else None,
+                appointment_time=appt_dt,
+                product_brand=get_val("product_brand")[:100] if get_val("product_brand") else None,
+                extra_phone=get_val("extra_phone")[:20] if get_val("extra_phone") else None,
+                person_cc=get_val("person_cc")[:20] if get_val("person_cc") else None,
+                person_name=get_val("person_name")[:100] if get_val("person_name") else None,
+                status="pending"
+            )
+            calls_to_add.append(call_obj)
+        
+        print(f"DEBUG: Found {len(calls_to_add)} calls to add.")
+        if calls_to_add:
+            db.add_all(calls_to_add)
+            db.commit()
+            
+        return {"status": "ok", "count": len(calls_to_add), "study_id": sid, "study_name": db_study.name}
+
+    except HTTPException as he:
+        # Re-raise HTTP exceptions as-is
+        raise he
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid Excel file: {str(e)}")
-
-    # Map Columns
-    # Expected: Telefono, Ciudad, Observaciones, Hora de llamada, Marca de producto, Otro numero, Cedula, Nombre
-    # Normalize headers
-    cols = {str(c).strip().lower(): c for c in df.columns}
-    
-    mapping = {
-        "phone_number": ["telefono", "celular", "numero", "movil"],
-        "city": ["ciudad", "city"],
-        "initial_observation": ["observaciones", "observacion", "obs"],
-        "appointment_time": ["hora de llamada", "hora", "cita"],
-        "product_brand": ["marca de producto", "marca"],
-        "extra_phone": ["otro numero", "otro telefono", "telefono 2"],
-        "person_cc": ["cedula", "cc", "id", "identificacion"],
-        "person_name": ["nombre", "cliente", "usuario"]
-    }
-
-    calls_to_add = []
-    
-    # Pre-fetch study_id
-    sid = db_study.id
-    
-    for _, row in df.iterrows():
-        # Helper to get value
-        def get_val(key):
-            for alias in mapping[key]:
-                if alias in cols:
-                    val = row[cols[alias]]
-                    return str(val).strip() if pd.notna(val) else None
-            return None
-            
-        phone = get_val("phone_number")
-        if not phone:
-            continue # Skip row without phone
-            
-        # Safe Date Parsing
-        appt_raw = get_val("appointment_time")
-        appt_dt = None
-        if appt_raw:
-            try:
-                # Use pandas to parse, convert to pydatetime, set to None if NaT
-                ts = pd.to_datetime(appt_raw, errors='coerce')
-                if pd.notna(ts):
-                    appt_dt = ts.to_pydatetime()
-            except:
-                appt_dt = None
-
-        call_obj = models.Call(
-            study_id=sid,
-            phone_number=phone[:20], # Truncate to fit VARCHAR(20)
-            city=get_val("city")[:100] if get_val("city") else None,
-            initial_observation=get_val("initial_observation")[:500] if get_val("initial_observation") else None,
-            appointment_time=appt_dt,
-            product_brand=get_val("product_brand")[:100] if get_val("product_brand") else None,
-            extra_phone=get_val("extra_phone")[:20] if get_val("extra_phone") else None,
-            person_cc=get_val("person_cc")[:20] if get_val("person_cc") else None,
-            person_name=get_val("person_name")[:100] if get_val("person_name") else None,
-            status="pending"
-        )
-        calls_to_add.append(call_obj)
-        
-    if calls_to_add:
-        db.add_all(calls_to_add)
-        db.commit()
-        
-    return {"status": "ok", "count": len(calls_to_add), "study_id": sid, "study_name": db_study.name}
+        import traceback
+        traceback.print_exc()
+        # Return 500 JSON so frontend catch block can show message
+        return JSONResponse(status_code=500, content={"detail": f"Internal Server Error: {str(e)}"})
 
 
 @app.get("/calls")
