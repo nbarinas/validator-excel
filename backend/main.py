@@ -287,6 +287,41 @@ def debug_test_verify(db: Session = Depends(database.get_db)):
     except Exception as e:
         return {"error": str(e)}
 
+@app.get("/debug/migrate-db")
+def debug_migrate_db(db: Session = Depends(database.get_db)):
+    """Run migrations to add missing columns to users table"""
+    from sqlalchemy import text, inspect
+    try:
+        inspector = inspect(db.get_bind())
+        existing_columns = [c['name'] for c in inspector.get_columns('users')]
+        
+        new_columns = [
+            ("full_name", "VARCHAR(100)"),
+            ("bank", "VARCHAR(50)"),
+            ("account_type", "VARCHAR(20)"),
+            ("account_number", "VARCHAR(50)"),
+            ("birth_date", "VARCHAR(20)"),
+            ("phone_number", "VARCHAR(20)"),
+            ("address", "VARCHAR(200)"),
+            ("city", "VARCHAR(100)"),
+        ]
+        
+        log = []
+        for col, dtype in new_columns:
+            if col not in existing_columns:
+                try:
+                    db.execute(text(f"ALTER TABLE users ADD COLUMN {col} {dtype}"))
+                    log.append(f"Added column {col}")
+                except Exception as e:
+                    log.append(f"Failed to add {col}: {str(e)}")
+            else:
+                log.append(f"Column {col} already exists")
+                
+        db.commit()
+        return {"status": "migration completed", "log": log}
+    except Exception as e:
+        return {"error": str(e)}
+
 
 @app.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
