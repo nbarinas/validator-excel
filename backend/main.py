@@ -334,6 +334,32 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
                     log.append(f"Failed to add {col} to studies: {str(e)}")
             else:
                 log.append(f"Column {col} already exists in studies")
+
+        # --- CALLS MIGRATION ---
+        existing_call_cols = [c['name'] for c in inspector.get_columns('calls')]
+        new_call_cols = [
+            ("census", "VARCHAR(50)"),
+            ("observation", "VARCHAR(500)"),
+            ("product_brand", "VARCHAR(100)"),
+            ("initial_observation", "VARCHAR(500)"),
+            ("appointment_time", "DATETIME"),
+            ("extra_phone", "VARCHAR(20)"),
+            ("corrected_phone", "VARCHAR(20)"),
+            ("person_cc", "VARCHAR(20)"),
+            ("updated_at", "DATETIME"),
+            ("person_name", "VARCHAR(100)"), # Ensure this exists too
+            ("city", "VARCHAR(100)")
+        ]
+
+        for col, dtype in new_call_cols:
+            if col not in existing_call_cols:
+                try:
+                    db.execute(text(f"ALTER TABLE calls ADD COLUMN {col} {dtype}"))
+                    log.append(f"Added column {col} to calls")
+                except Exception as e:
+                    log.append(f"Failed to add {col} to calls: {str(e)}")
+            else:
+                log.append(f"Column {col} already exists in calls")
                 
         db.commit()
         return {"status": "migration completed", "log": log}
