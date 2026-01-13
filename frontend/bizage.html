@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estudios Bizage - AZ Marketing</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .btn-back {
+            background: transparent;
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            align-items: end;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+        }
+
+        input,
+        select,
+        textarea {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #6366f1;
+        }
+
+        button.btn-primary {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        button.btn-primary:hover {
+            background: #4f46e5;
+            transform: translateY(-2px);
+        }
+
+        /* Table Styles */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            color: #e2e8f0;
+        }
+
+        th,
+        td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        th {
+            background: rgba(15, 23, 42, 0.8);
+            font-weight: 600;
+            color: #94a3b8;
+        }
+
+        tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .status-registered {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .status-radicated {
+            background: rgba(234, 179, 8, 0.2);
+            color: #facc15;
+        }
+
+        .status-number_assigned {
+            background: rgba(168, 85, 247, 0.2);
+            color: #c084fc;
+        }
+
+        .status-paid {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+        }
+
+        .actions-cell {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .btn-action {
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: white;
+            transition: transform 0.2s;
+        }
+
+        .btn-radicar {
+            background: #eab308;
+            color: #1e293b;
+            font-weight: bold;
+        }
+
+        .btn-bizagi {
+            background: #8b5cf6;
+        }
+
+        .btn-pay {
+            background: #22c55e;
+        }
+
+        .btn-history {
+            background: #64748b;
+        }
+
+        .btn-action:hover {
+            transform: scale(1.05);
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 12px;
+            width: 400px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal h2 {
+            margin-top: 0;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .history-tooltip {
+            font-size: 0.8rem;
+            color: #cbd5e1;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <a href="/" class="btn-back"><i class="fas fa-arrow-left"></i> Volver</a>
+                <h1><i class="fas fa-tasks"></i> Gestión de Estudios Bizage</h1>
+            </div>
+            <div>
+                <span id="userInfo" style="margin-right: 1rem; color: #94a3b8;"></span>
+                <button onclick="logout()" class="btn-action btn-history">Salir</button>
+            </div>
+        </header>
+
+        <!-- Use Cases / Registration -->
+        <!-- Use Cases / Registration -->
+        <div class="card">
+            <h3 style="margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1rem;">
+                Registrar Nuevo Estudio</h3>
+
+            <div style="display: flex; gap: 3rem; flex-wrap: wrap;">
+
+                <!-- Left Side: Basic Information -->
+                <div style="flex: 1; min-width: 300px; display: flex; flex-direction: column; gap: 1.5rem;">
+                    <div class="form-group">
+                        <label>Tipo de Estudio</label>
+                        <select id="studyType" onchange="toggleInHomeOptions()"
+                            style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white;">
+                            <option value="Ascensor">Ascensor</option>
+                            <option value="In Home">In Home</option>
+                            <option value="Test de Compra">Test de Compra</option>
+                            <option value="Seguimiento de Marca">Seguimiento de Marca</option>
+                            <option value="Nuevo">Nuevo</option>
+                        </select>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" id="studyName" placeholder="Nombre del estudio" style="width: 100%;">
+                        </div>
+                        <div class="form-group">
+                            <label>Cantidad (N)</label>
+                            <input type="number" id="nValue" placeholder="0" style="width: 100%;">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notas Adicionales</label>
+                        <input type="text" id="surveyNotes" placeholder="Detalles o comentarios..."
+                            style="width: 100%;">
+                    </div>
+
+                </div>
+
+                <!-- Right Side: In Home Options (Grid 2 cols) -->
+                <div id="inHomeOptionsGroup" class="in-home-options">
+                    <div class="in-home-header">
+                        <i class="fas fa-clipboard-list"></i> Clasificación In Home (Obligatorio)
+                    </div>
+
+                    <div
+                        style="display: grid; grid-template-columns: 2fr 1fr 1fr; row-gap: 0.2rem; column-gap: 0.5rem; align-items: center;">
+                        <!-- Headers -->
+                        <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Categoría</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">Cant.</div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; text-transform: uppercase;">$ Unit</div>
+
+                        <!-- Rows -->
+                        <!-- Implantación -->
+                        <div style="font-size: 0.9rem;">Implantación</div>
+                        <input type="number" id="ih_implantacion" value="0" min="0" placeholder="0"
+                            style="padding: 0.3rem;">
+                        <input type="number" id="ih_implantacion_price" value="0" min="0" placeholder="$"
+                            style="padding: 0.3rem;">
+
+                        <!-- R1 y otros -->
+                        <div style="font-size: 0.9rem;">R1 y otros</div>
+                        <input type="number" id="ih_r1" value="0" min="0" placeholder="0" style="padding: 0.3rem;">
+                        <input type="number" id="ih_r1_price" value="0" min="0" placeholder="$"
+                            style="padding: 0.3rem;">
+
+                        <!-- RF -->
+                        <div style="font-size: 0.9rem;">RF</div>
+                        <input type="number" id="ih_rf" value="0" min="0" placeholder="0" style="padding: 0.3rem;">
+                        <input type="number" id="ih_rf_price" value="0" min="0" placeholder="$"
+                            style="padding: 0.3rem;">
+
+                        <!-- Caída Desempeño -->
+                        <div style="font-size: 0.9rem;">Caída Desemp.</div>
+                        <input type="number" id="ih_caida_des" value="0" min="0" placeholder="0"
+                            style="padding: 0.3rem;">
+                        <input type="number" id="ih_caida_des_price" value="0" min="0" placeholder="$"
+                            style="padding: 0.3rem;">
+
+                        <!-- Caída -->
+                        <div style="font-size: 0.9rem;">Caída</div>
+                        <input type="number" id="ih_caida" value="0" min="0" placeholder="0" style="padding: 0.3rem;">
+                        <input type="number" id="ih_caida_price" value="0" min="0" placeholder="$"
+                            style="padding: 0.3rem;">
+
+                        <!-- Encuestas No Part. -->
+                        <div style="font-size: 0.9rem;">No Participa</div>
+                        <input type="number" id="ih_nopart" value="0" min="0" placeholder="0" style="padding: 0.3rem;">
+                        <input type="number" id="ih_nopart_price" value="0" min="0" placeholder="$"
+                            style="padding: 0.3rem;">
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="form-section-footer">
+                <button class="btn-primary btn-large-submit" onclick="registerStudy()">
+                    <i class="fas fa-plus"></i> Registrar Estudio
+                </button>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="card">
+            <div class="table-responsive">
+                <table id="studiesTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Tipo</th>
+                            <th>Nombre</th>
+                            <th>N</th>
+                            <th>Detalles</th>
+                            <th>Estado</th>
+                            <th>Historial</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studiesBody">
+                        <!-- Loaded via JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Radicar -->
+    <div id="modalRadicar" class="modal">
+        <div class="modal-content" style="width: 500px;">
+            <h2>Radicar Estudio</h2>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="radQuantity">
+                </div>
+                <div class="form-group">
+                    <label>Precio</label>
+                    <input type="number" id="radPrice">
+                </div>
+                <div class="form-group">
+                    <label>Copias</label>
+                    <input type="number" id="radCopies" value="0">
+                </div>
+                <div class="form-group">
+                    <label>Vinipel</label>
+                    <input type="number" id="radVinipel" value="0">
+                </div>
+            </div>
+
+            <h4 style="margin: 1rem 0 0.5rem 0; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">Otro
+                Costo</h4>
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Descripción</label>
+                    <input type="text" id="radOtherDesc" placeholder="Ej. Transporte">
+                </div>
+                <div class="form-group">
+                    <label>Valor</label>
+                    <input type="number" id="radOtherVal" value="0">
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-action btn-history" onclick="closeModal('modalRadicar')">Cancelar</button>
+                <button class="btn-action btn-radicar" onclick="confirmRadicar()">Radicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Bizagi -->
+    <div id="modalBizagi" class="modal">
+        <div class="modal-content">
+            <h2>Ingresar Número Bizagi</h2>
+            <div class="form-group">
+                <label>Número Bizagi</label>
+                <input type="text" id="bizagiNumber">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-action btn-history" onclick="closeModal('modalBizagi')">Cancelar</button>
+                <button class="btn-action btn-bizagi" onclick="confirmBizagi()">Guardar</button>
+            </div>
+        </div>
+        <!-- Modal: Pay -->
+        <div id="modalPay" class="modal">
+            <div class="modal-content">
+                <h2>Registrar Pago</h2>
+                <div class="form-group">
+                    <label>Fecha de Pago</label>
+                    <input type="date" id="payDate">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn-action btn-history" onclick="closeModal('modalPay')">Cancelar</button>
+                    <button class="btn-action btn-pay" onclick="confirmPay()">Pagar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal: Edit -->
+        <div id="modalEdit" class="modal">
+            <div class="modal-content" style="width: 600px; max-height: 90vh; overflow-y: auto;">
+                <h2>Editar Estudio</h2>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Tipo</label>
+                        <input type="text" id="editType">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre</label>
+                        <input type="text" id="editName">
+                    </div>
+                    <div class="form-group">
+                        <label>N</label>
+                        <input type="number" id="editN">
+                    </div>
+                    <div class="form-group">
+                        <label>Bizagi</label>
+                        <input type="text" id="editBizagi">
+                    </div>
+
+                    <!-- Costs -->
+                    <div class="form-group"><label>Cant</label><input type="number" id="editQty"></div>
+                    <div class="form-group"><label>Precio</label><input type="number" id="editPrice"></div>
+                    <div class="form-group"><label>Copias</label><input type="number" id="editCopies"></div>
+                    <div class="form-group"><label>Vinipel</label><input type="number" id="editVinipel"></div>
+                </div>
+
+                <div class="form-group" style="margin-top:1rem">
+                    <label>Notas / Clasificación</label>
+                    <input type="text" id="editNotes">
+                </div>
+
+                <!-- Other costs -->
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-top: 1rem;">
+                    <div class="form-group"><label>Otro Desc</label><input type="text" id="editOtherDesc"></div>
+                    <div class="form-group"><label>Otro Val</label><input type="number" id="editOtherVal"></div>
+                </div>
+
+                <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                    <label>Estado (Cuidado, solo si es necesario)</label>
+                    <select id="editStatus">
+                        <option value="registered">Registrado</option>
+                        <option value="radicated">Radicado</option>
+                        <option value="number_assigned">Asignado (Bizagi)</option>
+                        <option value="paid">Pagado</option>
+                    </select>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn-action btn-history" onclick="closeModal('modalEdit')">Cancelar</button>
+                    <button class="btn-action btn-primary" onclick="confirmEdit()">Guardar Cambios</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="/static/bizage.js"></script>
+</body>
+
+</html>

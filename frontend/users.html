@@ -32,23 +32,40 @@
         }
 
         .form-group {
-            margin-bottom: 1.5rem;
+            margin-bottom: 0;
+            /* Removing bottom margin for grid gap */
+        }
+
+        #createUserForm {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        #createUserForm button {
+            grid-column: 1 / -1;
+            margin-top: 0.5rem;
         }
 
         label {
             display: block;
-            margin-bottom: 0.5rem;
+            margin-bottom: 0.3rem;
+            /* Slightly tighter */
             font-weight: bold;
+            font-size: 0.9rem;
+            /* Slightly smaller for compactness */
         }
 
         input,
         select {
             width: 100%;
-            padding: 0.8rem;
+            padding: 0.6rem;
+            /* Slightly reduced padding */
             border-radius: 6px;
             border: 1px solid #ccc;
             background: rgba(255, 255, 255, 0.9);
             color: #333;
+            font-size: 0.9rem;
         }
 
         button {
@@ -88,6 +105,47 @@
             padding: 0.4rem 0.8rem;
             font-size: 0.9rem;
         }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            color: white;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close-modal:hover {
+            color: white;
+        }
     </style>
 </head>
 
@@ -118,6 +176,61 @@
                         <option value="superuser">Coordinador (Superusuario)</option>
                     </select>
                 </div>
+
+                <div class="form-group">
+                    <label>Nombre y Apellido</label>
+                    <input type="text" id="full_name" required placeholder="Nombre Completo">
+                </div>
+
+                <div class="form-group">
+                    <label>Banco</label>
+                    <select id="bank">
+                        <option value="">Seleccione...</option>
+                        <option value="Banco Caja Social">Banco Caja Social</option>
+                        <option value="Bancolombia">Bancolombia</option>
+                        <option value="Nequi">Nequi</option>
+                        <option value="Daviplata">Daviplata</option>
+                        <option value="Davivienda">Davivienda</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Cuenta</label>
+                    <select id="account_type">
+                        <option value="">Seleccione...</option>
+                        <option value="Ahorros">Ahorros</option>
+                        <option value="Corriente">Corriente</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Número de Cuenta</label>
+                    <input type="text" id="account_number" placeholder="Número de cuenta">
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha de Nacimiento</label>
+                    <input type="date" id="birth_date">
+                </div>
+
+                <div class="form-group">
+                    <label>Celular</label>
+                    <input type="tel" id="phone_number" placeholder="Número de celular">
+                </div>
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" id="address" placeholder="Dirección de residencia">
+                </div>
+
+                <div class="form-group">
+                    <label>Ciudad</label>
+                    <select id="city">
+                        <option value="">Seleccione...</option>
+                        <option value="Bogotá">Bogotá</option>
+                        <option value="Soacha">Soacha</option>
+                    </select>
+                </div>
+
                 <!-- Toggle for allowing superuser creation? The select above handles it. The user said "option to create superusers or not". 
                      This implies the logged-in superuser CHOOSES the role for the new user. -->
                 <button type="submit">Crear Usuario</button>
@@ -130,7 +243,10 @@
                 <thead>
                     <tr>
                         <th>ID</th>
-                        <th>Usuario</th>
+                        <th>Usuario (CC)</th>
+                        <th>Nombre</th>
+                        <th>Celular</th>
+                        <th>Ciudad</th>
                         <th>Rol</th>
                         <th>Acciones</th>
                     </tr>
@@ -139,6 +255,93 @@
                     <!-- Populated by JS -->
                 </tbody>
             </table>
+        </div>
+
+        <!-- Edit User Modal -->
+        <div id="editUserModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeEditModal()">&times;</span>
+                <h2>Editar Usuario</h2>
+                <form id="editUserForm" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <input type="hidden" id="edit_user_id">
+
+                    <div class="form-group">
+                        <label>Usuario (CC/Username)</label>
+                        <input type="text" id="edit_username" disabled style="background: rgba(255,255,255,0.5);">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nueva Contraseña (Opcional)</label>
+                        <input type="password" id="edit_password" placeholder="Dejar vacío para no cambiar">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select id="edit_role">
+                            <option value="agent">Encuestador / Operativo</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="superuser">Coordinador (Superusuario)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre y Apellido</label>
+                        <input type="text" id="edit_full_name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Banco</label>
+                        <select id="edit_bank">
+                            <option value="">Seleccione...</option>
+                            <option value="Banco Caja Social">Banco Caja Social</option>
+                            <option value="Bancolombia">Bancolombia</option>
+                            <option value="Nequi">Nequi</option>
+                            <option value="Daviplata">Daviplata</option>
+                            <option value="Davivienda">Davivienda</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Cuenta</label>
+                        <select id="edit_account_type">
+                            <option value="">Seleccione...</option>
+                            <option value="Ahorros">Ahorros</option>
+                            <option value="Corriente">Corriente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Número de Cuenta</label>
+                        <input type="text" id="edit_account_number">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fecha de Nacimiento</label>
+                        <input type="date" id="edit_birth_date">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Celular</label>
+                        <input type="tel" id="edit_phone_number">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" id="edit_address">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ciudad</label>
+                        <select id="edit_city">
+                            <option value="">Seleccione...</option>
+                            <option value="Bogotá">Bogotá</option>
+                            <option value="Soacha">Soacha</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" style="grid-column: 1 / -1; margin-top: 1rem;">Guardar Cambios</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -159,6 +362,8 @@
                     return;
                 }
                 const users = await res.json();
+                allUsers = users; // Store global
+
                 const tbody = document.querySelector('#usersTable tbody');
                 tbody.innerHTML = '';
                 users.forEach(u => {
@@ -166,12 +371,18 @@
                     tr.innerHTML = `
                         <td>${u.id}</td>
                         <td>${u.username}</td>
+                        <td>${u.full_name || '-'}</td>
+                        <td>${u.phone_number || '-'}</td>
+                        <td>${u.city || '-'}</td>
                         <td>${u.role}</td>
-                        <td>
-                            <button class="btn-delete" style="background:var(--primary-color); margin-right:5px;" onclick="resetPassword(${u.id})"><i class="fas fa-key"></i></button>
-                            ${u.username !== 'admin' ?
+<td>
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-start;">
+                                <button class="btn-delete" style="background:var(--primary-color);" onclick="openEditModal(${u.id})"><i class="fas fa-pencil-alt"></i></button>
+                                ${u.username !== 'admin' ?
                             `<button class="btn-delete" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>`
                             : ''}
+                                <button class="btn-delete" style="background:#10b981;" onclick="viewDetails('${u.id}')"><i class="fas fa-eye"></i></button>
+                            </div>
                         </td>
                     `;
                     tbody.appendChild(tr);
@@ -228,6 +439,28 @@
             const password = document.getElementById('password').value;
             const role = document.getElementById('role').value;
 
+            const full_name = document.getElementById('full_name').value;
+            const bank = document.getElementById('bank').value;
+            const account_type = document.getElementById('account_type').value;
+            const account_number = document.getElementById('account_number').value;
+            const birth_date = document.getElementById('birth_date').value;
+            const phone_number = document.getElementById('phone_number').value;
+
+            const address = document.getElementById('address').value;
+            const city = document.getElementById('city').value;
+
+            // Validation
+            if (phone_number) {
+                if (phone_number.length !== 10) {
+                    alert('El celular debe tener 10 dígitos.');
+                    return;
+                }
+                if (!phone_number.startsWith('3')) {
+                    alert('El celular debe comenzar por el número 3.');
+                    return;
+                }
+            }
+
             try {
                 const res = await fetch(API_URL + '/users', {
                     method: 'POST',
@@ -235,7 +468,19 @@
                         'Content-Type': 'application/json',
                         'Authorization': 'Bearer ' + token
                     },
-                    body: JSON.stringify({ username, password, role })
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        role,
+                        full_name,
+                        bank,
+                        account_type,
+                        account_number,
+                        birth_date,
+                        phone_number,
+                        address,
+                        city
+                    })
                 });
 
                 if (res.ok) {
@@ -252,7 +497,118 @@
             }
         });
 
+        // Edit Modal Logic
+        let allUsers = []; // Store for easy access
+
+        function openEditModal(id) {
+            const user = allUsers.find(u => u.id === id);
+            if (!user) return;
+
+            document.getElementById('edit_user_id').value = user.id;
+            document.getElementById('edit_username').value = user.username;
+            document.getElementById('edit_password').value = ''; // Reset password field
+            document.getElementById('edit_role').value = user.role;
+            document.getElementById('edit_full_name').value = user.full_name || '';
+            document.getElementById('edit_bank').value = user.bank || '';
+            document.getElementById('edit_account_type').value = user.account_type || '';
+            document.getElementById('edit_account_number').value = user.account_number || '';
+            document.getElementById('edit_birth_date').value = user.birth_date || '';
+            document.getElementById('edit_phone_number').value = user.phone_number || '';
+            document.getElementById('edit_address').value = user.address || '';
+            document.getElementById('edit_city').value = user.city || '';
+
+            document.getElementById('editUserModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editUserModal').style.display = 'none';
+        }
+
+        document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit_user_id').value;
+
+            const data = {
+                role: document.getElementById('edit_role').value,
+                full_name: document.getElementById('edit_full_name').value,
+                bank: document.getElementById('edit_bank').value,
+                account_type: document.getElementById('edit_account_type').value,
+                account_number: document.getElementById('edit_account_number').value,
+                birth_date: document.getElementById('edit_birth_date').value,
+                phone_number: document.getElementById('edit_phone_number').value,
+                address: document.getElementById('edit_address').value,
+                city: document.getElementById('edit_city').value
+            };
+
+            const pass = document.getElementById('edit_password').value;
+            if (pass) data.password = pass;
+
+            try {
+                const res = await fetch(API_URL + '/users/' + id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    alert('Usuario actualizado correctamente');
+                    closeEditModal();
+                    loadUsers();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + err.detail);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión');
+            }
+        });
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('editUserModal');
+            if (event.target == modal) {
+                closeEditModal();
+            }
+        }
+
+
         loadUsers();
+
+        async function viewDetails(id) {
+            // Find user in table data or fetch? simplified:
+            // Since we don't have global users list stored comfortably, let's just find from row or re-fetch.
+            // Better: re-fetch or store users in global var. Let's store in global var usersData.
+            try {
+                const res = await fetch(API_URL + '/users', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const users = await res.json();
+                const u = users.find(x => x.id == id);
+                if (u) {
+                    alert(`
+                        Detalles de Usuario:
+                        
+                        Nombre: ${u.full_name || '-'}
+                        CC/Usuario: ${u.username}
+                        Rol: ${u.role}
+                        Celular: ${u.phone_number || '-'}
+                        Ciudad: ${u.city || '-'}
+                        Dirección: ${u.address || '-'}
+                        Cumpleaños: ${u.birth_date || '-'}
+                        
+                        Banco: ${u.bank || '-'}
+                        Tipo: ${u.account_type || '-'}
+                        Cuenta: ${u.account_number || '-'}
+                    `);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
     </script>
 </body>
 

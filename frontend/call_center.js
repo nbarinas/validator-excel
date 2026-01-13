@@ -152,6 +152,72 @@ async function loadStudies() {
     });
 }
 
+// Add Enter key listener for column search
+document.getElementById('colFilterPhone').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') applyColumnFilters();
+});
+document.getElementById('colFilterName').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') applyColumnFilters();
+});
+document.getElementById('colFilterCity').addEventListener('change', function () {
+    applyColumnFilters();
+});
+
+function applyColumnFilters() {
+    const phoneTerm = document.getElementById('colFilterPhone').value.toLowerCase().trim();
+    const nameTerm = document.getElementById('colFilterName').value.toLowerCase().trim();
+    const cityTerm = document.getElementById('colFilterCity').value.toLowerCase().trim();
+
+    filteredCalls = allCalls.filter(c => {
+        const phone = (c.phone_number || '').toString().toLowerCase();
+        const name = (c.person_name || '').toString().toLowerCase();
+        const city = (c.city || '').toString().toLowerCase();
+
+        const matchPhone = !phoneTerm || phone.includes(phoneTerm);
+        const matchName = !nameTerm || name.includes(nameTerm);
+        // City must be exact match if selected, or match partial if we wanted, but dropdown usually implies exact or "includes"
+        // Let's use includes for flexibility or strict equality? 
+        // Dropdown values are from the data, so strict equality is better, but data might be dirty.
+        // Let's use includes for now to be safe, or just strict if value is not empty.
+        const matchCity = !cityTerm || city === cityTerm;
+
+        return matchPhone && matchName && matchCity;
+    });
+
+    renderCallGrid(filteredCalls);
+}
+
+function resetFilters() {
+    document.getElementById('colFilterPhone').value = '';
+    document.getElementById('colFilterName').value = '';
+    document.getElementById('colFilterCity').value = '';
+    applyColumnFilters();
+}
+
+
+function searchCalls() {
+    const term = document.getElementById('searchPhone').value.toLowerCase().trim();
+
+    if (!term) {
+        // If empty, reset to all calls (or current filtered state if we had other filters)
+        // For now, simple reset to allCalls
+        filteredCalls = [...allCalls];
+        renderCallGrid(filteredCalls);
+        return;
+    }
+
+    filteredCalls = allCalls.filter(c => {
+        const phone = (c.phone_number || '').toString().toLowerCase();
+        const name = (c.person_name || '').toString().toLowerCase();
+        const city = (c.city || '').toString().toLowerCase();
+        const census = (c.census || '').toString().toLowerCase();
+
+        return phone.includes(term) || name.includes(term) || city.includes(term) || census.includes(term);
+    });
+
+    renderCallGrid(filteredCalls);
+}
+
 // VIEW SWITCHING
 function showGridView() {
     document.getElementById('emptyState').style.display = 'none';
@@ -178,6 +244,12 @@ function showDetailView() {
     document.getElementById('crmInterface').style.gridTemplateColumns = '1fr';
 }
 
+// Filter State
+let allCalls = []; // Store all fetched calls
+let filteredCalls = [];
+let activeFilters = {}; // { key: Set(values) }
+let currentFilterColumn = null;
+
 async function loadStudyData(studyId) {
     // Fetch calls
     try {
@@ -186,7 +258,43 @@ async function loadStudyData(studyId) {
 
         const res = await fetch(url, { headers });
         const calls = await res.json();
-        renderCallGrid(calls);
+
+        // Enhance calls with 'observation_text' for easier filtering
+        // Assuming observation is simple text or latest one. 
+        // If API returns array, we take latest. If string (legacy), use it.
+        // Also map 'census' if needed.
+        allCalls = calls.map(c => {
+            // Flatten observations for table display if needed, or just use initial/latest
+            // For now, let's assume 'initial_observation' or we add a field in backend response
+            // If backend doesn't send 'census', it will be undefined.
+            return {
+                ...c,
+                observation_text: c.initial_observation || (c.observations && c.observations.length > 0 ? c.observations[0].text : '') || '-'
+            };
+        });
+
+        // Populate City Dropdown
+        const cities = new Set(allCalls.map(c => (c.city || '').trim()).filter(x => x)); // Unique cities
+        const citySel = document.getElementById('colFilterCity');
+        // Save current selection if re-populating? 
+        const currentCity = citySel.value;
+
+        // Keep "Todas"
+        citySel.innerHTML = '<option value="">Todas</option>';
+        [...cities].sort().forEach(city => {
+            const opt = document.createElement('option');
+            opt.value = city;
+            opt.textContent = city;
+            citySel.appendChild(opt);
+        });
+
+        // Restore selection if still valid
+        if ([...cities].includes(currentCity)) {
+            citySel.value = currentCity;
+        }
+
+        applyColumnFilters(); // Apply new column filters
+
         // showGridView will calculate layout based on role
         showGridView();
     } catch (e) { console.error(e); }
@@ -197,7 +305,7 @@ function renderCallGrid(calls) {
     tbody.innerHTML = '';
 
     if (calls.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">No hay llamadas pendientes</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">No hay llamadas (Filtros aplicados)</td></tr>';
         return;
     }
 
@@ -228,15 +336,116 @@ function renderCallGrid(calls) {
             <td>${call.city || '-'}</td>
             <td>${alertTime}</td>
             <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${call.status}</span></td>
-            <td><button class="btn-submit" style="padding:0.3rem 0.6rem; font-size:0.8rem;">Gestionar</button></td>
+            
+            <td>${call.census || '-'}</td>
+            <td style="font-size:0.8rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${call.observation_text}">${call.observation_text}</td>
+            
+            <td>
+                <button class="btn-submit" onclick="openCallDetail({ ...this.parentElement.parentElement.callData, manualEdit: true })" style="padding:0.3rem 0.5rem; font-size:0.75rem; margin-right:5px; background: #6366f1;"><i class="fas fa-edit"></i></button>
+                <button class="btn-submit" style="padding:0.3rem 0.5rem; font-size:0.75rem;">Gestionar</button>
+            </td>
         `;
 
+        // Store call data for the inline onclick handler to work simply
+        tr.callData = call;
+
         tr.onclick = (e) => {
-            // Prevent opening if clicking checkbox
-            if (e.target.type !== 'checkbox') openCallDetail(call);
+            // Prevent opening if clicking checkbox or buttons
+            if (e.target.type !== 'checkbox' && !e.target.closest('button')) openCallDetail(call);
         };
         tbody.appendChild(tr);
     });
+}
+
+// FILTER LOGIC
+function openFilter(column, event) {
+    event.stopPropagation();
+    currentFilterColumn = column;
+
+    // Get unique values
+    const uniqueValues = new Set(allCalls.map(c => c[column] || '-'));
+    const sortedValues = Array.from(uniqueValues).sort();
+
+    const container = document.getElementById('filterOptions');
+    container.innerHTML = '';
+
+    // Check if already filtered
+    const currentSelection = activeFilters[column] || uniqueValues; // If not filtered, all selected
+
+    // Add "Select All"
+    const divAll = document.createElement('div');
+    divAll.innerHTML = `<label><input type="checkbox" id="filterSelectAll" checked> (Seleccionar Todo)</label>`;
+    container.appendChild(divAll);
+    divAll.querySelector('input').onclick = (e) => {
+        const boxes = container.querySelectorAll('.filter-val');
+        boxes.forEach(b => b.checked = e.target.checked);
+    };
+
+    sortedValues.forEach(val => {
+        const div = document.createElement('div');
+        const isChecked = activeFilters[column] ? activeFilters[column].has(val) : true;
+        div.innerHTML = `<label><input type="checkbox" class="filter-val" value="${val}" ${isChecked ? 'checked' : ''}> ${val}</label>`;
+        container.appendChild(div);
+    });
+
+    // Position Popup
+    const popup = document.getElementById('filterPopup');
+    popup.style.display = 'block';
+    popup.style.top = event.clientY + 'px';
+    popup.style.left = event.clientX + 'px';
+
+    // Search Listener
+    document.getElementById('filterSearch').value = '';
+    document.getElementById('filterSearch').onkeyup = (e) => {
+        const term = e.target.value.toLowerCase();
+        const labels = container.querySelectorAll('label');
+        labels.forEach(l => {
+            if (l.innerText.toLowerCase().includes(term) || l.querySelector('#filterSelectAll')) {
+                l.style.display = 'block';
+            } else {
+                l.style.display = 'none';
+            }
+        });
+    };
+}
+
+// Global listener
+window.addEventListener('click', (e) => {
+    // Prevent closing if clicking inside the popup
+    if (e.target.closest('#filterPopup')) return;
+    closeFilter();
+});
+
+function applyFilter() {
+    if (currentFilterColumn) {
+        const container = document.getElementById('filterOptions');
+        const checked = Array.from(container.querySelectorAll('.filter-val:checked')).map(c => c.value);
+
+        // If all checked (or none unchecked), maybe remove filter? 
+        // For simplicity, just set activeFilters
+        if (checked.length > 0) {
+            activeFilters[currentFilterColumn] = new Set(checked);
+        } else {
+            // If nothing selected, show nothing? Or clear filter? Usually show nothing.
+            activeFilters[currentFilterColumn] = new Set([]);
+        }
+        closeFilter();
+    }
+
+    // Apply Logic
+    filteredCalls = allCalls.filter(call => {
+        return Object.keys(activeFilters).every(key => {
+            const val = call[key] || '-';
+            return activeFilters[key].has(val.toString()); // Ensure string comparison
+        });
+    });
+
+    renderCallGrid(filteredCalls);
+}
+
+function closeFilter() {
+    document.getElementById('filterPopup').style.display = 'none';
+    currentFilterColumn = null;
 }
 // ...
 // Scroll lower for other functions
@@ -342,7 +551,8 @@ async function loadAgents() {
             users.forEach(u => {
                 const opt = document.createElement('option');
                 opt.value = u.id;
-                opt.textContent = u.username;
+                // Use Full Name if available, fallback to username
+                opt.textContent = u.full_name || u.username;
                 sel.appendChild(opt.cloneNode(true));
                 bulkSel.appendChild(opt);
             });

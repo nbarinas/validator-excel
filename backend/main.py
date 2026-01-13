@@ -8,6 +8,7 @@ import pandas as pd
 import io
 import os
 from typing import List, Optional
+from datetime import datetime
 from pydantic import BaseModel
 
 from fastapi.staticfiles import StaticFiles
@@ -75,6 +76,14 @@ class UserCreate(BaseModel):
     username: str
     password: str
     role: str # superuser, supervisor, agent
+    full_name: Optional[str] = None
+    bank: Optional[str] = None
+    account_type: Optional[str] = None
+    account_number: Optional[str] = None
+    birth_date: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
 
 # --- AUTH ENDPOINTS ---
 
@@ -92,12 +101,22 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @app.get("/users/me")
 async def read_users_me(current_user: models.User = Depends(auth.get_current_user)):
-    return {"username": current_user.username, "role": current_user.role, "id": current_user.id}
+    return {
+        "username": current_user.username,
+        "role": current_user.role,
+        "id": current_user.id,
+        "id": current_user.id,
+        "full_name": current_user.full_name,
+        "address": current_user.address,
+        "city": current_user.city
+    }
 
 @app.post("/users", status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "superuser":
         raise HTTPException(status_code=403, detail="Not authorized")
+    
+    print(f"DEBUG: create_user received: {user.dict()}")
     
     # Check if user exists
     existing = db.query(models.User).filter(models.User.username == user.username).first()
@@ -105,11 +124,79 @@ def create_user(user: UserCreate, db: Session = Depends(database.get_db), curren
         raise HTTPException(status_code=400, detail="Username already registered")
     
     hashed_password = auth.get_password_hash(user.password)
-    db_user = models.User(username=user.username, hashed_password=hashed_password, role=user.role)
+    db_user = models.User(
+        username=user.username, 
+        hashed_password=hashed_password, 
+        role=user.role,
+        full_name=user.full_name,
+        bank=user.bank,
+        account_type=user.account_type,
+        account_number=user.account_number,
+        birth_date=user.birth_date,
+        phone_number=user.phone_number,
+        address=user.address,
+        city=user.city
+    )
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    return {"username": db_user.username, "role": db_user.role, "id": db_user.id}
+    return {
+        "username": db_user.username, 
+        "role": db_user.role, 
+        "id": db_user.id,
+        "full_name": db_user.full_name,
+        "address": db_user.address,
+        "city": db_user.city
+    }
+
+class UserUpdate(BaseModel):
+    # All fields optional for update
+    password: Optional[str] = None
+    role: Optional[str] = None
+    full_name: Optional[str] = None
+    bank: Optional[str] = None
+    account_type: Optional[str] = None
+    account_number: Optional[str] = None
+    birth_date: Optional[str] = None
+    phone_number: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+
+@app.put("/users/{user_id}")
+def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    # Update fields if provided
+    if user_update.password:
+        db_user.hashed_password = auth.get_password_hash(user_update.password)
+    if user_update.role:
+        db_user.role = user_update.role
+    if user_update.full_name is not None:
+        db_user.full_name = user_update.full_name
+    if user_update.bank is not None:
+        db_user.bank = user_update.bank
+    if user_update.account_type is not None:
+        db_user.account_type = user_update.account_type
+    if user_update.account_number is not None:
+        db_user.account_number = user_update.account_number
+    if user_update.birth_date is not None:
+        db_user.birth_date = user_update.birth_date
+    if user_update.phone_number is not None:
+        db_user.phone_number = user_update.phone_number
+    if user_update.address is not None:
+        db_user.address = user_update.address
+    if user_update.city is not None:
+        db_user.city = user_update.city
+        
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
 
 @app.get("/users")
 def list_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -117,7 +204,19 @@ def list_users(db: Session = Depends(database.get_db), current_user: models.User
         raise HTTPException(status_code=403, detail="Not authorized")
     
     users = db.query(models.User).all()
-    return [{"username": u.username, "role": u.role, "id": u.id} for u in users]
+    return [{
+        "username": u.username, 
+        "role": u.role, 
+        "id": u.id,
+        "full_name": u.full_name,
+        "bank": u.bank,
+        "account_type": u.account_type,
+        "account_number": u.account_number,
+        "birth_date": u.birth_date,
+        "phone_number": u.phone_number,
+        "address": u.address,
+        "city": u.city
+    } for u in users]
 
 @app.get("/debug/user-count")
 def debug_user_count(db: Session = Depends(database.get_db)):
@@ -254,6 +353,10 @@ def validator_page():
 def call_center_page():
     return FileResponse(os.path.join(FRONTEND_DIR, "call_center.html"))
 
+@app.get("/bizage-page")
+def bizage_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "bizage.html"))
+
 # --- CALL CENTER API ---
 
 class StudyCreate(BaseModel):
@@ -326,7 +429,8 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         c_dict['study_name'] = c.study.name if c.study else None
         c_dict['study_type'] = c.study.study_type if c.study else None
         c_dict['study_stage'] = c.study.stage if c.study else None
-        c_dict['agent_name'] = c.user.username if c.user else None
+        # Prefer Full Name, fallback to username
+        c_dict['agent_name'] = (c.user.full_name if c.user.full_name else c.user.username) if c.user else None
         result.append(c_dict)
         
     return result
@@ -350,7 +454,8 @@ def assign_call(call_id: int, assignment: AssignCall, db: Session = Depends(data
          
     call.user_id = assignment.user_id
     db.commit()
-    return {"status": "assigned", "agent": user.username}
+    agent_name = user.full_name if user.full_name else user.username
+    return {"status": "assigned", "agent": agent_name}
 
 class BulkAssignCall(BaseModel):
     call_ids: List[int]
@@ -530,6 +635,157 @@ def schedule_call(call_id: int, sched: ScheduleCreate, db: Session = Depends(dat
     db.add(db_sched)
     db.commit()
     return {"status": "ok"}
+
+
+# --- BIZAGE MODULE API ---
+
+class BizageStudyCreate(BaseModel):
+    study_type: str
+    study_name: str
+    n_value: int
+    survey_no_participa: Optional[str] = None
+
+@app.post("/bizage/studies")
+def create_bizage_study(study: BizageStudyCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    db_study = models.BizageStudy(
+        study_type=study.study_type,
+        study_name=study.study_name,
+        n_value=study.n_value,
+        survey_no_participa=study.survey_no_participa,
+        registered_by=current_user.username,
+        registered_at=datetime.now()
+    )
+    db.add(db_study)
+    db.commit()
+    db.refresh(db_study)
+    return db_study
+
+@app.get("/bizage/studies")
+def get_bizage_studies(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    return db.query(models.BizageStudy).order_by(models.BizageStudy.id.desc()).all()
+
+class BizageRadicate(BaseModel):
+    quantity: int
+    price: int
+    copies: Optional[int] = 0
+    vinipel: Optional[int] = 0
+    other_cost_description: Optional[str] = None
+    other_cost_amount: Optional[int] = 0
+
+@app.put("/bizage/studies/{study_id}/radicate")
+def radicate_bizage_study(study_id: int, data: BizageRadicate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    study = db.query(models.BizageStudy).filter(models.BizageStudy.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+        
+    study.quantity = data.quantity
+    study.price = data.price
+    study.copies = data.copies
+    study.vinipel = data.vinipel
+    study.other_cost_description = data.other_cost_description
+    study.other_cost_amount = data.other_cost_amount
+    
+    study.status = "radicated"
+    study.radicated_at = datetime.now()
+    study.radicated_by = current_user.username
+    
+    db.commit()
+    return {"status": "radicated"}
+
+class BizageBizagi(BaseModel):
+    bizagi_number: str
+
+@app.put("/bizage/studies/{study_id}/bizagi")
+def bizagi_bizage_study(study_id: int, data: BizageBizagi, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    study = db.query(models.BizageStudy).filter(models.BizageStudy.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+        
+    study.bizagi_number = data.bizagi_number
+    study.status = "number_assigned"
+    study.bizagi_at = datetime.now()
+    study.bizagi_by = current_user.username
+    
+    db.commit()
+    return {"status": "number_assigned"}
+
+class BizagePay(BaseModel):
+    paid_at: str # ISO format
+
+@app.put("/bizage/studies/{study_id}/pay")
+def pay_bizage_study(study_id: int, data: BizagePay, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    study = db.query(models.BizageStudy).filter(models.BizageStudy.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+        
+    study.status = "paid"
+    # Parse date
+    try:
+        dt = datetime.fromisoformat(data.paid_at.replace("Z", "+00:00"))
+        study.paid_at = dt
+    except:
+        study.paid_at = datetime.now()
+        
+    study.paid_by = current_user.username
+    
+    db.commit()
+    return {"status": "paid"}
+
+class BizageUpdate(BaseModel):
+    study_type: Optional[str] = None
+    study_name: Optional[str] = None
+    n_value: Optional[int] = None
+    survey_no_participa: Optional[str] = None
+    quantity: Optional[int] = None
+    price: Optional[int] = None
+    copies: Optional[int] = None
+    vinipel: Optional[int] = None
+    other_cost_description: Optional[str] = None
+    other_cost_amount: Optional[int] = None
+    bizagi_number: Optional[str] = None
+    status: Optional[str] = None # Allow admins to manually fix status if needed
+
+@app.put("/bizage/studies/{study_id}")
+def update_bizage_study(study_id: int, data: BizageUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    study = db.query(models.BizageStudy).filter(models.BizageStudy.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+
+    # Update all provided fields
+    if data.study_type is not None: study.study_type = data.study_type
+    if data.study_name is not None: study.study_name = data.study_name
+    if data.n_value is not None: study.n_value = data.n_value
+    if data.survey_no_participa is not None: study.survey_no_participa = data.survey_no_participa
+    
+    if data.quantity is not None: study.quantity = data.quantity
+    if data.price is not None: study.price = data.price
+    if data.copies is not None: study.copies = data.copies
+    if data.vinipel is not None: study.vinipel = data.vinipel
+    if data.other_cost_description is not None: study.other_cost_description = data.other_cost_description
+    if data.other_cost_amount is not None: study.other_cost_amount = data.other_cost_amount
+    
+    if data.bizagi_number is not None: study.bizagi_number = data.bizagi_number
+    if data.status is not None: study.status = data.status
+
+    db.commit()
+    return {"status": "updated"}
 
 
 def normalize_columns(df, manual_mapping=None):
