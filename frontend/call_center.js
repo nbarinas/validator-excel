@@ -28,19 +28,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Ensure button is visible if they enter
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = 'inline-block';
-                // Ensure search is visible
-                const search = document.getElementById('searchPanel');
-                if (search) search.style.display = 'block';
             } else {
                 // Normal User
                 // Hide Create Study Button
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = 'none';
-                // Hide Search Panel
-                const search = document.getElementById('searchPanel');
-                if (search) search.style.display = 'none';
                 loadStudies();
             }
+
+            // Ensure search is visible for EVERYONE
+            const search = document.getElementById('searchPanel');
+            if (search) search.style.display = 'block';
 
             // AUTOMATICALLY LOAD ALL PENDING CALLS
             loadStudyData(null); // Null = all pending from open studies
