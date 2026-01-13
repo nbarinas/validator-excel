@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - AZ Marketing</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=8">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
@@ -140,6 +140,19 @@
                 <div class="module-title">Call Center</div>
                 <div class="module-desc">Gestión de llamadas y CRM</div>
             </a>
+
+            <!-- Admin Modules (Hidden by default) -->
+            <a href="/users-page" class="module-card" id="cardUsers" style="display: none;">
+                <i class="fas fa-users-cog module-icon"></i>
+                <div class="module-title">Usuarios</div>
+                <div class="module-desc">Gestión de Usuarios y Permisos</div>
+            </a>
+
+            <a href="/bizage-page" class="module-card" id="cardBizage" style="display: none;">
+                <i class="fas fa-tasks module-icon"></i>
+                <div class="module-title">Estudios/Bizage</div>
+                <div class="module-desc">Gestión de Estudios y Pagos</div>
+            </a>
         </div>
     </div>
 
@@ -158,27 +171,11 @@
                 if (res.ok) {
                     const user = await res.json();
                     if (user.role === 'superuser') {
-                        const grid = document.querySelector('.modules-grid');
-                        const card = document.createElement('a');
-                        card.href = '/users-page';
-                        card.className = 'module-card';
-                        card.innerHTML = `
-                            <i class="fas fa-users-cog module-icon"></i>
-                            <div class="module-title">Usuarios</div>
-                            <div class="module-desc">Gestión de Usuarios y Permisos</div>
-                        `;
-                        grid.appendChild(card);
+                        const cardUsers = document.getElementById('cardUsers');
+                        if (cardUsers) cardUsers.style.display = 'flex';
 
-                        // Bizage Card
-                        const card2 = document.createElement('a');
-                        card2.href = '/bizage-page';
-                        card2.className = 'module-card';
-                        card2.innerHTML = `
-                            <i class="fas fa-tasks module-icon"></i>
-                            <div class="module-title">Estudios/Bizage</div>
-                            <div class="module-desc">Gestión de Estudios y Pagos</div>
-                        `;
-                        grid.appendChild(card2);
+                        const cardBizage = document.getElementById('cardBizage');
+                        if (cardBizage) cardBizage.style.display = 'flex';
                     }
                 }
             } catch (e) {
