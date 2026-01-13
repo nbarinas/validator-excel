@@ -289,13 +289,15 @@ def debug_test_verify(db: Session = Depends(database.get_db)):
 
 @app.get("/debug/migrate-db")
 def debug_migrate_db(db: Session = Depends(database.get_db)):
-    """Run migrations to add missing columns to users table"""
+    """Run migrations to add missing columns to users and studies tables"""
     from sqlalchemy import text, inspect
     try:
         inspector = inspect(db.get_bind())
-        existing_columns = [c['name'] for c in inspector.get_columns('users')]
-        
-        new_columns = [
+        log = []
+
+        # --- USERS MIGRATION ---
+        existing_user_cols = [c['name'] for c in inspector.get_columns('users')]
+        new_user_cols = [
             ("full_name", "VARCHAR(100)"),
             ("bank", "VARCHAR(50)"),
             ("account_type", "VARCHAR(20)"),
@@ -306,16 +308,32 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("city", "VARCHAR(100)"),
         ]
         
-        log = []
-        for col, dtype in new_columns:
-            if col not in existing_columns:
+        for col, dtype in new_user_cols:
+            if col not in existing_user_cols:
                 try:
                     db.execute(text(f"ALTER TABLE users ADD COLUMN {col} {dtype}"))
-                    log.append(f"Added column {col}")
+                    log.append(f"Added column {col} to users")
                 except Exception as e:
-                    log.append(f"Failed to add {col}: {str(e)}")
+                    log.append(f"Failed to add {col} to users: {str(e)}")
             else:
-                log.append(f"Column {col} already exists")
+                log.append(f"Column {col} already exists in users")
+
+        # --- STUDIES MIGRATION ---
+        existing_study_cols = [c['name'] for c in inspector.get_columns('studies')]
+        new_study_cols = [
+            ("study_type", "VARCHAR(50)"),
+            ("stage", "VARCHAR(10)")
+        ]
+
+        for col, dtype in new_study_cols:
+            if col not in existing_study_cols:
+                try:
+                    db.execute(text(f"ALTER TABLE studies ADD COLUMN {col} {dtype}"))
+                    log.append(f"Added column {col} to studies")
+                except Exception as e:
+                    log.append(f"Failed to add {col} to studies: {str(e)}")
+            else:
+                log.append(f"Column {col} already exists in studies")
                 
         db.commit()
         return {"status": "migration completed", "log": log}
