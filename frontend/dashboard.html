@@ -168,6 +168,17 @@
                             <div class="module-desc">Gestión de Usuarios y Permisos</div>
                         `;
                         grid.appendChild(card);
+
+                        // Bizage Card
+                        const card2 = document.createElement('a');
+                        card2.href = '/bizage-page';
+                        card2.className = 'module-card';
+                        card2.innerHTML = `
+                            <i class="fas fa-tasks module-icon"></i>
+                            <div class="module-title">Estudios/Bizage</div>
+                            <div class="module-desc">Gestión de Estudios y Pagos</div>
+                        `;
+                        grid.appendChild(card2);
                     }
                 }
             } catch (e) {
