@@ -114,6 +114,51 @@ def debug_reset_admin(db: Session = Depends(database.get_db)):
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+@app.get("/debug/migrate-db")
+def debug_migrate_db(db: Session = Depends(database.get_db)):
+    """
+    Manually add missing columns to users table if they don't exist.
+    Specific for MySQL/Postgres where auto-migration didn't run.
+    """
+    from sqlalchemy import text
+    
+    # Columns to check/add
+    # (name, type)
+    columns = [
+        ("full_name", "VARCHAR(100)"),
+        ("bank", "VARCHAR(50)"),
+        ("account_type", "VARCHAR(20)"),
+        ("account_number", "VARCHAR(50)"),
+        ("birth_date", "VARCHAR(20)"),
+        ("phone_number", "VARCHAR(20)"),
+        ("address", "VARCHAR(200)"),
+        ("city", "VARCHAR(100)"),
+        ("neighborhood", "VARCHAR(100)"),
+        ("blood_type", "VARCHAR(10)"),
+        ("account_holder", "VARCHAR(100)"),
+        ("account_holder_cc", "VARCHAR(20)")
+    ]
+    
+    results = []
+    
+    for col_name, col_type in columns:
+        try:
+            # Try to add column. Will fail if exists.
+            # MySQL syntax
+            sql = text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            db.execute(sql)
+            results.append(f"Added {col_name}")
+        except Exception as e:
+            # Likely "Duplicate column" error
+            results.append(f"Skipped {col_name} (likely exists or error: {str(e)})")
+            
+    try:
+        db.commit()
+    except Exception as e:
+        return {"status": "error", "message": f"Commit failed: {str(e)}", "details": results}
+
+    return {"status": "completed", "results": results}
+
 # --- AUTH ENDPOINTS ---
 
 @app.post("/token")
