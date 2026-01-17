@@ -95,6 +95,25 @@ class UserCreate(BaseModel):
     account_holder: Optional[str] = None
     account_holder_cc: Optional[str] = None
 
+# --- DEBUG ENDPOINTS ---
+@app.get("/debug/reset-admin")
+def debug_reset_admin(db: Session = Depends(database.get_db)):
+    try:
+        user = db.query(models.User).filter(models.User.username == "admin").first()
+        hashed = auth.get_password_hash("admin123")
+        if not user:
+             user = models.User(username="admin", hashed_password=hashed, role="superuser")
+             db.add(user)
+             msg = "Created admin user"
+        else:
+             user.hashed_password = hashed
+             user.role = "superuser"
+             msg = "Updated admin user"
+        db.commit()
+        return {"status": "success", "message": f"{msg}: Password set to 'admin123'"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
 # --- AUTH ENDPOINTS ---
 
 @app.post("/token")
