@@ -1,0 +1,20 @@
+En el rol agente quitar “in Home” solo queda nomina y call center
+Para usuario crear dos roles Bizage y auxiliar
+El rol bizage seria como un agente pero con la vista y uso del bizage
+En rol auxiliar pueden ver call center activos y gestionar
+
+Para usuario agregar:Barrio, Tipo de sangre (precodificar con los tipos de sangre), Titular de la cuenta (texto), Cc del titular de la cuenta (numero)
+
+Bizage: Copias falta el precios y vinipel cambiar a Contac y falta el precios
+Para ascensor falta censos
+Error al radicar bizage solo numero y tiene que ser numero y letra
+Colocar en hora Colombia
+Ver total en total numero de cuenta
+Para el call center
+Filtro por fecha y estado y falta el auxiliar
+Cambiar botón de pagar a pagado
+
+En call center cuando seleccione “seleccionar estudio” que restablezca
+Eliminar botón de + nuevo estudio
+Estudios call center cerrados
+Estado de bono y foto
