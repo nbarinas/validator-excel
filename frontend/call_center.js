@@ -19,7 +19,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (uRes.ok) {
             const user = await uRes.json();
             currentUserRole = user.role;
-            document.getElementById('userInfo').textContent = `Usuario: ${user.username} (${user.role})`;
+            const ui = document.getElementById('userInfoDisplay');
+            if (ui) {
+                const name = user.full_name || user.username;
+                ui.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.4);">${user.role.toUpperCase()}</span>`;
+            }
 
             if (currentUserRole === 'superuser') {
                 // Show Landing, Hide CRM
@@ -34,6 +38,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = 'none';
                 loadStudies();
+            }
+
+            // Auxiliar Role Handling
+            if (currentUserRole === 'auxiliar') {
+                // Auxiliar can see active calls and manage them, similar to agent but maybe broader visibility?
+                // Requirement: "El rol auxiliar puede ver las llamadas activas"
+                // They should see the CRM interface.
+                document.getElementById('superuserLanding').style.display = 'none';
+                document.getElementById('crmInterface').style.display = 'grid';
             }
 
             // Ensure search is visible for EVERYONE
@@ -151,66 +164,129 @@ async function loadStudies() {
 }
 
 // Add Enter key listener for column search
-document.getElementById('colFilterPhone').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') applyColumnFilters();
+// Add Enter key listener for column search
+// Add Enter key listener for column search
+['colFilterPhone', 'colFilterName', 'colFilterCensus'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') applyColumnFilters();
+        });
+    }
 });
-document.getElementById('colFilterName').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') applyColumnFilters();
-});
-document.getElementById('colFilterCity').addEventListener('change', function () {
-    applyColumnFilters();
+
+['colFilterCity', 'colFilterStatus', 'colFilterStudy', 'colFilterAgent', 'colFilterDate'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+        el.addEventListener('change', function () {
+            applyColumnFilters();
+        });
+    }
 });
 
 function applyColumnFilters() {
     const phoneTerm = document.getElementById('colFilterPhone').value.toLowerCase().trim();
     const nameTerm = document.getElementById('colFilterName').value.toLowerCase().trim();
     const cityTerm = document.getElementById('colFilterCity').value.toLowerCase().trim();
+    const censusTerm = document.getElementById('colFilterCensus') ? document.getElementById('colFilterCensus').value.toLowerCase().trim() : '';
+    const dateTerm = document.getElementById('colFilterDate') ? document.getElementById('colFilterDate').value : '';
 
-    filteredCalls = allCalls.filter(c => {
-        const phone = (c.phone_number || '').toString().toLowerCase();
-        const name = (c.person_name || '').toString().toLowerCase();
-        const city = (c.city || '').toString().toLowerCase();
+    // New Filters
+    const studyTerm = document.getElementById('colFilterStudy').value.toLowerCase().trim();
+    const agentTerm = document.getElementById('colFilterAgent').value.toLowerCase().trim();
+    const statusTerm = document.getElementById('colFilterStatus').value.toLowerCase().trim();
 
-        const matchPhone = !phoneTerm || phone.includes(phoneTerm);
-        const matchName = !nameTerm || name.includes(nameTerm);
-        // City must be exact match if selected, or match partial if we wanted, but dropdown usually implies exact or "includes"
-        // Let's use includes for flexibility or strict equality? 
-        // Dropdown values are from the data, so strict equality is better, but data might be dirty.
-        // Let's use includes for now to be safe, or just strict if value is not empty.
-        const matchCity = !cityTerm || city === cityTerm;
+    // Helper Checks
+    const checkPhone = (c) => !phoneTerm || (c.phone_number || '').toString().toLowerCase().includes(phoneTerm);
+    const checkName = (c) => !nameTerm || (c.person_name || '').toString().toLowerCase().includes(nameTerm);
+    const checkCensus = (c) => !censusTerm || (c.census || '').toString().toLowerCase().includes(censusTerm);
+    const checkCity = (c) => !cityTerm || (c.city || '').toString().toLowerCase() === cityTerm;
 
-        return matchPhone && matchName && matchCity;
-    });
+    const checkDate = (c) => {
+        if (!dateTerm) return true;
+        const d = c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : '';
+        return d === dateTerm;
+    };
 
+    // Selects
+    const checkStudy = (c) => !studyTerm || (c.study_name || '').toString().toLowerCase() === studyTerm;
+
+    const checkAgent = (c) => {
+        if (!agentTerm) return true;
+        const agentDisplay = c.agent_id ? (c.agent_name || `Agente ${c.agent_id}`) : 'Sin Asignar';
+        return agentDisplay.toLowerCase() === agentTerm;
+    };
+
+    const checkStatus = (c) => !statusTerm || (c.status || 'pending').toLowerCase() === statusTerm;
+
+
+    // 1. Filter Grid (Intersection of ALL)
+    filteredCalls = allCalls.filter(c =>
+        checkPhone(c) && checkName(c) && checkCity(c) && checkCensus(c) &&
+        checkStudy(c) && checkAgent(c) && checkStatus(c) && checkDate(c)
+    );
     renderCallGrid(filteredCalls);
+
+
+
+
+
 }
 
 function resetFilters() {
-    document.getElementById('colFilterPhone').value = '';
-    document.getElementById('colFilterName').value = '';
-    document.getElementById('colFilterCity').value = '';
+    ['colFilterPhone', 'colFilterName', 'colFilterCity', 'colFilterStudy', 'colFilterAgent', 'colFilterStatus', 'colFilterCensus', 'colFilterDate'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
     applyColumnFilters();
 }
 
+function populateSelectFilter(elementId, values) {
+    const sel = document.getElementById(elementId);
+    if (!sel) return;
+
+    // Save current selection
+    const current = sel.value;
+
+    // Clear (keep first option 'Todos')
+    sel.innerHTML = '<option value="">Todos</option>';
+
+    const unique = [...new Set(values)].sort();
+
+    unique.forEach(val => {
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = val;
+        sel.appendChild(opt);
+    });
+
+    if (unique.includes(current)) {
+        sel.value = current;
+    }
+}
 
 function searchCalls() {
     const term = document.getElementById('searchPhone').value.toLowerCase().trim();
-
-    if (!term) {
-        // If empty, reset to all calls (or current filtered state if we had other filters)
-        // For now, simple reset to allCalls
-        filteredCalls = [...allCalls];
-        renderCallGrid(filteredCalls);
-        return;
-    }
+    // Dates removed as requested
+    const status = document.getElementById('filterStatus').value;
 
     filteredCalls = allCalls.filter(c => {
         const phone = (c.phone_number || '').toString().toLowerCase();
         const name = (c.person_name || '').toString().toLowerCase();
         const city = (c.city || '').toString().toLowerCase();
         const census = (c.census || '').toString().toLowerCase();
+        const callStatus = c.status || 'pending';
 
-        return phone.includes(term) || name.includes(term) || city.includes(term) || census.includes(term);
+        // Date Logic Removed
+
+        let matchStatus = true;
+        if (status && status !== '') {
+            matchStatus = (callStatus === status);
+        }
+
+        const matchTerm = !term || (phone.includes(term) || name.includes(term) || city.includes(term) || census.includes(term));
+
+        return matchTerm && matchStatus;
     });
 
     renderCallGrid(filteredCalls);
@@ -272,24 +348,20 @@ async function loadStudyData(studyId) {
         });
 
         // Populate City Dropdown
-        const cities = new Set(allCalls.map(c => (c.city || '').trim()).filter(x => x)); // Unique cities
-        const citySel = document.getElementById('colFilterCity');
-        // Save current selection if re-populating? 
-        const currentCity = citySel.value;
+        populateSelectFilter('colFilterCity', allCalls.map(c => (c.city || '').trim()).filter(x => x));
 
-        // Keep "Todas"
-        citySel.innerHTML = '<option value="">Todas</option>';
-        [...cities].sort().forEach(city => {
-            const opt = document.createElement('option');
-            opt.value = city;
-            opt.textContent = city;
-            citySel.appendChild(opt);
-        });
+        // Populate Study Dropdown
+        populateSelectFilter('colFilterStudy', allCalls.map(c => (c.study_name || '').trim()).filter(x => x));
 
-        // Restore selection if still valid
-        if ([...cities].includes(currentCity)) {
-            citySel.value = currentCity;
-        }
+        // Populate Agent Dropdown
+        // Need to replicate agent display logic
+        populateSelectFilter('colFilterAgent', allCalls.map(c => c.agent_name || (c.agent_id ? `Agente ${c.agent_id}` : 'Sin Asignar')).filter(x => x && x !== 'Sin Asignar').concat(['Sin Asignar'])); // Ensure Sin Asignar is an option? uniqueValues will handle duplicate 'Sin Asignar'.
+
+
+        // Helper to restore selections? 
+        // For now, simple re-population clears selection. 
+        // If improvement needed, make populateSelectFilter smarter.
+
 
         applyColumnFilters(); // Apply new column filters
 
@@ -324,6 +396,7 @@ function renderCallGrid(calls) {
         tr.innerHTML = `
             <td onclick="event.stopPropagation()"><input type="checkbox" class="call-checkbox" value="${call.id}"></td>
             <td><i class="fas fa-phone"></i> ${call.phone_number}</td>
+            <td style="font-size: 0.8rem; color: #555;">${call.created_at ? new Date(call.created_at).toLocaleDateString() : '-'}</td>
             <td>
                 <span style="font-size:0.8rem; color:#666; font-weight:bold;">${call.study_name || '-'}</span>
                 ${call.study_type ? `<br><span style="font-size:0.7rem; color:#1a73e8; font-weight:600;">${call.study_type.toUpperCase()}</span>` : ''}

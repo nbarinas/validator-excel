@@ -166,7 +166,7 @@
         <!-- Top Nav -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold;">&larr; Volver al Dashboard</a>
-            <span id="userInfo" style="font-weight: bold; color: white;"></span>
+            <div id="userInfoDisplay" style="color: white; font-size: 1rem; display: flex; align-items: center;"></div>
         </div>
 
         <!-- System Title -->
@@ -244,15 +244,19 @@
                     <select id="studySelect" class="form-input">
                         <option value="">Seleccione Estudio...</option>
                     </select>
-                    <button id="btnCreateStudy" onclick="createStudy()"
-                        style="margin-top: 0.5rem; font-size: 0.8rem; display: none;">+
-                        Nuevo
-                        Estudio</button>
                 </div>
 
                 <div class="form-group" id="searchPanel">
-                    <label>Buscar / Filtrar Llamadas</label>
-                    <input type="text" placeholder="Buscar por teléfono, nombre o ciudad..." id="searchPhone">
+                    <label>Filtros</label>
+                    <!-- Date Filters Removed -->
+                    <select id="filterStatus" style="margin-bottom: 0.5rem; width: 100%;">
+                        <option value="">Estado: Todos</option>
+                        <option value="pending">Pendiente</option>
+                        <option value="managed">Gestionado</option>
+                        <option value="closed">Cerrado</option>
+                    </select>
+
+                    <input type="text" placeholder="Buscar por teléfono, nombre..." id="searchPhone">
                     <button class="btn-submit" onclick="searchCalls()">Buscar</button>
                 </div>
 
@@ -316,14 +320,32 @@
                         <thead>
                             <tr>
                                 <th style="width: 30px;"><input type="checkbox" id="selectAll"
-                                        onclick="toggleSelectAll()"></th>
+                                        onclick="toggleSelectAll()">
+                                </th>
                                 <th>
                                     Teléfono
                                     <input type="text" id="colFilterPhone" placeholder="Buscar..."
                                         style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
                                 </th>
-                                <th>Estudio</th>
-                                <th>Agente</th>
+                                <th>
+                                    Fecha
+                                    <input type="date" id="colFilterDate"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                </th>
+                                <th>
+                                    Estudio
+                                    <select id="colFilterStudy" class="col-filter"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                        <option value="">Todos</option>
+                                    </select>
+                                </th>
+                                <th>
+                                    Agente
+                                    <select id="colFilterAgent" class="col-filter"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                        <option value="">Todos</option>
+                                    </select>
+                                </th>
                                 <th>
                                     Nombre
                                     <input type="text" id="colFilterName" placeholder="Buscar..."
@@ -337,10 +359,24 @@
                                     </select>
                                 </th>
                                 <th>Agenda/Alerta</th>
-                                <th>Estado</th>
+                                <th>
+                                    Estado
+                                    <select id="colFilterStatus"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                        <option value="">Todos</option>
+                                        <option value="pending">Pendiente</option>
+                                        <option value="management">Gestionando</option>
+                                        <option value="scheduled">Agendado</option>
+                                        <option value="done">Terminado</option>
+                                    </select>
+                                </th>
 
                                 <!-- NEW COLUMNS -->
-                                <th>Censo</th>
+                                <th>
+                                    Censo
+                                    <input type="text" id="colFilterCensus" placeholder="Buscar..."
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                </th>
                                 <th>Observación</th>
 
                                 <th>Acción</th>

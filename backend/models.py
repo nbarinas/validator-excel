@@ -21,6 +21,10 @@ class User(Base):
     phone_number = Column(String(20), nullable=True)
     address = Column(String(200), nullable=True)
     city = Column(String(100), nullable=True)
+    neighborhood = Column(String(100), nullable=True) # Barrio
+    blood_type = Column(String(10), nullable=True) # Tipo de sangre
+    account_holder = Column(String(100), nullable=True) # Titular
+    account_holder_cc = Column(String(20), nullable=True) # CC Titular
 
     calls = relationship("Call", back_populates="user")
     observations = relationship("Observation", back_populates="user")
@@ -113,9 +117,12 @@ class BizageStudy(Base):
     quantity = Column(Integer, nullable=True) 
     price = Column(Integer, nullable=True)
     copies = Column(Integer, nullable=True)
-    vinipel = Column(Integer, nullable=True)
+    copies_price = Column(Integer, nullable=True) # Added price
+    vinipel = Column(Integer, nullable=True) # Now represents "Contac" / Vinipel
+    vinipel_price = Column(Integer, nullable=True) # Added price
     other_cost_description = Column(String(100), nullable=True) # "Otro que se pueda digitar"
     other_cost_amount = Column(Integer, nullable=True)
+    census = Column(String(100), nullable=True) # For Ascensor study
     
     # Bizagi
     bizagi_number = Column(String(50), nullable=True)
@@ -135,3 +142,4 @@ class BizageStudy(Base):
     
     paid_at = Column(DateTime(timezone=True), nullable=True)
     paid_by = Column(String(50), nullable=True)
+    invoice_number = Column(String(50), nullable=True) # Numero de factura

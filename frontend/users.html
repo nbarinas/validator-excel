@@ -151,11 +151,14 @@
 
 <body>
     <div class="container">
-        <header class="header">
-            <h1>Gestión de Usuarios</h1>
-            <a href="/" style="color: white; text-decoration: none;"><i class="fas fa-arrow-left"></i> Volver al
-                Dashboard</a>
-        </header>
+        <div class="header">
+            <div>
+                <h1 style="color: #6366f1; margin-bottom: 0.5rem;">Gestión de Usuarios</h1>
+                <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold; font-size: 0.9rem;">&larr;
+                    Volver al Dashboard</a>
+            </div>
+            <div id="userInfoDisplay" style="color: white; font-size: 1rem; display: flex; align-items: center;"></div>
+        </div>
 
         <div class="card">
             <h2>Crear Nuevo Usuario</h2>
@@ -172,6 +175,8 @@
                     <label>Rol</label>
                     <select id="role" required>
                         <option value="agent">Encuestador / Operativo</option>
+                        <option value="bizage">Bizage</option>
+                        <option value="auxiliar">Auxiliar</option>
                         <option value="supervisor">Supervisor</option>
                         <option value="superuser">Coordinador (Superusuario)</option>
                     </select>
@@ -231,6 +236,36 @@
                     </select>
                 </div>
 
+                <div class="form-group">
+                    <label>Barrio</label>
+                    <input type="text" id="neighborhood" placeholder="Barrio">
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Sangre</label>
+                    <select id="blood_type">
+                        <option value="">Seleccione...</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Titular de la Cuenta</label>
+                    <input type="text" id="account_holder" placeholder="Nombre completo del titular">
+                </div>
+
+                <div class="form-group">
+                    <label>CC Titular</label>
+                    <input type="text" id="account_holder_cc" placeholder="CC del titular">
+                </div>
+
                 <!-- Toggle for allowing superuser creation? The select above handles it. The user said "option to create superusers or not". 
                      This implies the logged-in superuser CHOOSES the role for the new user. -->
                 <button type="submit">Crear Usuario</button>
@@ -279,6 +314,8 @@
                         <label>Rol</label>
                         <select id="edit_role">
                             <option value="agent">Encuestador / Operativo</option>
+                            <option value="bizage">Bizage</option>
+                            <option value="auxiliar">Auxiliar</option>
                             <option value="supervisor">Supervisor</option>
                             <option value="superuser">Coordinador (Superusuario)</option>
                         </select>
@@ -337,6 +374,36 @@
                             <option value="Bogotá">Bogotá</option>
                             <option value="Soacha">Soacha</option>
                         </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Barrio</label>
+                        <input type="text" id="edit_neighborhood">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Sangre</label>
+                        <select id="edit_blood_type">
+                            <option value="">Seleccione...</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Titular de la Cuenta</label>
+                        <input type="text" id="edit_account_holder">
+                    </div>
+
+                    <div class="form-group">
+                        <label>CC Titular</label>
+                        <input type="text" id="edit_account_holder_cc">
                     </div>
 
                     <button type="submit" style="grid-column: 1 / -1; margin-top: 1rem;">Guardar Cambios</button>
@@ -448,6 +515,10 @@
 
             const address = document.getElementById('address').value;
             const city = document.getElementById('city').value;
+            const neighborhood = document.getElementById('neighborhood').value;
+            const blood_type = document.getElementById('blood_type').value;
+            const account_holder = document.getElementById('account_holder').value;
+            const account_holder_cc = document.getElementById('account_holder_cc').value;
 
             // Validation
             if (phone_number) {
@@ -479,7 +550,13 @@
                         birth_date,
                         phone_number,
                         address,
-                        city
+                        phone_number,
+                        address,
+                        city,
+                        neighborhood,
+                        blood_type,
+                        account_holder,
+                        account_holder_cc
                     })
                 });
 
@@ -516,6 +593,10 @@
             document.getElementById('edit_phone_number').value = user.phone_number || '';
             document.getElementById('edit_address').value = user.address || '';
             document.getElementById('edit_city').value = user.city || '';
+            document.getElementById('edit_neighborhood').value = user.neighborhood || '';
+            document.getElementById('edit_blood_type').value = user.blood_type || '';
+            document.getElementById('edit_account_holder').value = user.account_holder || '';
+            document.getElementById('edit_account_holder_cc').value = user.account_holder_cc || '';
 
             document.getElementById('editUserModal').style.display = 'flex';
         }
@@ -537,7 +618,11 @@
                 birth_date: document.getElementById('edit_birth_date').value,
                 phone_number: document.getElementById('edit_phone_number').value,
                 address: document.getElementById('edit_address').value,
-                city: document.getElementById('edit_city').value
+                city: document.getElementById('edit_city').value,
+                neighborhood: document.getElementById('edit_neighborhood').value,
+                blood_type: document.getElementById('edit_blood_type').value,
+                account_holder: document.getElementById('edit_account_holder').value,
+                account_holder_cc: document.getElementById('edit_account_holder_cc').value
             };
 
             const pass = document.getElementById('edit_password').value;
@@ -578,6 +663,24 @@
 
         loadUsers();
 
+        // Load Current User Info for Header
+        async function loadCurrentHeaderInfo() {
+            try {
+                const res = await fetch(API_URL + '/users/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    const ui = document.getElementById('userInfoDisplay');
+                    if (ui) {
+                        const name = user.full_name || user.username;
+                        ui.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.4);">${user.role.toUpperCase()}</span>`;
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        loadCurrentHeaderInfo();
+
         async function viewDetails(id) {
             // Find user in table data or fetch? simplified:
             // Since we don't have global users list stored comfortably, let's just find from row or re-fetch.
@@ -597,12 +700,15 @@
                         Rol: ${u.role}
                         Celular: ${u.phone_number || '-'}
                         Ciudad: ${u.city || '-'}
+                        Barrio: ${u.neighborhood || '-'}
                         Dirección: ${u.address || '-'}
                         Cumpleaños: ${u.birth_date || '-'}
+                        Sangre: ${u.blood_type || '-'}
                         
                         Banco: ${u.bank || '-'}
-                        Tipo: ${u.account_type || '-'}
                         Cuenta: ${u.account_number || '-'}
+                        Titular: ${u.account_holder || '-'}
+                        CC Titular: ${u.account_holder_cc || '-'}
                     `);
                 }
             } catch (e) {
