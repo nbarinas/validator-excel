@@ -84,6 +84,10 @@ class UserCreate(BaseModel):
     phone_number: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
+    neighborhood: Optional[str] = None
+    blood_type: Optional[str] = None
+    account_holder: Optional[str] = None
+    account_holder_cc: Optional[str] = None
 
 # --- AUTH ENDPOINTS ---
 
@@ -135,7 +139,11 @@ def create_user(user: UserCreate, db: Session = Depends(database.get_db), curren
         birth_date=user.birth_date,
         phone_number=user.phone_number,
         address=user.address,
-        city=user.city
+        city=user.city,
+        neighborhood=user.neighborhood,
+        blood_type=user.blood_type,
+        account_holder=user.account_holder,
+        account_holder_cc=user.account_holder_cc
     )
     db.add(db_user)
     db.commit()
@@ -146,7 +154,11 @@ def create_user(user: UserCreate, db: Session = Depends(database.get_db), curren
         "id": db_user.id,
         "full_name": db_user.full_name,
         "address": db_user.address,
-        "city": db_user.city
+        "city": db_user.city,
+        "neighborhood": db_user.neighborhood,
+        "blood_type": db_user.blood_type,
+        "account_holder": db_user.account_holder,
+        "account_holder_cc": db_user.account_holder_cc
     }
 
 class UserUpdate(BaseModel):
@@ -161,6 +173,10 @@ class UserUpdate(BaseModel):
     phone_number: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
+    neighborhood: Optional[str] = None
+    blood_type: Optional[str] = None
+    account_holder: Optional[str] = None
+    account_holder_cc: Optional[str] = None
 
 @app.put("/users/{user_id}")
 def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -192,6 +208,14 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(dat
         db_user.address = user_update.address
     if user_update.city is not None:
         db_user.city = user_update.city
+    if user_update.neighborhood is not None:
+        db_user.neighborhood = user_update.neighborhood
+    if user_update.blood_type is not None:
+        db_user.blood_type = user_update.blood_type
+    if user_update.account_holder is not None:
+        db_user.account_holder = user_update.account_holder
+    if user_update.account_holder_cc is not None:
+        db_user.account_holder_cc = user_update.account_holder_cc
         
     db.commit()
     db.refresh(db_user)
@@ -215,7 +239,11 @@ def list_users(db: Session = Depends(database.get_db), current_user: models.User
         "birth_date": u.birth_date,
         "phone_number": u.phone_number,
         "address": u.address,
-        "city": u.city
+        "city": u.city,
+        "neighborhood": u.neighborhood,
+        "blood_type": u.blood_type,
+        "account_holder": u.account_holder,
+        "account_holder_cc": u.account_holder_cc
     } for u in users]
 
 @app.get("/debug/user-count")
@@ -478,14 +506,14 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
     if study_id:
         query = query.filter(models.Call.study_id == study_id)
         # VISIBILITY LOGIC:
-        if current_user.role != "superuser":
+        if current_user.role != "superuser" and current_user.role != "auxiliar":
              query = query.filter(models.Call.status == "pending")
              query = query.filter(models.Call.user_id == current_user.id) # Only assigned
     else:
         # GLOBAL VIEW
         query = query.filter(models.Study.status == "open")
         query = query.filter(models.Call.status == "pending")
-        if current_user.role != "superuser":
+        if current_user.role != "superuser" and current_user.role != "auxiliar":
             query = query.filter(models.Call.user_id == current_user.id) # Only assigned
 
 
@@ -742,6 +770,7 @@ class BizageStudyCreate(BaseModel):
     study_name: str
     n_value: int
     survey_no_participa: Optional[str] = None
+    census: Optional[str] = None
 
 @app.post("/bizage/studies")
 def create_bizage_study(study: BizageStudyCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -754,6 +783,7 @@ def create_bizage_study(study: BizageStudyCreate, db: Session = Depends(database
         n_value=study.n_value,
         survey_no_participa=study.survey_no_participa,
         registered_by=current_user.username,
+        census=study.census,
         registered_at=datetime.now()
     )
     db.add(db_study)
@@ -771,7 +801,9 @@ class BizageRadicate(BaseModel):
     quantity: int
     price: int
     copies: Optional[int] = 0
+    copies_price: Optional[int] = 0
     vinipel: Optional[int] = 0
+    vinipel_price: Optional[int] = 0
     other_cost_description: Optional[str] = None
     other_cost_amount: Optional[int] = 0
 
@@ -787,7 +819,9 @@ def radicate_bizage_study(study_id: int, data: BizageRadicate, db: Session = Dep
     study.quantity = data.quantity
     study.price = data.price
     study.copies = data.copies
+    study.copies_price = data.copies_price
     study.vinipel = data.vinipel
+    study.vinipel_price = data.vinipel_price
     study.other_cost_description = data.other_cost_description
     study.other_cost_amount = data.other_cost_amount
     
@@ -819,7 +853,8 @@ def bizagi_bizage_study(study_id: int, data: BizageBizagi, db: Session = Depends
     return {"status": "number_assigned"}
 
 class BizagePay(BaseModel):
-    paid_at: str # ISO format
+    paid_at: datetime
+    invoice_number: Optional[str] = None
 
 @app.put("/bizage/studies/{study_id}/pay")
 def pay_bizage_study(study_id: int, data: BizagePay, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -836,10 +871,12 @@ def pay_bizage_study(study_id: int, data: BizagePay, db: Session = Depends(datab
         dt = datetime.fromisoformat(data.paid_at.replace("Z", "+00:00"))
         study.paid_at = dt
     except:
-        study.paid_at = datetime.now()
+        study.paid_at = data.paid_at
         
     study.paid_by = current_user.username
-    
+    if data.invoice_number:
+         study.invoice_number = data.invoice_number
+    study.status = "paid"
     db.commit()
     return {"status": "paid"}
 

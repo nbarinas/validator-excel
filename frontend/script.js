@@ -18,8 +18,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
             if (res.ok) {
                 const user = await res.json();
-                const ui = document.getElementById('userInfo');
-                if (ui) ui.textContent = `Usuario: ${user.username}`;
+                const ui = document.getElementById('userInfoDisplay');
+                if (ui) {
+                    const name = user.full_name || user.username;
+                    ui.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.4);">${user.role.toUpperCase()}</span>`;
+                }
             }
         } catch (e) {
             console.error(e);

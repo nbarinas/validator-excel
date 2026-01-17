@@ -12,11 +12,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function toggleInHomeOptions() {
     const type = document.getElementById('studyType').value;
-    const group = document.getElementById('inHomeOptionsGroup');
+    const censusGroup = document.getElementById('groupCensus');
+
     if (type === 'In Home') {
-        group.style.display = 'block'; // Block to contain the grid
+        group.style.display = 'block';
+        if (censusGroup) censusGroup.style.display = 'none';
+    } else if (type === 'Ascensor') {
+        group.style.display = 'none';
+        if (censusGroup) censusGroup.style.display = 'block';
     } else {
         group.style.display = 'none';
+        if (censusGroup) censusGroup.style.display = 'none';
+
         // Reset values
         ['ih_implantacion', 'ih_r1', 'ih_rf', 'ih_caida_des', 'ih_caida', 'ih_nopart'].forEach(id => {
             document.getElementById(id).value = '0';
@@ -30,10 +37,26 @@ async function checkUser() {
         const res = await fetch('/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
         if (res.ok) {
             const user = await res.json();
-            document.getElementById('userInfo').textContent = `Usuario: ${user.username}`;
-            if (user.role !== 'superuser') {
-                alert('Acceso denegado');
-                window.location.href = '/';
+            document.getElementById('userInfo').textContent = `Usuario: ${user.username} (${user.role})`;
+
+            // ROLE CONTROL: Agents cannot see "In Home"
+            if (user.role === 'agent') {
+                const opt = document.getElementById('optInHome');
+                if (opt) opt.style.display = 'none'; // Or remove it
+                if (document.getElementById('studyType').value === 'In Home') {
+                    document.getElementById('studyType').value = 'Ascensor'; // Default to something else
+                    toggleInHomeOptions();
+                }
+            }
+
+            if (user.role !== 'superuser' && user.role !== 'bizage' && user.role !== 'agent') {
+                // If generic access logic applies. The requirement says: 
+                // "Rol bizage seria como un agente pero con la vista y uso del bizage"
+                // "En el rol agente quitar “in Home” solo queda nomina y call center" -> Wait, user said "solo queda nomina y call center" for Agent?
+                // Actually the requirement: "En el rol agente quitar “in Home” solo queda nomina y call center" likely means Agent shouldn't see Bizage at all if "nomina y call center" are different modules.
+                // BUT "El rol bizage seria como un agente pero con la vista y uso del bizage".
+                // Let's assume Agent CAN see this page but restricted, OR Agent is restricted from "In Home".
+                // "En el rol agente quitar “in Home”" implies they access Bizage module.
             }
         } else {
             window.location.href = '/login';
@@ -81,6 +104,7 @@ function renderTable(studies) {
         let details = `<div style="font-size:0.85rem">
             ${costDetails.length ? `<div>${costDetails.join(' | ')}</div>` : ''}
             ${s.bizagi_number ? `<div>Bizagi: ${s.bizagi_number}</div>` : ''}
+            ${s.invoice_number ? `<div>Factura: ${s.invoice_number}</div>` : ''}
             ${s.survey_no_participa ? `<div style="color:#fbbf24; font-style:italic; white-space: pre-wrap;">${s.survey_no_participa}</div>` : ''}
         </div>`;
 
@@ -125,6 +149,7 @@ async function registerStudy() {
     const name = document.getElementById('studyName').value;
     const n = document.getElementById('nValue').value;
     const notes = document.getElementById('surveyNotes').value;
+    const census = document.getElementById('census') ? document.getElementById('census').value : null;
 
     let finalNotes = notes;
     if (type === 'In Home') {
@@ -166,7 +191,7 @@ async function registerStudy() {
         const res = await fetch('/bizage/studies', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ study_type: type, study_name: name, n_value: parseInt(n), survey_no_participa: finalNotes })
+            body: JSON.stringify({ study_type: type, study_name: name, n_value: parseInt(n), survey_no_participa: finalNotes, census: census })
         });
         if (res.ok) {
             document.getElementById('studyName').value = '';
@@ -187,7 +212,10 @@ function openRadicar(id) {
     document.getElementById('radCopies').value = '0';
     document.getElementById('radVinipel').value = '0';
     document.getElementById('radOtherDesc').value = '';
+    document.getElementById('radOtherDesc').value = '';
     document.getElementById('radOtherVal').value = '0';
+    document.getElementById('radCopiesPrice').value = '';
+    document.getElementById('radVinipelPrice').value = '';
     document.getElementById('modalRadicar').style.display = 'flex';
 }
 
@@ -205,7 +233,9 @@ async function confirmRadicar() {
                 copies: parseInt(document.getElementById('radCopies').value || 0),
                 vinipel: parseInt(document.getElementById('radVinipel').value || 0),
                 other_cost_description: document.getElementById('radOtherDesc').value,
-                other_cost_amount: parseInt(document.getElementById('radOtherVal').value || 0)
+                other_cost_amount: parseInt(document.getElementById('radOtherVal').value || 0),
+                copies_price: parseInt(document.getElementById('radCopiesPrice').value || 0),
+                vinipel_price: parseInt(document.getElementById('radVinipelPrice').value || 0)
             })
         });
         if (res.ok) { closeModal('modalRadicar'); fetchStudies(); }
@@ -237,11 +267,13 @@ function openPay(id) {
     const now = new Date();
     const local = new Date(now.getTime() - (now.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     document.getElementById('payDate').value = local;
+    document.getElementById('payInvoice').value = '';
     document.getElementById('modalPay').style.display = 'flex';
 }
 
 async function confirmPay() {
     const dateVal = document.getElementById('payDate').value;
+    const invoice = document.getElementById('payInvoice').value;
     if (!dateVal) { alert("Fecha requerida"); return; }
     const isoDate = new Date(dateVal).toISOString();
 
@@ -249,7 +281,7 @@ async function confirmPay() {
         const res = await fetch(`/bizage/studies/${currentStudyId}/pay`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ paid_at: isoDate })
+            body: JSON.stringify({ paid_at: isoDate, invoice_number: invoice })
         });
         if (res.ok) { closeModal('modalPay'); fetchStudies(); }
     } catch (e) { }
@@ -270,7 +302,9 @@ function openEdit(id) {
     document.getElementById('editQty').value = study.quantity || '';
     document.getElementById('editPrice').value = study.price || '';
     document.getElementById('editCopies').value = study.copies || 0;
+    document.getElementById('editCopiesPrice').value = study.copies_price || 0;
     document.getElementById('editVinipel').value = study.vinipel || 0;
+    document.getElementById('editVinipelPrice').value = study.vinipel_price || 0;
 
     document.getElementById('editOtherDesc').value = study.other_cost_description || '';
     document.getElementById('editOtherVal').value = study.other_cost_amount || 0;
@@ -292,7 +326,9 @@ async function confirmEdit() {
         quantity: parseInt(document.getElementById('editQty').value || 0),
         price: parseInt(document.getElementById('editPrice').value || 0),
         copies: parseInt(document.getElementById('editCopies').value || 0),
+        copies_price: parseInt(document.getElementById('editCopiesPrice').value || 0),
         vinipel: parseInt(document.getElementById('editVinipel').value || 0),
+        vinipel_price: parseInt(document.getElementById('editVinipelPrice').value || 0),
 
         other_cost_description: document.getElementById('editOtherDesc').value,
         other_cost_amount: parseInt(document.getElementById('editOtherVal').value || 0),

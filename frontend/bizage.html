@@ -262,7 +262,7 @@
                         <select id="studyType" onchange="toggleInHomeOptions()"
                             style="width: 100%; padding: 0.75rem; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: white;">
                             <option value="Ascensor">Ascensor</option>
-                            <option value="In Home">In Home</option>
+                            <option value="In Home" id="optInHome">In Home</option>
                             <option value="Test de Compra">Test de Compra</option>
                             <option value="Seguimiento de Marca">Seguimiento de Marca</option>
                             <option value="Nuevo">Nuevo</option>
@@ -278,6 +278,11 @@
                             <label>Cantidad (N)</label>
                             <input type="number" id="nValue" placeholder="0" style="width: 100%;">
                         </div>
+                    </div>
+
+                    <div class="form-group" id="groupCensus" style="display:none;">
+                        <label>Censo</label>
+                        <input type="text" id="census" placeholder="Detalle Censo" style="width: 100%;">
                     </div>
 
                     <div class="form-group">
@@ -391,11 +396,17 @@
                 </div>
                 <div class="form-group">
                     <label>Copias</label>
-                    <input type="number" id="radCopies" value="0">
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="number" id="radCopies" value="0" placeholder="Cant">
+                        <input type="number" id="radCopiesPrice" value="0" placeholder="$">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Vinipel</label>
-                    <input type="number" id="radVinipel" value="0">
+                    <label>Contac (Antes Vinipel)</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="number" id="radVinipel" value="0" placeholder="Cant">
+                        <input type="number" id="radVinipelPrice" value="0" placeholder="$">
+                    </div>
                 </div>
             </div>
 
@@ -432,79 +443,91 @@
                 <button class="btn-action btn-bizagi" onclick="confirmBizagi()">Guardar</button>
             </div>
         </div>
-        <!-- Modal: Pay -->
-        <div id="modalPay" class="modal">
-            <div class="modal-content">
-                <h2>Registrar Pago</h2>
+    </div>
+
+    <!-- Modal: Pay -->
+    <div id="modalPay" class="modal">
+        <div class="modal-content">
+            <h2>Registrar Pago</h2>
+            <div class="form-group">
+                <label>Fecha de Pago</label>
+                <input type="date" id="payDate">
+            </div>
+            <div class="form-group">
+                <label>Número de Factura</label>
+                <input type="text" id="payInvoice" placeholder="Opcional">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-action btn-history" onclick="closeModal('modalPay')">Cancelar</button>
+                <button class="btn-action btn-pay" onclick="confirmPay()">Pagar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Edit -->
+    <div id="modalEdit" class="modal">
+        <div class="modal-content" style="width: 600px; max-height: 90vh; overflow-y: auto;">
+            <h2>Editar Estudio</h2>
+            <div class="form-grid">
                 <div class="form-group">
-                    <label>Fecha de Pago</label>
-                    <input type="date" id="payDate">
+                    <label>Tipo</label>
+                    <input type="text" id="editType">
                 </div>
-                <div class="modal-actions">
-                    <button class="btn-action btn-history" onclick="closeModal('modalPay')">Cancelar</button>
-                    <button class="btn-action btn-pay" onclick="confirmPay()">Pagar</button>
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="editName">
                 </div>
-            </div>
-        </div>
-
-        <!-- Modal: Edit -->
-        <div id="modalEdit" class="modal">
-            <div class="modal-content" style="width: 600px; max-height: 90vh; overflow-y: auto;">
-                <h2>Editar Estudio</h2>
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label>Tipo</label>
-                        <input type="text" id="editType">
-                    </div>
-                    <div class="form-group">
-                        <label>Nombre</label>
-                        <input type="text" id="editName">
-                    </div>
-                    <div class="form-group">
-                        <label>N</label>
-                        <input type="number" id="editN">
-                    </div>
-                    <div class="form-group">
-                        <label>Bizagi</label>
-                        <input type="text" id="editBizagi">
-                    </div>
-
-                    <!-- Costs -->
-                    <div class="form-group"><label>Cant</label><input type="number" id="editQty"></div>
-                    <div class="form-group"><label>Precio</label><input type="number" id="editPrice"></div>
-                    <div class="form-group"><label>Copias</label><input type="number" id="editCopies"></div>
-                    <div class="form-group"><label>Vinipel</label><input type="number" id="editVinipel"></div>
+                <div class="form-group">
+                    <label>N</label>
+                    <input type="number" id="editN">
+                </div>
+                <div class="form-group">
+                    <label>Bizagi</label>
+                    <input type="text" id="editBizagi">
                 </div>
 
-                <div class="form-group" style="margin-top:1rem">
-                    <label>Notas / Clasificación</label>
-                    <input type="text" id="editNotes">
+                <!-- Costs -->
+                <div class="form-group"><label>Cant</label><input type="number" id="editQty"></div>
+                <div class="form-group"><label>Precio</label><input type="number" id="editPrice"></div>
+                <div class="form-group"><label>Copias</label>
+                    <div style="display:flex;gap:5px"><input type="number" id="editCopies"><input type="number"
+                            id="editCopiesPrice" placeholder="$"></div>
                 </div>
-
-                <!-- Other costs -->
-                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-top: 1rem;">
-                    <div class="form-group"><label>Otro Desc</label><input type="text" id="editOtherDesc"></div>
-                    <div class="form-group"><label>Otro Val</label><input type="number" id="editOtherVal"></div>
-                </div>
-
-                <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
-                    <label>Estado (Cuidado, solo si es necesario)</label>
-                    <select id="editStatus">
-                        <option value="registered">Registrado</option>
-                        <option value="radicated">Radicado</option>
-                        <option value="number_assigned">Asignado (Bizagi)</option>
-                        <option value="paid">Pagado</option>
-                    </select>
-                </div>
-
-                <div class="modal-actions">
-                    <button class="btn-action btn-history" onclick="closeModal('modalEdit')">Cancelar</button>
-                    <button class="btn-action btn-primary" onclick="confirmEdit()">Guardar Cambios</button>
+                <div class="form-group"><label>Contac</label>
+                    <div style="display:flex;gap:5px"><input type="number" id="editVinipel"><input type="number"
+                            id="editVinipelPrice" placeholder="$"></div>
                 </div>
             </div>
-        </div>
 
-        <script src="/static/bizage.js"></script>
+            <div class="form-group" style="margin-top:1rem">
+                <label>Notas / Clasificación</label>
+                <input type="text" id="editNotes">
+            </div>
+
+            <!-- Other costs -->
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-top: 1rem;">
+                <div class="form-group"><label>Otro Desc</label><input type="text" id="editOtherDesc"></div>
+                <div class="form-group"><label>Otro Val</label><input type="number" id="editOtherVal"></div>
+            </div>
+
+            <div style="margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem;">
+                <label>Estado (Cuidado, solo si es necesario)</label>
+                <select id="editStatus">
+                    <option value="registered">Registrado</option>
+                    <option value="radicated">Radicado</option>
+                    <option value="number_assigned">Asignado (Bizagi)</option>
+                    <option value="paid">Pagado</option>
+                </select>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-action btn-history" onclick="closeModal('modalEdit')">Cancelar</button>
+                <button class="btn-action btn-primary" onclick="confirmEdit()">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/bizage.js"></script>
 </body>
 
 </html>

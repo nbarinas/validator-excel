@@ -115,6 +115,10 @@
     <div class="dashboard-container">
         <header class="header">
             <h1>AZ Marketing Portal</h1>
+            <div id="userInfoDisplay"
+                style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-right: auto; margin-left: 2rem; display: flex; align-items: center;">
+                <!-- User Info Here -->
+            </div>
             <div style="display: flex; gap: 1rem;">
                 <button class="btn-logout" style="background: var(--primary-color, #6366f1); border-color:transparent;"
                     onclick="changeMyPassword()">Cambiar Clave</button>
@@ -123,7 +127,7 @@
         </header>
 
         <div class="modules-grid">
-            <a href="/validator-page" class="module-card">
+            <a href="/validator-page" class="module-card" id="cardInHome">
                 <i class="fas fa-file-excel module-icon"></i>
                 <div class="module-title">In Home</div>
                 <div class="module-desc">Validador de Archivos Excel</div>
@@ -170,12 +174,28 @@
                 });
                 if (res.ok) {
                     const user = await res.json();
-                    if (user.role === 'superuser') {
-                        const cardUsers = document.getElementById('cardUsers');
-                        if (cardUsers) cardUsers.style.display = 'flex';
 
-                        const cardBizage = document.getElementById('cardBizage');
+                    // Display User Info
+                    const display = document.getElementById('userInfoDisplay');
+                    if (display) {
+                        // Use full name if available, else username
+                        const name = user.full_name || user.username;
+                        display.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.2);">${user.role.toUpperCase()}</span>`;
+                    }
+
+                    // Role Logic
+                    const cardInHome = document.getElementById('cardInHome');
+                    const cardBizage = document.getElementById('cardBizage');
+                    const cardUsers = document.getElementById('cardUsers');
+
+                    if (user.role === 'superuser') {
+                        if (cardUsers) cardUsers.style.display = 'flex';
                         if (cardBizage) cardBizage.style.display = 'flex';
+                    } else if (user.role === 'bizage') {
+                        if (cardInHome) cardInHome.style.display = 'none'; // Hide In Home
+                        if (cardBizage) cardBizage.style.display = 'flex'; // Show Bizage
+                    } else if (user.role === 'agent') {
+                        if (cardInHome) cardInHome.style.display = 'none'; // Hide In Home for Agents
                     }
                 }
             } catch (e) {
