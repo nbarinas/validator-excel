@@ -124,7 +124,7 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
     
     # Columns to check/add
     # (name, type)
-    columns = [
+    columns_users = [
         ("full_name", "VARCHAR(100)"),
         ("bank", "VARCHAR(50)"),
         ("account_type", "VARCHAR(20)"),
@@ -139,19 +139,55 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
         ("account_holder_cc", "VARCHAR(20)")
     ]
     
+    # Columns for bizage_studies
+    columns_studies = [
+        ("study_type", "VARCHAR(50)"),
+        ("study_name", "VARCHAR(100)"),
+        ("n_value", "INTEGER"),
+        ("survey_no_participa", "VARCHAR(200)"),
+        ("quantity", "INTEGER"),
+        ("price", "INTEGER"),
+        ("copies", "INTEGER"),
+        ("copies_price", "INTEGER"),
+        ("vinipel", "INTEGER"),
+        ("vinipel_price", "INTEGER"),
+        ("other_cost_description", "VARCHAR(200)"),
+        ("other_cost_amount", "INTEGER"),
+        ("census", "VARCHAR(100)"),
+        ("bizagi_number", "VARCHAR(50)"),
+        ("status", "VARCHAR(50) DEFAULT 'registered'"),
+        ("registered_at", "DATETIME"),
+        ("registered_by", "VARCHAR(50)"),
+        ("radicated_at", "DATETIME"),
+        ("radicated_by", "VARCHAR(50)"),
+        ("bizagi_at", "DATETIME"),
+        ("bizagi_by", "VARCHAR(50)"),
+        ("paid_at", "DATETIME"),
+        ("paid_by", "VARCHAR(50)"),
+        ("invoice_number", "VARCHAR(50)")
+    ]
+    
     results = []
     
-    for col_name, col_type in columns:
+    # Migrate Users
+    for col_name, col_type in columns_users:
         try:
-            # Try to add column. Will fail if exists.
-            # MySQL syntax
             sql = text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
             db.execute(sql)
-            results.append(f"Added {col_name}")
+            results.append(f"Added {col_name} to users")
         except Exception as e:
-            # Likely "Duplicate column" error
-            results.append(f"Skipped {col_name} (likely exists or error: {str(e)})")
-            
+            results.append(f"Skipped {col_name} in users")
+
+    # Migrate Bizage Studies
+    # First, ensure table exists (it should via create_all, but columns might be missing if created early)
+    for col_name, col_type in columns_studies:
+        try:
+            sql = text(f"ALTER TABLE bizage_studies ADD COLUMN {col_name} {col_type}")
+            db.execute(sql)
+            results.append(f"Added {col_name} to bizage_studies")
+        except Exception as e:
+            results.append(f"Skipped {col_name} in bizage_studies")
+
     try:
         db.commit()
     except Exception as e:
