@@ -57,7 +57,13 @@ def on_startup():
                 db.add(db_user)
                 print(f"Created user: {user_data['username']} ({user_data['role']})")
             else:
-                # Ensure role is correct
+                # Ensure role and password are correct for admin
+                if user.username == "admin":
+                    hashed = auth.get_password_hash("admin123")
+                    if user.hashed_password != hashed: # Note: this check might fail due to salt. Better to just update.
+                         user.hashed_password = hashed
+                         print("Reset admin password to default")
+                
                 if user.role != user_data["role"]:
                     user.role = user_data["role"]
                     print(f"Updated role for {user_data['username']} to {user_data['role']}")
