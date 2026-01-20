@@ -11,6 +11,7 @@ class User(Base):
     username = Column(String(50), unique=True, index=True) # specified length for MySQL
     hashed_password = Column(String(255)) # specified length
     role = Column(String(20), default="agent") # specified length
+    last_seen = Column(DateTime(timezone=True), nullable=True)
     
     # New Fields
     full_name = Column(String(100), nullable=True)
@@ -41,7 +42,9 @@ class Study(Base):
     
     # New Fields
     study_type = Column(String(50), nullable=True) # 'validacion', 'fatiga'
+    study_type = Column(String(50), nullable=True) # 'validacion', 'fatiga'
     stage = Column(String(20), nullable=True) # 'R1', 'R2', 'Rf', etc.
+    is_active = Column(Boolean, default=True) # Soft delete / Hide functionality
 
     calls = relationship("Call", back_populates="study")
 
@@ -68,7 +71,23 @@ class Call(Base):
     corrected_phone = Column(String(20), nullable=True)
     corrected_phone = Column(String(20), nullable=True)
     person_cc = Column(String(20), nullable=True)
+    person_cc = Column(String(20), nullable=True)
     census = Column(String(50), nullable=True) # New field requested
+
+    # Census / Demographic Data
+    nse = Column(String(50), nullable=True)
+    age = Column(String(20), nullable=True)
+    age_range = Column(String(50), nullable=True)
+    children_age = Column(String(200), nullable=True)
+    whatsapp = Column(String(50), nullable=True)
+    neighborhood = Column(String(200), nullable=True)
+    address = Column(String(300), nullable=True)
+    housing_description = Column(String(300), nullable=True)
+    respondent = Column(String(100), nullable=True)
+    supervisor = Column(String(100), nullable=True)
+    implantation_date = Column(String(50), nullable=True) # Keeping as string for flexibility unless strictly DateTime
+    collection_date = Column(String(50), nullable=True)
+    collection_time = Column(String(50), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

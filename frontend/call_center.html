@@ -7,6 +7,7 @@
     <title>Call Center - AZ Marketing</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         .crm-container {
             display: grid;
@@ -157,6 +158,55 @@
         #filterOptions label:hover {
             background: #f0f0f0;
         }
+
+        /* Online Status Bar Styles */
+        .online-header-bar {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            overflow-x: auto;
+            max-width: 600px;
+            /* Limit width */
+            scrollbar-width: thin;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #e2e8f0;
+            white-space: nowrap;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: grey;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .status-green {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .status-yellow {
+            background: #eab308;
+            box-shadow: 0 0 8px #eab308;
+        }
+
+        .status-red {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
     </style>
 </head>
 
@@ -166,6 +216,12 @@
         <!-- Top Nav -->
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
             <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold;">&larr; Volver al Dashboard</a>
+
+            <!-- Online Users Bar (Inserted in center) -->
+            <div id="onlineHeaderBar" class="online-header-bar" style="display: none;">
+                <!-- Users injected here -->
+            </div>
+
             <div id="userInfoDisplay" style="color: white; font-size: 1rem; display: flex; align-items: center;"></div>
         </div>
 
@@ -182,6 +238,11 @@
                     <i class="fas fa-file-upload" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Cargar Base (Excel)
                 </button>
+                <button onclick="showManageStudies()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #f59e0b; color: white; cursor: pointer; width: 300px;">
+                    <i class="fas fa-database" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Base de Datos
+                </button>
                 <button onclick="enterCRM()"
                     style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #22c55e; color: white; cursor: pointer; width: 300px;">
                     <i class="fas fa-desktop" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
@@ -190,32 +251,65 @@
             </div>
         </div>
 
+        <!-- MANAGE STUDIES MODAL -->
+        <div id="manageStudiesModal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+            <div
+                style="background: white; padding: 2rem; border-radius: 12px; width: 600px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h2 style="margin-top: 0; color: #1e293b;">Gestionar Bases de Datos</h2>
+                <p class="obs-meta" style="margin-bottom: 1rem; color: #475569;">Active o desactive bases para que sean
+                    visibles a los
+                    agentes.</p>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f1f5f9; text-align: left; color: #334155;">
+                            <th style="padding: 0.5rem;">ID</th>
+                            <th style="padding: 0.5rem;">Nombre</th>
+                            <th style="padding: 0.5rem;">Tipo / Etapa</th>
+                            <th style="padding: 0.5rem;">Estado</th>
+                            <th style="padding: 0.5rem;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manageStudiesBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button onclick="closeManageStudies()"
+                        style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cerrar</button>
+                </div>
+            </div>
+        </div>
+
         <!-- UPLOAD MODAL -->
         <div id="uploadModal"
             style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
             <div style="background: white; padding: 2rem; border-radius: 12px; width: 500px; max-width: 90%;">
-                <h2 style="margin-top: 0;">Cargar Base de Llamadas</h2>
+                <h2 style="margin-top: 0; color: #1e293b;">Cargar Base de Llamadas</h2>
                 <div class="form-group">
-                    <label>Archivo Excel</label>
+                    <label style="color: #475569;">Archivo Excel</label>
                     <input type="file" id="uploadFile" accept=".xlsx, .xls">
-                    <p class="obs-meta">Columnas requeridas: Telefono, Ciudad, Observaciones, Hora de llamada, Marca de
+                    <p class="obs-meta" style="color: #64748b;">Columnas requeridas: Telefono, Ciudad, Observaciones,
+                        Hora de llamada, Marca de
                         producto, Otro numero</p>
                 </div>
                 <!-- Logic: Create new or append? User said "Cargar Nuevo Estudio" -->
                 <div class="form-group">
-                    <label>Nombre del Nuevo Estudio</label>
+                    <label style="color: #475569;">Nombre del Nuevo Estudio</label>
                     <input type="text" id="uploadStudyName" placeholder="Ej: Estudio Diciembre 2025">
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
-                        <label>Tipo de Estudio</label>
+                        <label style="color: #475569;">Tipo de Estudio</label>
                         <select id="uploadStudyType" style="width: 100%; padding: 0.5rem;">
                             <option value="validacion">Validación</option>
                             <option value="fatiga">Fatiga</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Etapa (R)</label>
+                        <label style="color: #475569;">Etapa (R)</label>
                         <select id="uploadStudyStage" style="width: 100%; padding: 0.5rem;">
                             <option value="R1">R1</option>
                             <option value="R2">R2</option>
@@ -253,7 +347,10 @@
                         <option value="">Estado: Todos</option>
                         <option value="pending">Pendiente</option>
                         <option value="managed">Gestionado</option>
-                        <option value="closed">Cerrado</option>
+                        <option value="scheduled">Agendado</option>
+                        <option value="done">Terminado</option>
+                        <option value="caidas">Caídas</option>
+                        <option value="en campo">En Campo</option>
                     </select>
 
                     <input type="text" placeholder="Buscar por teléfono, nombre..." id="searchPhone">
@@ -290,8 +387,16 @@
                     </div>
 
                     <div class="header-nav">
-                        <h3>Listado de Llamadas</h3>
                         <div>
+                            <h3 style="display: inline-block; margin-right: 10px;">Listado de Llamadas</h3>
+                            <span id="callCounter" style="font-size: 0.9rem; color: #666; font-weight: normal;">(0
+                                registros)</span>
+                        </div>
+                        <div>
+                            <button id="btnExportExcel" onclick="exportToExcel()"
+                                style="display: none; cursor: pointer; background: #22c55e; border: 1px solid #16a34a; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: white;">
+                                <i class="fas fa-file-excel"></i> Descargar Excel
+                            </button>
                             <button onclick="resetFilters()"
                                 style="cursor: pointer; background: #e2e8f0; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: #334155;">
                                 <i class="fas fa-undo"></i> Restablecer Filtros
@@ -357,29 +462,23 @@
                                         style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
                                         <option value="">Todas</option>
                                     </select>
-                                </th>
                                 <th>Agenda/Alerta</th>
                                 <th>
                                     Estado
                                     <select id="colFilterStatus"
                                         style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
                                         <option value="">Todos</option>
-                                        <option value="pending">Pendiente</option>
-                                        <option value="management">Gestionando</option>
-                                        <option value="scheduled">Agendado</option>
-                                        <option value="done">Terminado</option>
                                     </select>
                                 </th>
-
-                                <!-- NEW COLUMNS -->
                                 <th>
                                     Censo
                                     <input type="text" id="colFilterCensus" placeholder="Buscar..."
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px; box-sizing: border-box;">
                                 </th>
+                                <th>NSE</th>
+                                <th>Edad</th>
+                                <th>Barrio</th>
                                 <th>Observación</th>
-
-                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="callsGridBody">
@@ -424,6 +523,47 @@
                         <div class="form-group">
                             <label>Info Extra</label>
                             <input type="text" id="extraPhone" placeholder="Otro dato...">
+                        </div>
+                    </div>
+
+                    <!-- NEW CENSUS DATA SECTION -->
+                    <div class="form-section" id="censusSection"
+                        style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                        <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
+                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                            <div class="form-group">
+                                <label>Censo / ID</label>
+                                <input type="text" id="censusId" readonly style="background: #e2e8f0;">
+                            </div>
+                            <div class="form-group">
+                                <label>NSE</label>
+                                <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
+                            </div>
+                            <div class="form-group">
+                                <label>Edad</label>
+                                <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
+                            </div>
+                            <div class="form-group">
+                                <label>Rango Edad</label>
+                                <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
+                            </div>
+                            <div class="form-group">
+                                <label>Barrio</label>
+                                <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
+                            </div>
+                            <div class="form-group">
+                                <label>Dirección</label>
+                                <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
+                            </div>
+                            <div class="form-group">
+                                <label>Vivienda</label>
+                                <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
+                            </div>
+                            <div class="form-group">
+                                <label>Hijos</label>
+                                <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
+                            </div>
+                            <!-- More fields if needed -->
                         </div>
                     </div>
 
@@ -482,23 +622,105 @@
                     </div>
 
                     <!-- Actions Footer -->
-                    <div
-                        style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem; display: flex; justify-content: space-between;">
-                        <button onclick="showGridView()"
-                            style="background: #94a3b8; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">Cancelar
-                            / Volver</button>
+                    <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
 
-                        <button id="btnCloseCall" onclick="finishCall()"
-                            style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Finalizar
-                            Gestión / Cerrar</button>
+                        <!-- NEW DYNAMIC ACTION BUTTONS -->
+                        <div id="actionButtons"
+                            style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
+                            <!-- Populated by JS -->
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between;">
+                            <button onclick="showGridView()"
+                                style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
+                                Cancelar / Volver</button>
+
+                            <button id="btnCloseCall" onclick="finishCall()"
+                                style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
+                                Close</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
+
     </div>
     </div>
 
-    <script src="/static/call_center.js?v=8"></script>
+    <script src="/static/call_center.js?v=12"></script>
+    <script>
+        async function updateOnlineStatus() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            try {
+                const res = await fetch('/users/status', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const users = await res.json();
+                    const container = document.getElementById('onlineHeaderBar');
+                    container.innerHTML = ''; // Start clean
+
+                    const now = new Date();
+                    let activeCount = 0;
+
+                    users.forEach(u => {
+                        if (!u.last_seen) return;
+
+                        let lastSeenDate = new Date(u.last_seen + (u.last_seen.endsWith('Z') ? '' : 'Z'));
+                        let diffMinutes = (now - lastSeenDate) / 1000 / 60;
+
+                        // Hide if inactive > 20m
+                        if (diffMinutes > 20) return;
+
+                        let colorClass = 'status-green';
+                        if (diffMinutes >= 15) colorClass = 'status-red';
+                        else if (diffMinutes >= 10) colorClass = 'status-yellow';
+
+                        activeCount++;
+
+                        const pill = document.createElement('div');
+                        pill.className = 'status-pill';
+
+                        // Tooltip logic for details
+                        pill.title = `Rol: ${u.role}\nHace ${Math.floor(diffMinutes)} min`;
+
+                        pill.innerHTML = `
+                            <div class="status-dot ${colorClass}"></div>
+                            <span>${u.full_name || u.username}</span>
+                        `;
+                        container.appendChild(pill);
+                    });
+
+                    if (activeCount === 0) {
+                        container.innerHTML = '<span style="color: #94a3b8; font-size: 0.8rem; font-style: italic;">Sin usuarios activos</span>';
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching status", e);
+            }
+        }
+
+        // Initialize Call Center Status
+        document.addEventListener("DOMContentLoaded", async () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                try {
+                    const res = await fetch('/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
+                    if (res.ok) {
+                        const user = await res.json();
+                        if (user.role === 'superuser' || user.role === 'auxiliar') {
+                            document.getElementById('onlineHeaderBar').style.display = 'flex';
+                            updateOnlineStatus();
+                            setInterval(updateOnlineStatus, 30000); // Poll every 30s
+                        }
+                    }
+                } catch (e) { }
+            }
+        });
+    </script>
+    <script src="/static/heartbeat.js"></script>
 </body>
 
 </html>

@@ -108,6 +108,59 @@
             color: var(--text-muted, #94a3b8);
             font-size: 1rem;
         }
+
+        /* Online Status Styles */
+        .online-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem auto;
+            max-width: 800px;
+            color: white;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .user-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .user-status-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.8rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: grey;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .status-green {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .status-yellow {
+            background: #eab308;
+            box-shadow: 0 0 8px #eab308;
+        }
+
+        .status-red {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
     </style>
 </head>
 
@@ -133,7 +186,7 @@
                 <div class="module-desc">Validador de Archivos Excel</div>
             </a>
 
-            <a href="#" class="module-card" style="opacity: 0.6; cursor: not-allowed;">
+            <a href="#" class="module-card" id="cardNomina" style="opacity: 0.6; cursor: not-allowed;">
                 <i class="fas fa-money-check-alt module-icon"></i>
                 <div class="module-title">Nómina</div>
                 <div class="module-desc">Próximamente</div>
@@ -157,6 +210,16 @@
                 <div class="module-title">Estudios/Bizage</div>
                 <div class="module-desc">Gestión de Estudios y Pagos</div>
             </a>
+        </div>
+
+        <!-- Online Users Panel -->
+        <div id="onlineUsersPanel" class="online-panel">
+            <h3 style="margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
+                <i class="fas fa-signal"></i> Usuarios en Línea
+            </h3>
+            <div id="usersGrid" class="user-status-grid">
+                <!-- User cards will go here -->
+            </div>
         </div>
     </div>
 
@@ -191,10 +254,24 @@
                     if (user.role === 'superuser') {
                         if (cardUsers) cardUsers.style.display = 'flex';
                         if (cardBizage) cardBizage.style.display = 'flex';
+                        // Show Online Panel
+                        document.getElementById('onlineUsersPanel').style.display = 'block';
+                        updateOnlineStatus(); // Initial call
+                        setInterval(updateOnlineStatus, 30000); // Poll every 30s
                     } else if (user.role === 'bizage') {
                         if (cardInHome) cardInHome.style.display = 'none'; // Hide In Home
                         if (cardBizage) cardBizage.style.display = 'flex'; // Show Bizage
-                    } else if (user.role === 'agent') {
+                    } else if (user.role === 'auxiliar') {
+                        // Auxiliar ONLY sees Call Center and Online Status
+                        if (cardInHome) cardInHome.style.display = 'none';
+                        const cardNomina = document.getElementById('cardNomina');
+                        if (cardNomina) cardNomina.style.display = 'none';
+
+                        document.getElementById('onlineUsersPanel').style.display = 'block';
+                        updateOnlineStatus(); // Initial call
+                        setInterval(updateOnlineStatus, 30000); // Poll every 30s
+                    }
+                    else if (user.role === 'agent') {
                         if (cardInHome) cardInHome.style.display = 'none'; // Hide In Home for Agents
                     }
                 }
@@ -237,7 +314,65 @@
             localStorage.removeItem('token');
             window.location.href = '/login';
         }
+        async function updateOnlineStatus() {
+            try {
+                const res = await fetch('/users/status', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const users = await res.json();
+                    const grid = document.getElementById('usersGrid');
+                    grid.innerHTML = '';
+
+                    const now = new Date();
+                    let activeCount = 0;
+
+                    users.forEach(u => {
+                        if (!u.last_seen) return;
+
+                        // Parse UTC last_seen
+                        // Backend sends ISO string like "2023-10-27T10:00:00" assuming UTC or timezone aware
+                        // We need to compare with local time or match timezones.
+                        // Assuming backend sends UTC ISO string with 'Z' or we treat as UTC.
+                        let lastSeenDate = new Date(u.last_seen + (u.last_seen.endsWith('Z') ? '' : 'Z'));
+                        let diffMinutes = (now - lastSeenDate) / 1000 / 60;
+
+                        // Logic:
+                        // < 10 min: Green
+                        // 10 - 15 min: Yellow
+                        // 15 - 20 min: Red
+                        // > 20 min: Hide
+
+                        if (diffMinutes > 20) return;
+
+                        let colorClass = 'status-green';
+                        if (diffMinutes >= 15) colorClass = 'status-red';
+                        else if (diffMinutes >= 10) colorClass = 'status-yellow';
+
+                        activeCount++;
+
+                        const div = document.createElement('div');
+                        div.className = 'user-status-card';
+                        div.innerHTML = `
+                            <div class="status-dot ${colorClass}"></div>
+                            <div style="font-size: 0.9rem;">
+                                <div style="font-weight: bold;">${u.full_name || u.username}</div>
+                                <div style="font-size: 0.75rem; opacity: 0.7;">Hace ${Math.floor(diffMinutes)} min</div>
+                            </div>
+                        `;
+                        grid.appendChild(div);
+                    });
+
+                    if (activeCount === 0) {
+                        grid.innerHTML = '<div style="opacity: 0.5; font-style: italic;">No hay otros usuarios activos.</div>';
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching status", e);
+            }
+        }
     </script>
+    <script src="/static/heartbeat.js"></script>
 </body>
 
 </html>
