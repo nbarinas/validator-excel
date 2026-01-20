@@ -86,6 +86,10 @@ class Call(Base):
     collection_date = Column(String(50), nullable=True)
     collection_time = Column(String(50), nullable=True)
     
+    # Survey and Bonus tracking (when managed)
+    survey_id = Column(String(100), nullable=True) # Alphanumeric survey identifier
+    bonus_status = Column(String(20), nullable=True) # 'enviado' or 'no enviado'
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

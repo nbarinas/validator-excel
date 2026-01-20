@@ -1190,7 +1190,8 @@ def normalize_columns(df, manual_mapping=None):
         "Nombre": ["enc_1", "nombre", "encuestada", "name"],
         "Encuestador": ["encues_1"],
         "Nse": ["nse", "estrato", "nivel", "capa", "socioeconomico", "seg"],
-        "Duration": ["duration", "duracion", "tiempo", "time"]
+        "Duration": ["duration", "duracion", "tiempo", "time"],
+        "Producto": ["producto", "marca", "codigo del producto", "product", "brand", "code product"]
     }
     
     mapping = {}
@@ -1261,7 +1262,7 @@ async def validate_files(
                 "file_2_name": filenames[1],
                 "file_2_columns": [str(c) for c in dfs[1].columns],
                 "missing_2": missing2,
-                "required_fields": ["Id", "Ciudad", "Numero de celular", "Codigo", "Nombre", "Nse", "Duration", "Encuestador"]
+                "required_fields": ["Id", "Ciudad", "Numero de celular", "Codigo", "Nombre", "Nse", "Duration", "Encuestador", "Producto"]
             }
         )
 
@@ -1977,3 +1978,73 @@ async def fatiga_check(files: List[UploadFile] = File(...), mapping: str = Form(
     output.seek(0)
     headers = {'Content-Disposition': 'attachment; filename="Reporte_Fatiga.xlsx"'}
     return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+# --- CALLS ENDPOINTS ---
+
+class CallStatusUpdate(BaseModel):
+    status: str
+    survey_id: Optional[str] = None
+    bonus_status: Optional[str] = None
+
+@app.put("/calls/{call_id}/status")
+async def update_call_status(
+    call_id: int,
+    update: CallStatusUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    
+    # Update status
+    call.status = update.status
+    
+    # Update survey fields if provided (when marking as managed)
+    if update.survey_id:
+        call.survey_id = update.survey_id
+    if update.bonus_status:
+        call.bonus_status = update.bonus_status
+    
+    call.updated_at = datetime.now()
+    db.commit()
+    db.refresh(call)
+    
+    return {"message": "Status updated successfully", "call_id": call.id}
+
+class CallContactUpdate(BaseModel):
+    phone_number: Optional[str] = None
+    corrected_phone: Optional[str] = None
+    person_cc: Optional[str] = None
+    whatsapp: Optional[str] = None
+    extra_phone: Optional[str] = None
+
+@app.put("/calls/{call_id}/contact")
+async def update_call_contact(
+    call_id: int,
+    update: CallContactUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    
+    if update.phone_number:
+        call.phone_number = update.phone_number
+    if update.corrected_phone is not None:
+        call.corrected_phone = update.corrected_phone
+    if update.person_cc is not None:
+        call.person_cc = update.person_cc
+    if update.whatsapp is not None:
+        call.whatsapp = update.whatsapp
+    if update.extra_phone is not None:
+        call.extra_phone = update.extra_phone
+        
+    call.updated_at = datetime.now()
+    db.commit()
+    db.refresh(call)
+    
+    return {"message": "Contact data updated successfully", "call_id": call.id}
+
+
