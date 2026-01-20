@@ -441,7 +441,7 @@ def debug_test_verify(db: Session = Depends(database.get_db)):
 
 @app.get("/debug/migrate-db")
 def debug_migrate_db(db: Session = Depends(database.get_db)):
-    """Run migrations to add missing columns to users and studies tables"""
+    """Run migrations to add missing columns to users, studies, and calls tables"""
     from sqlalchemy import text, inspect
     try:
         inspector = inspect(db.get_bind())
@@ -450,6 +450,7 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
         # --- USERS MIGRATION ---
         existing_user_cols = [c['name'] for c in inspector.get_columns('users')]
         new_user_cols = [
+            ("last_seen", "DATETIME"),  # ← MISSING!
             ("full_name", "VARCHAR(100)"),
             ("bank", "VARCHAR(50)"),
             ("account_type", "VARCHAR(20)"),
@@ -458,6 +459,10 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("phone_number", "VARCHAR(20)"),
             ("address", "VARCHAR(200)"),
             ("city", "VARCHAR(100)"),
+            ("neighborhood", "VARCHAR(100)"),  # ← MISSING!
+            ("blood_type", "VARCHAR(10)"),  # ← MISSING!
+            ("account_holder", "VARCHAR(100)"),  # ← MISSING!
+            ("account_holder_cc", "VARCHAR(20)"),  # ← MISSING!
         ]
         
         for col, dtype in new_user_cols:
@@ -474,7 +479,8 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
         existing_study_cols = [c['name'] for c in inspector.get_columns('studies')]
         new_study_cols = [
             ("study_type", "VARCHAR(50)"),
-            ("stage", "VARCHAR(10)")
+            ("stage", "VARCHAR(20)"),  # ← Changed from VARCHAR(10) to match models.py
+            ("is_active", "BOOLEAN DEFAULT 1"),  # ← MISSING!
         ]
 
         for col, dtype in new_study_cols:
@@ -490,6 +496,9 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
         # --- CALLS MIGRATION ---
         existing_call_cols = [c['name'] for c in inspector.get_columns('calls')]
         new_call_cols = [
+            # Contact info
+            ("person_name", "VARCHAR(100)"),
+            ("city", "VARCHAR(100)"),
             ("census", "VARCHAR(50)"),
             ("observation", "VARCHAR(500)"),
             ("product_brand", "VARCHAR(100)"),
@@ -499,8 +508,20 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("corrected_phone", "VARCHAR(20)"),
             ("person_cc", "VARCHAR(20)"),
             ("updated_at", "DATETIME"),
-            ("person_name", "VARCHAR(100)"), # Ensure this exists too
-            ("city", "VARCHAR(100)")
+            # Census / Demographic Data - THESE WERE MISSING!
+            ("nse", "VARCHAR(50)"),
+            ("age", "VARCHAR(20)"),
+            ("age_range", "VARCHAR(50)"),
+            ("children_age", "VARCHAR(200)"),
+            ("whatsapp", "VARCHAR(50)"),
+            ("neighborhood", "VARCHAR(200)"),
+            ("address", "VARCHAR(300)"),
+            ("housing_description", "VARCHAR(300)"),
+            ("respondent", "VARCHAR(100)"),
+            ("supervisor", "VARCHAR(100)"),
+            ("implantation_date", "VARCHAR(50)"),
+            ("collection_date", "VARCHAR(50)"),
+            ("collection_time", "VARCHAR(50)"),
         ]
 
         for col, dtype in new_call_cols:
@@ -517,6 +538,7 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
         return {"status": "migration completed", "log": log}
     except Exception as e:
         return {"error": str(e)}
+
 
 
 @app.delete("/users/{user_id}")
