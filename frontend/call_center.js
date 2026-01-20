@@ -17,9 +17,18 @@ const statusMap = {
     'scheduled': 'Agendado',
     'done': 'Terminado',
     'closed': 'Cerrado',
+    // New caída options
+    'caida_desempeno': 'Caída por Desempeño',
+    'caida_logistica': 'Caída Logística',
+    'caida_desempeno_campo': 'Caída Desempeño Campo',
+    'caida_logistico_campo': 'Caída Logístico Campo',
+    // Legacy caídas mapping
     'caidas': 'Caída',
-    'en_campo': 'En Campo', // Normalize key if needed
+    'caida': 'Caída',
+    // En campo statuses
+    'en_campo': 'En Campo',
     'en campo': 'En Campo',
+    'efectiva_campo': 'Efectiva en Campo',
     'managed': 'Gestionado'
 };
 
@@ -454,6 +463,10 @@ function showGridView() {
     }
 }
 
+function closeDetailView() {
+    showGridView();
+}
+
 function showDetailView() {
     document.getElementById('emptyState').style.display = 'none';
     document.getElementById('callsGridView').style.display = 'none';
@@ -717,6 +730,10 @@ function openCallDetail(call) {
     document.getElementById('censusHousing').value = call.housing_description || '';
     document.getElementById('censusChildren').value = call.children_age || '';
 
+    // WhatsApp field
+    const whatsappField = document.getElementById('whatsappNumber');
+    if (whatsappField) whatsappField.value = call.whatsapp || '';
+
     // Status Badge
     const badge = document.getElementById('callStatusBadge');
     badge.textContent = translateStatus(call.status);
@@ -770,47 +787,86 @@ function openCallDetail(call) {
 
     // SUPERUSER: All Access
     if (currentUserRole === 'superuser') {
-        createBtn("Revertir a Pendiente", "#f59e0b", "pending");
-        createBtn("En Campo", "#8b5cf6", "en_campo"); // Purple
-        createBtn("Caída", "#ef4444", "caida");
-        createBtn("Gestionado", "#22c55e", "managed");
-        createBtn("Agendado", "#0ea5e9", "scheduled");
-        createBtn("Terminado", "#10b981", "done");
+        createBtn("Revertir a Pendiente", "#64748b", "pending"); // Grey for neutral/back
+        createBtn("En Campo", "#3b82f6", "en_campo"); // Blue
+        createBtn("Efectiva en Campo", "#22c55e", "efectiva_campo"); // Green
+        createBtn("Caída Desempeño", "#ef4444", "caida_desempeno"); // Red
+        createBtn("Caída Logística", "#ef4444", "caida_logistica"); // Red
+        createBtn("Caída Desempeño Campo", "#ef4444", "caida_desempeno_campo"); // Red
+        createBtn("Caída Logístico Campo", "#ef4444", "caida_logistico_campo"); // Red
+        createBtn("Gestionado", "#22c55e", "managed"); // Green
+        createBtn("Agendado", "#3b82f6", "scheduled"); // Blue
     }
-    // AUXILIAR: En Campo only (Assignment)
+    // AUXILIAR: En Campo and Efectiva options
     else if (currentUserRole === 'auxiliar') {
-        createBtn("Asignar a Campo", "#8b5cf6", "en_campo");
+        createBtn("En Campo", "#3b82f6", "en_campo"); // Blue
+        createBtn("Efectiva en Campo", "#22c55e", "efectiva_campo"); // Green
+        createBtn("Caída Desempeño Campo", "#ef4444", "caida_desempeno_campo"); // Red
+        createBtn("Caída Logístico Campo", "#ef4444", "caida_logistico_campo"); // Red
     }
-    // AGENT: Standard Flow
+    // AGENT: Standard Flow with new caída options
     else {
-        // Only if pending or currently assigned to them
-        createBtn("Gestionado", "#22c55e", "managed");
-        createBtn("Agendado", "#0ea5e9", "scheduled");
-        createBtn("Caída", "#ef4444", "caida");
-        createBtn("Terminado", "#10b981", "done");
+        createBtn("Gestionado", "#22c55e", "managed"); // Green
+        createBtn("Agendado", "#3b82f6", "scheduled"); // Blue
+        createBtn("Caída Desempeño", "#ef4444", "caida_desempeno"); // Red
+        createBtn("Caída Logística", "#ef4444", "caida_logistica"); // Red
     }
 
     showDetailView();
 }
 
+// --- Bonus Modal Helper ---
+let bonusResolve = null;
+
+function promptBonusStatus() {
+    return new Promise((resolve) => {
+        bonusResolve = resolve;
+        document.getElementById('bonusModal').style.display = 'block';
+    });
+}
+
+window.resolveBonusSelection = (val) => {
+    document.getElementById('bonusModal').style.display = 'none';
+    if (bonusResolve) bonusResolve(val);
+};
+
 async function updateCallStatus(newStatus) {
     if (!currentCallId) return;
-    // Prompt only for non-trivial changes based on role?
-    // User requested "Agentes gestionan o caida", Auxiliar "asignar a campo".
+
+    let surveyId = null;
+    let bonusStatus = null;
+
+    // If marking as "Gestionado", prompt for survey ID and bonus status
+    if (newStatus === 'managed') {
+        surveyId = prompt("Ingrese el ID de la encuesta (alfanumérico):");
+        if (surveyId === null) return; // User cancelled
+        surveyId = surveyId.trim();
+
+        if (!surveyId) {
+            alert("El ID de la encuesta es obligatorio para marcar como Gestionado");
+            return;
+        }
+
+        // Prompt for bonus status using Custom Modal
+        bonusStatus = await promptBonusStatus();
+        if (bonusStatus === null) return; // User cancelled
+    }
 
     if (!confirm(`¿Cambiar estado a "${newStatus}"?`)) return;
 
     try {
-        // We need a NEW endpoint or update existing usage.
-        // Assuming we use /close but passed status? No, let's look at backend.
-        // Wait, I saw close_call endpoint sets status="closed".
-        // I need to ADD a backend endpoint for generic status update or modify close_call.
-        // For now, I will write the frontend assuming the endpoint exists: PUT /calls/{id}/status
+        const body = { status: newStatus };
+
+        // Add survey fields if provided
+        if (surveyId !== null && bonusStatus !== null) {
+            body.survey_id = surveyId;
+            body.bonus_status = bonusStatus;
+        }
 
         const res = await fetch(`/calls/${currentCallId}/status`, {
             method: 'PUT',
             headers,
-            body: JSON.stringify({ status: newStatus })
+            body: JSON.stringify(body)
         });
 
         if (res.ok) {
@@ -949,36 +1005,52 @@ async function createStudy() {
 }
 
 async function saveCallHeader() {
-    // This now updates instead of create new? 
-    // Or creates call if manually typed? 
-    // For now, if currentCallId exists, update. If not, create new session.
-
     const studyId = document.getElementById('studySelect').value;
     const phone = document.getElementById('phoneNumber').value;
     const corrected = document.getElementById('correctedPhone').value;
     const cc = document.getElementById('personCC').value;
+    const whatsapp = document.getElementById('whatsappNumber').value;
+    const extraPhone = document.getElementById('extraPhone').value;
 
+    // Check if we are UPDATING an existing call
+    if (currentCallId) {
+        if (!phone) {
+            alert("El número de celular es obligatorio.");
+            return;
+        }
+
+        const body = {
+            phone_number: phone,
+            corrected_phone: corrected,
+            person_cc: cc,
+            whatsapp: whatsapp,
+            extra_phone: extraPhone
+        };
+
+        try {
+            const res = await fetch(`/calls/${currentCallId}/contact`, {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(body)
+            });
+
+            if (res.ok) {
+                alert("Datos de contacto actualizados");
+            } else {
+                const err = await res.json();
+                alert("Error: " + (err.detail || "Error al actualizar"));
+            }
+        } catch (e) { console.error(e); alert("Error de conexión"); }
+
+        return;
+    }
+
+    // CREATION MODE (Legacy)
     if (!studyId || !phone) {
         alert("Debe seleccionar un estudio y digitar un número.");
         return;
     }
 
-    const body = {
-        study_id: studyId,
-        phone_number: phone,
-        corrected_phone: corrected,
-        person_cc: cc
-    };
-
-    // Simplification: Always create new entry or update... 
-    // If we came from Grid (currentCallId set), we probably shouldn't CREATE a new one but update fields?
-    // Models doesn't have update endpoint for header yet. 
-    // Assuming "Save" just creates a fresh call record if manual, or saves Obs?
-    // User flow: List -> Click -> Details -> Add Obs.
-    // "Guardar / Iniciar Llamada" might be redundant if opened from list.
-    // But useful if correct phone changed.
-
-    // Let's assume for now we just Alert.
     alert("Datos de cabecera guardados (Simulado)");
 }
 
