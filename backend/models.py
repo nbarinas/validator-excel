@@ -42,7 +42,6 @@ class Study(Base):
     
     # New Fields
     study_type = Column(String(50), nullable=True) # 'validacion', 'fatiga'
-    study_type = Column(String(50), nullable=True) # 'validacion', 'fatiga'
     stage = Column(String(20), nullable=True) # 'R1', 'R2', 'Rf', etc.
     is_active = Column(Boolean, default=True) # Soft delete / Hide functionality
 
@@ -69,8 +68,6 @@ class Call(Base):
     
     # Contact info updates
     corrected_phone = Column(String(20), nullable=True)
-    corrected_phone = Column(String(20), nullable=True)
-    person_cc = Column(String(20), nullable=True)
     person_cc = Column(String(20), nullable=True)
     census = Column(String(50), nullable=True) # New field requested
 
