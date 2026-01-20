@@ -11,6 +11,20 @@ const headers = {
 let currentCallId = null;
 let currentUserRole = null;
 
+const statusMap = {
+    'pending': 'Pendiente',
+    'management': 'Gestionando',
+    'scheduled': 'Agendado',
+    'done': 'Terminado',
+    'closed': 'Cerrado',
+    'caidas': 'Caída',
+    'en_campo': 'En Campo', // Normalize key if needed
+    'en campo': 'En Campo',
+    'managed': 'Gestionado'
+};
+
+const translateStatus = (s) => statusMap[s] || s;
+
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
     // Load User Info
@@ -55,6 +69,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // AUTOMATICALLY LOAD ALL PENDING CALLS
             loadStudyData(null); // Null = all pending from open studies
+
+            // Show Excel Button for Superuser/Auxiliar
+            if (currentUserRole === 'superuser' || currentUserRole === 'auxiliar') {
+                const btnExport = document.getElementById('btnExportExcel');
+                if (btnExport) btnExport.style.display = 'inline-block';
+            }
+
+
 
         } else {
             loadStudies();
@@ -144,6 +166,102 @@ async function uploadCalls() {
     }
 }
 
+// --- STUDY MANAGEMENT (Active/Inactive) ---
+async function showManageStudies() {
+    document.getElementById('manageStudiesModal').style.display = 'flex';
+    loadManageStudiesTable();
+}
+
+function closeManageStudies() {
+    document.getElementById('manageStudiesModal').style.display = 'none';
+}
+
+async function loadManageStudiesTable() {
+    const tbody = document.getElementById('manageStudiesBody');
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
+
+    try {
+        // Admin fetches all, including inactive
+        const res = await fetch('/studies?include_inactive=true', { headers });
+        if (res.ok) {
+            const studies = await res.json();
+            tbody.innerHTML = '';
+
+            if (studies.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay bases de datos.</td></tr>';
+                return;
+            }
+
+            studies.forEach(s => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #eee';
+
+                const statusColor = s.is_active ? '#22c55e' : '#94a3b8';
+                const statusText = s.is_active ? 'Activa' : 'Inactiva';
+
+                tr.innerHTML = `
+                    <td style="padding:0.5rem; color: #334155;">${s.id}</td>
+                    <td style="padding:0.5rem; color: #334155;"><strong>${s.name}</strong><br><span style="font-size:0.8rem; color:#64748b;">${s.code}</span></td>
+                    <td style="padding:0.5rem; color: #334155;">${s.study_type || '-'} <span style="font-size:0.8rem; color:#f59e0b;">[${s.stage || '-'}]</span></td>
+                    <td style="padding:0.5rem;"><span style="color:white; background:${statusColor}; padding:2px 8px; border-radius:10px; font-size:0.8rem;">${statusText}</span></td>
+                    <td style="padding:0.5rem; display:flex; gap:5px;">
+                         <button onclick="toggleStudyStatus(${s.id})" style="cursor:pointer; background: ${s.is_active ? '#ef4444' : '#22c55e'}; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
+                            ${s.is_active ? 'Desactivar' : 'Activar'}
+                         </button>
+                         <button onclick="deleteStudy(${s.id})" style="cursor:pointer; background: #991b1b; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Eliminar Permanentemente">
+                            <i class="fas fa-trash"></i>
+                         </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="5" style="color:red; text-align:center;">Error al cargar bases.</td></tr>';
+    }
+}
+
+async function toggleStudyStatus(id) {
+    if (!confirm("¿Cambiar estado de la base de datos? Esto afectará su visibilidad para los agentes.")) return;
+
+    try {
+        const res = await fetch(`/studies/${id}/toggle`, {
+            method: 'PUT',
+            headers
+        });
+
+        if (res.ok) {
+            loadManageStudiesTable(); // Refresh table
+            loadStudies(); // Refresh dropdown in background
+        } else {
+            alert("Error al cambiar estado");
+        }
+    } catch (e) { console.error(e); }
+}
+
+async function deleteStudy(id) {
+    if (!confirm("ADVERTENCIA: ¿Estás seguro de que deseas ELIMINAR PERMANENTEMENTE este estudio y TODAS sus llamadas? Esta acción no se puede deshacer.")) return;
+
+    // Double confirmation for safety
+    if (!confirm("Confirmación final: Se borrarán todos los datos asociados. ¿Proceder?")) return;
+
+    try {
+        const res = await fetch(`/studies/${id}`, {
+            method: 'DELETE',
+            headers
+        });
+
+        if (res.ok) {
+            alert("Estudio eliminado correctamente.");
+            loadManageStudiesTable(); // Refresh table
+            loadStudies(); // Refresh dropdown
+        } else {
+            alert("Error al eliminar el estudio.");
+        }
+    } catch (e) { console.error(e); }
+}
+
 async function loadStudies() {
     const res = await fetch('/studies', { headers });
     const studies = await res.json();
@@ -204,8 +322,18 @@ function applyColumnFilters() {
 
     const checkDate = (c) => {
         if (!dateTerm) return true;
-        const d = c.created_at ? new Date(c.created_at).toISOString().split('T')[0] : '';
-        return d === dateTerm;
+        // Check created_at (ISO)
+        let match = false;
+        if (c.created_at) {
+            const dStr = new Date(c.created_at).toISOString().split('T')[0];
+            if (dStr === dateTerm) match = true;
+        }
+        // Check collection_date (String or Date)
+        if (!match && c.collection_date) {
+            // collection_date might be "2026-01-21 00:00:00" or just "2026-01-21"
+            if (c.collection_date.toString().includes(dateTerm)) match = true;
+        }
+        return match;
     };
 
     // Selects
@@ -213,11 +341,29 @@ function applyColumnFilters() {
 
     const checkAgent = (c) => {
         if (!agentTerm) return true;
-        const agentDisplay = c.agent_id ? (c.agent_name || `Agente ${c.agent_id}`) : 'Sin Asignar';
-        return agentDisplay.toLowerCase() === agentTerm;
+        // Logic must match populate/Grid: Name (with ID string included) takes precedence.
+        // Grid uses: call.agent_name || 'Sin Asignar'
+        // Populate uses: c.agent_name || (c.agent_id ? ... : 'Sin Asignar')
+        // In most cases, agent_name is populated by API as "Name (ID)".
+        const agentDisplay = c.agent_name || (c.agent_id ? `Agente ${c.agent_id}` : 'Sin Asignar');
+        return agentDisplay.toLowerCase().trim().includes(agentTerm);
     };
 
-    const checkStatus = (c) => !statusTerm || (c.status || 'pending').toLowerCase() === statusTerm;
+    const checkStatus = (c) => {
+        if (!statusTerm) return true;
+        const s = (c.status || 'pending').toLowerCase().trim();
+        const translated = translateStatus(c.status || 'pending').toLowerCase().trim();
+
+        // Term is the value from select (e.g., 'managed', 'pending')
+        // But row data might be 'Managed', 'Gestionado', 'managed', etc.
+        // We also want to check against the LABEL of the term (e.g. if term is 'managed', label is 'Gestionado')
+        const termLabel = (statusMap[statusTerm] || '').toLowerCase();
+
+        return s === statusTerm ||
+            s === termLabel ||
+            translated === statusTerm ||
+            translated === termLabel;
+    };
 
 
     // 1. Filter Grid (Intersection of ALL)
@@ -353,6 +499,22 @@ async function loadStudyData(studyId) {
         // Populate Study Dropdown
         populateSelectFilter('colFilterStudy', allCalls.map(c => (c.study_name || '').trim()).filter(x => x));
 
+        // Populate Status Dropdown (Dynamic)
+        // Get unique raw statuses from data
+        const uniqueStatuses = [...new Set(allCalls.map(c => (c.status || 'pending').toLowerCase().trim()))].sort();
+        const statusSel = document.getElementById('colFilterStatus');
+
+        if (statusSel) {
+            // Preserve current selection if possible, though reloading usually resets.
+            statusSel.innerHTML = '<option value="">Todos</option>';
+            uniqueStatuses.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s; // Raw value (e.g. 'managed')
+                opt.textContent = translateStatus(s); // Translated (e.g. 'Gestionado')
+                statusSel.appendChild(opt);
+            });
+        }
+
         // Populate Agent Dropdown
         // Need to replicate agent display logic
         populateSelectFilter('colFilterAgent', allCalls.map(c => c.agent_name || (c.agent_id ? `Agente ${c.agent_id}` : 'Sin Asignar')).filter(x => x && x !== 'Sin Asignar').concat(['Sin Asignar'])); // Ensure Sin Asignar is an option? uniqueValues will handle duplicate 'Sin Asignar'.
@@ -371,6 +533,14 @@ async function loadStudyData(studyId) {
 }
 
 function renderCallGrid(calls) {
+    // Update Counter
+    const counter = document.getElementById('callCounter');
+    if (counter) {
+        counter.textContent = `(${calls.length} registros)`;
+    }
+
+
+
     const tbody = document.getElementById('callsGridBody');
     tbody.innerHTML = '';
 
@@ -396,7 +566,7 @@ function renderCallGrid(calls) {
         tr.innerHTML = `
             <td onclick="event.stopPropagation()"><input type="checkbox" class="call-checkbox" value="${call.id}"></td>
             <td><i class="fas fa-phone"></i> ${call.phone_number}</td>
-            <td style="font-size: 0.8rem; color: #555;">${call.created_at ? new Date(call.created_at).toLocaleDateString() : '-'}</td>
+            <td style="font-size: 0.8rem; color: #555;">${call.collection_date || (call.created_at ? new Date(call.created_at).toLocaleDateString() : '-')}</td>
             <td>
                 <span style="font-size:0.8rem; color:#666; font-weight:bold;">${call.study_name || '-'}</span>
                 ${call.study_type ? `<br><span style="font-size:0.7rem; color:#1a73e8; font-weight:600;">${call.study_type.toUpperCase()}</span>` : ''}
@@ -406,15 +576,13 @@ function renderCallGrid(calls) {
             <td>${call.person_name || '-'}</td>
             <td>${call.city || '-'}</td>
             <td>${alertTime}</td>
-            <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${call.status}</span></td>
+            <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
             
             <td>${call.census || '-'}</td>
+            <td>${call.nse || '-'}</td>
+            <td>${call.age || '-'}</td>
+            <td>${(call.neighborhood && call.neighborhood.trim() !== '') ? call.neighborhood : '-'}</td>
             <td style="font-size:0.8rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${call.observation_text}">${call.observation_text}</td>
-            
-            <td>
-                <button class="btn-submit" onclick="openCallDetail({ ...this.parentElement.parentElement.callData, manualEdit: true })" style="padding:0.3rem 0.5rem; font-size:0.75rem; margin-right:5px; background: #6366f1;"><i class="fas fa-edit"></i></button>
-                <button class="btn-submit" style="padding:0.3rem 0.5rem; font-size:0.75rem;">Gestionar</button>
-            </td>
         `;
 
         // Store call data for the inline onclick handler to work simply
@@ -536,11 +704,22 @@ function openCallDetail(call) {
     document.getElementById('personBrand').value = call.product_brand || '';
     document.getElementById('initialObs').value = call.initial_observation || '';
     document.getElementById('apptTime').value = call.appointment_time || '';
+    document.getElementById('apptTime').value = call.appointment_time || '';
     document.getElementById('extraPhone').value = call.extra_phone || '';
+
+    // POPULATE CENSUS SECTION
+    document.getElementById('censusId').value = call.census || '';
+    document.getElementById('censusNSE').value = call.nse || '';
+    document.getElementById('censusAge').value = call.age || '';
+    document.getElementById('censusAgeRange').value = call.age_range || '';
+    document.getElementById('censusNeighborhood').value = call.neighborhood || '';
+    document.getElementById('censusAddress').value = call.address || '';
+    document.getElementById('censusHousing').value = call.housing_description || '';
+    document.getElementById('censusChildren').value = call.children_age || '';
 
     // Status Badge
     const badge = document.getElementById('callStatusBadge');
-    badge.textContent = call.status;
+    badge.textContent = translateStatus(call.status);
     badge.style.display = 'inline-block';
     if (call.status === 'pending') badge.style.background = '#ffc107';
     else badge.style.background = '#4caf50';
@@ -573,38 +752,84 @@ function openCallDetail(call) {
     if (call.status === 'closed') {
         btnClose.style.display = 'none';
     } else {
-        btnClose.style.display = 'block';
+        btnClose.style.display = 'none'; // We use dynamic buttons now
+    }
+
+    // Role-Based Actions
+    const actionsDiv = document.getElementById('actionButtons');
+    actionsDiv.innerHTML = `<button onclick="closeDetailView()" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Volver</button>`;
+
+    // Helper to create button
+    const createBtn = (label, color, statusVal) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style = `background: ${color}; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;`;
+        btn.onclick = () => updateCallStatus(statusVal);
+        actionsDiv.appendChild(btn);
+    };
+
+    // SUPERUSER: All Access
+    if (currentUserRole === 'superuser') {
+        createBtn("Revertir a Pendiente", "#f59e0b", "pending");
+        createBtn("En Campo", "#8b5cf6", "en_campo"); // Purple
+        createBtn("Caída", "#ef4444", "caida");
+        createBtn("Gestionado", "#22c55e", "managed");
+        createBtn("Agendado", "#0ea5e9", "scheduled");
+        createBtn("Terminado", "#10b981", "done");
+    }
+    // AUXILIAR: En Campo only (Assignment)
+    else if (currentUserRole === 'auxiliar') {
+        createBtn("Asignar a Campo", "#8b5cf6", "en_campo");
+    }
+    // AGENT: Standard Flow
+    else {
+        // Only if pending or currently assigned to them
+        createBtn("Gestionado", "#22c55e", "managed");
+        createBtn("Agendado", "#0ea5e9", "scheduled");
+        createBtn("Caída", "#ef4444", "caida");
+        createBtn("Terminado", "#10b981", "done");
     }
 
     showDetailView();
 }
 
-async function finishCall() {
+async function updateCallStatus(newStatus) {
     if (!currentCallId) return;
-    if (!confirm("¿Está seguro de cerrar/finalizar esta gestión? La llamada desaparecerá de los pendientes.")) return;
+    // Prompt only for non-trivial changes based on role?
+    // User requested "Agentes gestionan o caida", Auxiliar "asignar a campo".
+
+    if (!confirm(`¿Cambiar estado a "${newStatus}"?`)) return;
 
     try {
-        const res = await fetch(`/calls/${currentCallId}/close`, {
+        // We need a NEW endpoint or update existing usage.
+        // Assuming we use /close but passed status? No, let's look at backend.
+        // Wait, I saw close_call endpoint sets status="closed".
+        // I need to ADD a backend endpoint for generic status update or modify close_call.
+        // For now, I will write the frontend assuming the endpoint exists: PUT /calls/{id}/status
+
+        const res = await fetch(`/calls/${currentCallId}/status`, {
             method: 'PUT',
-            headers
+            headers,
+            body: JSON.stringify({ status: newStatus })
         });
 
         if (res.ok) {
-            alert("Gestión Finalizada");
-            // Reload grid (which will exclude this call if normal user)
-            // But we first need to decide where to go.
-            // If we came from grid, go back to grid.
-
-            // Get current filter?
+            alert("Estado actualizado");
             const sel = document.getElementById('studySelect');
             if (sel.value) loadStudyData(sel.value);
             else loadStudyData(null);
-
             showGridView();
         } else {
-            alert("Error al finalizar");
+            const err = await res.json();
+            alert("Error: " + (err.detail || "Error al actualizar"));
         }
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error(e); alert("Error de conexión"); }
+}
+
+async function finishCall() {
+    // Legacy function - redirected to updateCallStatus('closed') if called directly?
+    // But we hid the button.
+    updateCallStatus('closed');
 }
 
 async function loadAgents() {
@@ -810,4 +1035,44 @@ async function scheduleAlert() {
     if (res.ok) {
         alert("Alerta Programada");
     }
+}
+
+// EXPORT TO EXCEL (XLSX)
+function exportToExcel() {
+    const dataToExport = (typeof filteredCalls !== 'undefined' && filteredCalls && filteredCalls.length > 0) ? filteredCalls : allCalls;
+
+    if (!dataToExport || dataToExport.length === 0) {
+        alert("No hay datos para exportar");
+        return;
+    }
+
+    // Map to Spanish headers
+    const exportData = dataToExport.map(row => ({
+        "Telefono": row.phone_number || '',
+        "Fecha": row.collection_date || (row.created_at ? new Date(row.created_at).toLocaleDateString() : ''),
+        "Estudio": row.study_name || '',
+        "Agente": row.agent_name || 'Sin Asignar',
+        "Nombre": row.person_name || '',
+        "Ciudad": row.city || '',
+        "Estado": translateStatus(row.status),
+        "Censo": row.census || '',
+        "NSE": row.nse || '',
+        "Edad": row.age || '',
+        "Barrio": row.neighborhood || '',
+        "Observacion": row.observation_text || ''
+    }));
+
+    // Create Worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Create Workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Llamadas");
+
+    // Generate filename
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `llamadas_export_${dateStr}.xlsx`;
+
+    // Download
+    XLSX.writeFile(wb, fileName);
 }

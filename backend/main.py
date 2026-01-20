@@ -215,11 +215,29 @@ async def read_users_me(current_user: models.User = Depends(auth.get_current_use
         "username": current_user.username,
         "role": current_user.role,
         "id": current_user.id,
-        "id": current_user.id,
         "full_name": current_user.full_name,
         "address": current_user.address,
         "city": current_user.city
     }
+
+@app.post("/users/heartbeat")
+async def heartbeat(current_user: models.User = Depends(auth.get_current_user)):
+    """Simple endpoint to trigger auth and update last_seen"""
+    return {"status": "alive", "last_seen": current_user.last_seen}
+
+@app.get("/users/status")
+def get_users_status(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser" and current_user.role != "auxiliar":
+         raise HTTPException(status_code=403, detail="Not authorized")
+         
+    users = db.query(models.User).all()
+    # Return simplifed list for monitoring
+    return [{
+        "username": u.username,
+        "full_name": u.full_name,
+        "role": u.role,
+        "last_seen": u.last_seen
+    } for u in users]
 
 @app.post("/users", status_code=status.HTTP_201_CREATED)
 def create_user(user: UserCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -514,6 +532,24 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db), current_us
     db.commit()
     return {"status": "ok"}
 
+@app.delete("/studies/{study_id}")
+def delete_study(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+        
+    # Delete associated calls first
+    db.query(models.Call).filter(models.Call.study_id == study_id).delete()
+    
+    # Delete study
+    db.delete(study)
+    db.commit()
+    
+    return {"message": "Study deleted successfully"}
+
 class UserPasswordReset(BaseModel):
     new_password: str
 
@@ -587,8 +623,33 @@ def create_study(study: StudyCreate, db: Session = Depends(database.get_db), cur
     return db_study
 
 @app.get("/studies")
-def get_studies(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    return db.query(models.Study).all()
+def get_studies(include_inactive: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = db.query(models.Study)
+    
+    # By default, only show active studies (unless admin asks for all)
+    if not include_inactive:
+        query = query.filter(models.Study.is_active == True)
+    elif current_user.role != "superuser":
+        # Non-admins can't see inactive even if they ask
+        query = query.filter(models.Study.is_active == True)
+        
+    return query.all()
+
+@app.put("/studies/{study_id}/toggle")
+def toggle_study_status(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+        
+    # Toggle
+    study.is_active = not study.is_active
+    db.commit()
+    
+    status_str = "active" if study.is_active else "inactive"
+    return {"status": "updated", "new_state": status_str, "is_active": study.is_active}
 
 class CallCreate(BaseModel):
     study_id: int
@@ -618,8 +679,10 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
     else:
         # GLOBAL VIEW
         query = query.filter(models.Study.status == "open")
-        query = query.filter(models.Call.status == "pending")
+        query = query.filter(models.Study.is_active == True) # Ensure we don't show calls from deleted/inactive studies
+        
         if current_user.role != "superuser" and current_user.role != "auxiliar":
+            query = query.filter(models.Call.status == "pending")
             query = query.filter(models.Call.user_id == current_user.id) # Only assigned
 
 
@@ -704,6 +767,22 @@ def close_call(call_id: int, db: Session = Depends(database.get_db), current_use
     db.commit()
     return {"status": "closed"}
 
+class UpdateCallStatus(BaseModel):
+    status: str
+
+@app.put("/calls/{call_id}/status")
+def update_call_status(call_id: int, status_update: UpdateCallStatus, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+    
+    # We could restrict transitions here based on current_user.role if strict security is needed.
+    # For now, we trust the frontend logic as per "simple" request, but basic sanity checks are good.
+    
+    call.status = status_update.status
+    db.commit()
+    return {"status": call.status}
+
 @app.post("/upload-calls")
 async def upload_calls(
     file: UploadFile = File(...),
@@ -763,14 +842,29 @@ async def upload_calls(
         cols = {str(c).strip().lower(): c for c in df.columns}
         
         mapping = {
-            "phone_number": ["telefono", "celular", "numero", "movil"],
+            "phone_number": ["telefono", "teléfono", "celular", "numero", "movil"],
             "city": ["ciudad", "city"],
-            "initial_observation": ["observaciones", "observacion", "obs"],
+            "initial_observation": ["observaciones", "observacion", "observación", "obs"],
             "appointment_time": ["hora de llamada", "hora", "cita"],
             "product_brand": ["marca de producto", "marca"],
             "extra_phone": ["otro numero", "otro telefono", "telefono 2"],
-            "person_cc": ["cedula", "cc", "id", "identificacion"],
-            "person_name": ["nombre", "cliente", "usuario"]
+            "person_cc": ["cedula", "cédula", "cc", "id", "identificacion"],
+            "person_name": ["nombre", "cliente", "usuario", "nombre y apellido"],
+            # New Census Fields
+            "nse": ["nse", "estrato", "nivel socioeconomico"],
+            "age": ["edad", "age"],
+            "age_range": ["rango edad", "rango de edad", "edad rango"],
+            "children_age": ["edad hijos", "hijos", "edades hijos"],
+            "whatsapp": ["whatsapp", "whassapp", "wa", "celular wa"],
+            "neighborhood": ["barrio", "neighborhood", "sector"],
+            "address": ["direccion", "dirección", "address", "dir", "ubicacion"],
+            "housing_description": ["descripcion vivienda", "descripción vivienda", "tipo vivienda", "vivienda"],
+            "respondent": ["encuestado", "respondent", "persona entrevistada"],
+            "supervisor": ["supervisor", "sup"],
+            "implantation_date": ["fecha implantacion", "fecha implantación", "fecha imp"],
+            "collection_date": ["fecha recoleccion", "fecha recolección", "fecha recogida", "fecha rec"],
+            "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora rec"],
+            "census": ["censo", "id", "identifier"]
         }
 
         calls_to_add = []
@@ -813,6 +907,23 @@ async def upload_calls(
                 extra_phone=get_val("extra_phone")[:20] if get_val("extra_phone") else None,
                 person_cc=get_val("person_cc")[:20] if get_val("person_cc") else None,
                 person_name=get_val("person_name")[:100] if get_val("person_name") else None,
+                
+                # New Census Fields
+                census=get_val("census")[:50] if get_val("census") else None,
+                nse=get_val("nse")[:50] if get_val("nse") else None,
+                age=get_val("age")[:20] if get_val("age") else None,
+                age_range=get_val("age_range")[:50] if get_val("age_range") else None,
+                children_age=get_val("children_age")[:200] if get_val("children_age") else None,
+                whatsapp=get_val("whatsapp")[:50] if get_val("whatsapp") else None,
+                neighborhood=get_val("neighborhood")[:200] if get_val("neighborhood") else None,
+                address=get_val("address")[:300] if get_val("address") else None,
+                housing_description=get_val("housing_description")[:300] if get_val("housing_description") else None,
+                respondent=get_val("respondent")[:100] if get_val("respondent") else None,
+                supervisor=get_val("supervisor")[:100] if get_val("supervisor") else None,
+                implantation_date=get_val("implantation_date")[:50] if get_val("implantation_date") else None,
+                collection_date=get_val("collection_date")[:50] if get_val("collection_date") else None,
+                collection_time=get_val("collection_time")[:50] if get_val("collection_time") else None,
+                
                 status="pending"
             )
             calls_to_add.append(call_obj)

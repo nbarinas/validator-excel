@@ -48,4 +48,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     user = db.query(models.User).filter(models.User.username == username).first()
     if user is None:
         raise credentials_exception
+        
+    # Update last_seen
+    user.last_seen = datetime.utcnow()
+    db.commit()
+    
     return user
