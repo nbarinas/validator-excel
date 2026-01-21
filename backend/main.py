@@ -20,19 +20,21 @@ def parse_messy_time(text):
     
     # regex patterns
     # Pattern 1: Range "9-10 am" or "10-11am" -> Take first
-    match_range = re.search(r'(\d{1,2})[:\.]?(\d{2})?\s*-\s*\d{1,2}[:\.]?(\d{2})?\s*([ap]\.?m\.?)', text)
+    match_range = re.search(r'(\d{1,2})[:\.]?(\d{2})?\s*-\s*\d{1,2}[:\.]?(\d{2})?\s*([ap][\.,]?\s*m?\.?)', text)
     if match_range:
         hour = int(match_range.group(1))
         minute = int(match_range.group(2)) if match_range.group(2) else 0
-        ampm = match_range.group(4).replace('.', '')
+        ampm_raw = match_range.group(4).lower().replace('.', '').replace(',', '').strip()
+        ampm = 'pm' if 'p' in ampm_raw else 'am'
         return convert_to_iso(hour, minute, ampm)
 
-    # Pattern 2: "Despues de 2 pm", "A la 1 pm", "Tipo 4 pm"
-    match_time = re.search(r'(\d{1,2})[:\.]?(\d{2})?\s*([ap]\.?m\.?)', text)
+    # Pattern 2: "Despues de 2 pm", "A la 1 pm", "Tipo 4 pm", "2:00 pm", "2 pm"
+    match_time = re.search(r'(\d{1,2})[:\.]?(\d{2})?\s*([ap][\.,]?\s*m?\.?)', text)
     if match_time:
         hour = int(match_time.group(1))
         minute = int(match_time.group(2)) if match_time.group(2) else 0
-        ampm = match_time.group(3).replace('.', '')
+        ampm_raw = match_time.group(3).lower().replace('.', '').replace(',', '').strip()
+        ampm = 'pm' if 'p' in ampm_raw else 'am'
         return convert_to_iso(hour, minute, ampm)
 
     return None
