@@ -463,6 +463,7 @@
                                         <option value="">Todas</option>
                                     </select>
                                 <th>Agenda/Alerta</th>
+                                <th>Hora Original</th>
                                 <th>
                                     Estado
                                     <select id="colFilterStatus"
@@ -478,7 +479,6 @@
                                 <th>NSE</th>
                                 <th>Edad</th>
                                 <th>Barrio</th>
-                                <th>Observación</th>
                             </tr>
                         </thead>
                         <tbody id="callsGridBody">
@@ -651,7 +651,7 @@
     </div>
     </div>
 
-    <script src="/static/call_center.js?v=12"></script>
+    <script src="/static/call_center.js?v=13"></script>
     <script>
         async function updateOnlineStatus() {
             const token = localStorage.getItem('token');

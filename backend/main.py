@@ -10,6 +10,47 @@ import os
 from typing import List, Optional
 from datetime import datetime
 from pydantic import BaseModel
+import re
+
+def parse_messy_time(text):
+    if not text or not isinstance(text, str):
+        return None
+    
+    text = text.lower().strip()
+    
+    # regex patterns
+    # Pattern 1: Range "9-10 am" or "10-11am" -> Take first
+    match_range = re.search(r'(\d{1,2})[:\.]?(\d{2})?\s*-\s*\d{1,2}[:\.]?(\d{2})?\s*([ap]\.?m\.?)', text)
+    if match_range:
+        hour = int(match_range.group(1))
+        minute = int(match_range.group(2)) if match_range.group(2) else 0
+        ampm = match_range.group(4).replace('.', '')
+        return convert_to_iso(hour, minute, ampm)
+
+    # Pattern 2: "Despues de 2 pm", "A la 1 pm", "Tipo 4 pm"
+    match_time = re.search(r'(\d{1,2})[:\.]?(\d{2})?\s*([ap]\.?m\.?)', text)
+    if match_time:
+        hour = int(match_time.group(1))
+        minute = int(match_time.group(2)) if match_time.group(2) else 0
+        ampm = match_time.group(3).replace('.', '')
+        return convert_to_iso(hour, minute, ampm)
+
+    return None
+
+def convert_to_iso(hour, minute, ampm):
+    if ampm == 'pm' and hour < 12:
+        hour += 12
+    if ampm == 'am' and hour == 12:
+        hour = 0
+    
+    # Return today with this time
+    now = datetime.now()
+    try:
+        dt = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        return dt.isoformat()
+    except:
+        return None
+
 
 from fastapi.staticfiles import StaticFiles
 
@@ -910,7 +951,15 @@ async def upload_calls(
             # Safe Date Parsing
             appt_raw = get_val("appointment_time")
             appt_dt = None
+            
+            # 1. Try smart parser first if it looks like messy text
             if appt_raw:
+                parsed_messy = parse_messy_time(appt_raw)
+                if parsed_messy:
+                   appt_dt = datetime.fromisoformat(parsed_messy)
+
+            # 2. Fallback to pandas standard parser if smart parser returned nothing
+            if not appt_dt and appt_raw:
                 try:
                     # Use pandas to parse, convert to pydatetime, set to None if NaT
                     ts = pd.to_datetime(appt_raw, errors='coerce')
@@ -918,6 +967,16 @@ async def upload_calls(
                         appt_dt = ts.to_pydatetime()
                 except:
                     appt_dt = None
+            
+            # If still nothing, check "initial_observation" or "collection_time" for clues if requested?
+            # User suggested "Observation" might have the time.
+            # Let's try to extract from initial_observation if get_val("appointment_time") was empty.
+            if not appt_dt and not appt_raw:
+                 obs_val = get_val("initial_observation")
+                 if obs_val:
+                     parsed_obs = parse_messy_time(obs_val)
+                     if parsed_obs:
+                         appt_dt = datetime.fromisoformat(parsed_obs)
 
             call_obj = models.Call(
                 study_id=sid,
@@ -996,11 +1055,19 @@ class ScheduleCreate(BaseModel):
 @app.post("/calls/{call_id}/schedule")
 def schedule_call(call_id: int, sched: ScheduleCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     dt = pd.to_datetime(sched.scheduled_time).to_pydatetime()
+    
+    # Create Schedule Record (Log)
     db_sched = models.Schedule(call_id=call_id, user_id=current_user.id, scheduled_time=dt)
     db.add(db_sched)
+    
+    # UPDATE CALL RECORD - KEY FIX
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if call:
+        call.appointment_time = dt
+        call.status = "scheduled" # Update status to reflect scheduling
+    
     db.commit()
     return {"status": "ok"}
-
 
 # --- BIZAGE MODULE API ---
 
