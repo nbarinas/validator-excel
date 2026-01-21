@@ -1038,7 +1038,12 @@ class ObservationCreate(BaseModel):
 
 @app.post("/calls/{call_id}/observation")
 def add_observation(call_id: int, obs: ObservationCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    db_obs = models.Observation(call_id=call_id, user_id=current_user.id, text=obs.text)
+    db_obs = models.Observation(
+        call_id=call_id, 
+        user_id=current_user.id, 
+        text=obs.text,
+        created_at=datetime.now()
+    )
     db.add(db_obs)
     db.commit()
     db.refresh(db_obs)
@@ -1046,8 +1051,18 @@ def add_observation(call_id: int, obs: ObservationCreate, db: Session = Depends(
 
 @app.get("/calls/{call_id}/observations")
 def get_observations(call_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    # Join user to get name? For now just return raw
-    return db.query(models.Observation).filter(models.Observation.call_id == call_id).all()
+    obs_list = db.query(models.Observation).filter(models.Observation.call_id == call_id).order_by(models.Observation.created_at.desc()).all()
+    
+    result = []
+    for obs in obs_list:
+        user_name = obs.user.full_name if obs.user and obs.user.full_name else (obs.user.username if obs.user else "Sistema")
+        result.append({
+            "id": obs.id,
+            "text": obs.text,
+            "created_at": obs.created_at,
+            "user_name": user_name
+        })
+    return result
 
 class ScheduleCreate(BaseModel):
     scheduled_time: str # ISO format
