@@ -463,7 +463,7 @@
                                         <option value="">Todas</option>
                                     </select>
                                 <th>Agenda/Alerta</th>
-                                <th>Hora Original</th>
+                                <!-- Old Observaciones Pos -->
                                 <th>
                                     Estado
                                     <select id="colFilterStatus"
@@ -476,9 +476,8 @@
                                     <input type="text" id="colFilterCensus" placeholder="Buscar..."
                                         style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px; box-sizing: border-box;">
                                 </th>
-                                <th>NSE</th>
-                                <th>Edad</th>
-                                <th>Barrio</th>
+                                <!-- Removed NSE, Edad, Barrio -->
+                                <th>Observaciones</th>
                             </tr>
                         </thead>
                         <tbody id="callsGridBody">
@@ -714,11 +713,10 @@
                     const res = await fetch('/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
                     if (res.ok) {
                         const user = await res.json();
-                        if (user.role === 'superuser' || user.role === 'auxiliar') {
-                            document.getElementById('onlineHeaderBar').style.display = 'flex';
-                            updateOnlineStatus();
-                            setInterval(updateOnlineStatus, 30000); // Poll every 30s
-                        }
+                        // SHOW FOR EVERYONE
+                        document.getElementById('onlineHeaderBar').style.display = 'flex';
+                        updateOnlineStatus();
+                        setInterval(updateOnlineStatus, 30000); // Poll every 30s
                     }
                 } catch (e) { }
             }
