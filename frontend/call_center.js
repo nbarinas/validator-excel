@@ -594,10 +594,11 @@ function renderCallGrid(calls) {
             <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
             
             <td>${call.census || '-'}</td>
+            <td>${call.collection_time || call.initial_observation || '-'}</td>
             <td style="font-size:0.75rem; color:#334155;">
                 ${(call.last_observations && call.last_observations.length > 0)
                 ? call.last_observations.join('<br>')
-                : (call.observation_text || '-')}
+                : '-'}
             </td>
         `;
 
