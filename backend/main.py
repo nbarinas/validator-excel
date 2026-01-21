@@ -739,7 +739,7 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         query = query.filter(models.Call.study_id == study_id)
         # VISIBILITY LOGIC:
         if current_user.role != "superuser" and current_user.role != "auxiliar":
-             query = query.filter(models.Call.status == "pending")
+             query = query.filter(models.Call.status.in_(["pending", "scheduled"]))
              query = query.filter(models.Call.user_id == current_user.id) # Only assigned
     else:
         # GLOBAL VIEW
@@ -747,7 +747,7 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         query = query.filter(models.Study.is_active == True) # Ensure we don't show calls from deleted/inactive studies
         
         if current_user.role != "superuser" and current_user.role != "auxiliar":
-            query = query.filter(models.Call.status == "pending")
+            query = query.filter(models.Call.status.in_(["pending", "scheduled"]))
             query = query.filter(models.Call.user_id == current_user.id) # Only assigned
 
 
