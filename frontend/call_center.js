@@ -716,7 +716,8 @@ function openCallDetail(call) {
     document.getElementById('personName').value = call.person_name || '';
     document.getElementById('personCity').value = call.city || '';
     document.getElementById('personBrand').value = call.product_brand || '';
-    document.getElementById('initialObs').value = call.initial_observation || '';
+    // Apply same swap logic: show collection_time if available as it likely holds the time
+    document.getElementById('initialObs').value = call.collection_time || call.initial_observation || '';
     document.getElementById('apptTime').value = call.appointment_time || '';
     document.getElementById('apptTime').value = call.appointment_time || '';
     document.getElementById('extraPhone').value = call.extra_phone || '';
