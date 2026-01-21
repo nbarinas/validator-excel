@@ -502,7 +502,8 @@ async function loadStudyData(studyId) {
             // If backend doesn't send 'census', it will be undefined.
             return {
                 ...c,
-                observation_text: c.initial_observation || (c.observations && c.observations.length > 0 ? c.observations[0].text : '') || '-'
+                // Prioritize collection_time (for the "swapped" data case) or initial_observation
+                observation_text: c.collection_time || c.initial_observation || (c.observations && c.observations.length > 0 ? c.observations[0].text : '') || '-'
             };
         });
 
