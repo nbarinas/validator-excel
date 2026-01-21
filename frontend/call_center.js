@@ -1065,9 +1065,29 @@ async function loadObservations() {
         obs.forEach(o => {
             const el = document.createElement('div');
             el.className = 'obs-item';
+            // Date handling
+            let dateStr = "Fecha desconocida";
+            if (o.created_at) {
+                const d = new Date(o.created_at);
+                if (d.getFullYear() > 1970) {
+                    dateStr = d.toLocaleString();
+                } else {
+                    // Start of epoch or invalid
+                    dateStr = "";
+                }
+            }
+
             el.innerHTML = `
-                <div>${o.text}</div>
-                <div class="obs-meta">${new Date(o.created_at).toLocaleString()}</div>
+                <div style="margin-bottom: 4px; font-size: 0.95rem;">${o.text}</div>
+                <div class="obs-meta" style="display: flex; align-items: center; justify-content: space-between; color: #64748b;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                         <span style="background: #e0e7ff; color: #4338ca; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center;">
+                            <i class="fas fa-user" style="margin-right: 4px; font-size: 0.7rem;"></i>
+                            ${o.user_name || 'Sistema'}
+                         </span>
+                    </div>
+                    <span style="font-size: 0.75rem;">${dateStr}</span>
+                </div>
             `;
             feed.appendChild(el);
         });
