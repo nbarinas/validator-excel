@@ -270,8 +270,9 @@ async def heartbeat(current_user: models.User = Depends(auth.get_current_user)):
 
 @app.get("/users/status")
 def get_users_status(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser" and current_user.role != "auxiliar":
-         raise HTTPException(status_code=403, detail="Not authorized")
+    # Allowed for all authenticated users to see who is online
+    # if current_user.role != "superuser" and current_user.role != "auxiliar":
+    #      raise HTTPException(status_code=403, detail="Not authorized")
          
     users = db.query(models.User).all()
     # Return simplifed list for monitoring
@@ -772,6 +773,16 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         c_dict['study_stage'] = c.study.stage if c.study else None
         # Prefer Full Name, fallback to username
         c_dict['agent_name'] = (c.user.full_name if c.user.full_name else c.user.username) if c.user else None
+        
+        # Get last 4 observations
+        # Sort by ID descending (newest first) and take top 4
+        # Note: This relies on lazy loading. For high scale, use joinedload/subqueryload.
+        if c.observations:
+            sorted_obs = sorted(c.observations, key=lambda x: x.id, reverse=True)[:4]
+            c_dict['last_observations'] = [f"{o.text} ({o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at else ''})" for o in sorted_obs]
+        else:
+            c_dict['last_observations'] = []
+            
         result.append(c_dict)
         
     return result

@@ -590,13 +590,15 @@ function renderCallGrid(calls) {
             <td>${call.person_name || '-'}</td>
             <td>${call.city || '-'}</td>
             <td>${alertTime}</td>
-            <td style="font-size:0.8rem; max-width:200px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${call.observation_text}">${call.observation_text}</td>
+            <!-- Old Obs Cell Removed -->
             <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
             
             <td>${call.census || '-'}</td>
-            <td>${call.nse || '-'}</td>
-            <td>${call.age || '-'}</td>
-            <td>${(call.neighborhood && call.neighborhood.trim() !== '') ? call.neighborhood : '-'}</td>
+            <td style="font-size:0.75rem; color:#334155;">
+                ${(call.last_observations && call.last_observations.length > 0)
+                ? call.last_observations.join('<br>')
+                : (call.observation_text || '-')}
+            </td>
         `;
 
         // Store call data for the inline onclick handler to work simply
