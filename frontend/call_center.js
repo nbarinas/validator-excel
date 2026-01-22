@@ -713,6 +713,13 @@ function openCallDetail(call) {
     // Standard Info
     document.getElementById('phoneNumber').value = call.phone_number;
     document.getElementById('correctedPhone').value = call.corrected_phone || '';
+
+    // UPDATE TITLE
+    const titleEl = document.getElementById('callDetailTitle');
+    if (titleEl) {
+        // Requested: Study Name - Type/Stage of R. "Nombre del Estudio - R(Stage)"
+        titleEl.textContent = `${call.study_name || 'Sin Estudio'} - ${call.study_stage || ''}`;
+    }
     document.getElementById('personCC').value = call.person_cc || '';
 
     // New Fields

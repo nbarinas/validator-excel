@@ -495,7 +495,9 @@
                     </button>
 
                     <div class="header-nav">
-                        <h3>Detalle de Llamada</h3>
+                        <h3 id="callDetailTitle"
+                            style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">
+                            Detalle de Llamada</h3>
                         <span id="callStatusBadge" class="alert-badge">Programada</span>
                     </div>
 
@@ -675,7 +677,7 @@
                         let lastSeenDate = new Date(u.last_seen + (u.last_seen.endsWith('Z') ? '' : 'Z'));
                         let diffMinutes = (now - lastSeenDate) / 1000 / 60;
 
-                        // Hide if inactive > 20m
+                        // Hide if inactive > 20m (Reverted as asked)
                         if (diffMinutes > 20) return;
 
                         let colorClass = 'status-green';
