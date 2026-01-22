@@ -798,6 +798,18 @@ def assign_call(call_id: int, assignment: AssignCall, db: Session = Depends(data
     call = db.query(models.Call).filter(models.Call.id == call_id).first()
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
+
+    # Check if call is already managed or dropped/failed
+    # We restrict assignment for these statuses as requested
+    restricted_statuses = [
+        "managed", "done", "efectiva_campo", 
+        "caida_desempeno", "caida_logistica", 
+        "caida_desempeno_campo", "caida_logistico_campo", 
+        "caidas", "caida" # Legacy
+    ]
+    
+    if call.status in restricted_statuses:
+         raise HTTPException(status_code=400, detail=f"No se puede reasignar una llamada con estado '{call.status}'")
     
     # Check user exists
     user = db.query(models.User).filter(models.User.id == assignment.user_id).first()
