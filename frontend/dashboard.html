@@ -258,6 +258,26 @@
                         document.getElementById('onlineUsersPanel').style.display = 'block';
                         updateOnlineStatus(); // Initial call
                         setInterval(updateOnlineStatus, 30000); // Poll every 30s
+                    } else if (user.role === 'coordinator') {
+                        // Coordinator: Calls + Nomina
+                        // Enable Nomina
+                        const cardNomina = document.getElementById('cardNomina');
+                        if (cardNomina) {
+                            cardNomina.style.opacity = '1';
+                            cardNomina.style.cursor = 'pointer';
+                            cardNomina.querySelector('.module-desc').textContent = 'Gestión de Nómina';
+                            // cardNomina.href = '/nomina-page'; // If it existed
+                        }
+                        // Hide InHome if not needed? User said "solo acceso a nomina y callcenter".
+                        // So hide InHome? "In Home / Validador" is usually public.
+                        // "seria solo tener acceso a nomina y callcenter". Strictly interpreted -> hide others.
+                        if (cardInHome) cardInHome.style.display = 'none';
+
+                        // Show Online Panel (useful for coordination)
+                        document.getElementById('onlineUsersPanel').style.display = 'block';
+                        updateOnlineStatus();
+                        setInterval(updateOnlineStatus, 30000);
+
                     } else if (user.role === 'bizage') {
                         if (cardInHome) cardInHome.style.display = 'none'; // Hide In Home
                         if (cardBizage) cardBizage.style.display = 'flex'; // Show Bizage

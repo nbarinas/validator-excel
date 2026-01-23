@@ -85,6 +85,7 @@ def on_startup():
         {"username": "1032509485", "password": "1032509485", "role": "agent"},
         {"username": "agente1", "password": "agente123", "role": "agent"},
         {"username": "agente2", "password": "agente123", "role": "agent"},
+        {"username": "coordinador", "password": "coordinador123", "role": "coordinator"},
     ]
     
     try:
@@ -600,7 +601,7 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db), current_us
 
 @app.delete("/studies/{study_id}")
 def delete_study(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
+    if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
         
     study = db.query(models.Study).filter(models.Study.id == study_id).first()
@@ -680,7 +681,7 @@ class StudyCreate(BaseModel):
 
 @app.post("/studies")
 def create_study(study: StudyCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
+    if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
     db_study = models.Study(code=study.code, name=study.name)
     db.add(db_study)
@@ -695,7 +696,7 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
     # By default, only show active studies (unless admin asks for all)
     if not include_inactive:
         query = query.filter(models.Study.is_active == True)
-    elif current_user.role != "superuser":
+    elif current_user.role != "superuser" and current_user.role != "coordinator":
         # Non-admins can't see inactive even if they ask
         query = query.filter(models.Study.is_active == True)
         
@@ -703,7 +704,7 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
 
 @app.put("/studies/{study_id}/toggle")
 def toggle_study_status(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
+    if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
         
     study = db.query(models.Study).filter(models.Study.id == study_id).first()
@@ -739,7 +740,7 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
     if study_id:
         query = query.filter(models.Call.study_id == study_id)
         # VISIBILITY LOGIC:
-        if current_user.role != "superuser" and current_user.role != "auxiliar":
+        if current_user.role != "superuser" and current_user.role != "auxiliar" and current_user.role != "coordinator":
              query = query.filter(models.Call.status.in_(["pending", "scheduled"]))
              query = query.filter(models.Call.user_id == current_user.id) # Only assigned
     else:
@@ -747,7 +748,7 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         query = query.filter(models.Study.status == "open")
         query = query.filter(models.Study.is_active == True) # Ensure we don't show calls from deleted/inactive studies
         
-        if current_user.role != "superuser" and current_user.role != "auxiliar":
+        if current_user.role != "superuser" and current_user.role != "auxiliar" and current_user.role != "coordinator":
             query = query.filter(models.Call.status.in_(["pending", "scheduled"]))
             query = query.filter(models.Call.user_id == current_user.id) # Only assigned
 
@@ -792,7 +793,7 @@ class AssignCall(BaseModel):
 
 @app.put("/calls/{call_id}/assign")
 def assign_call(call_id: int, assignment: AssignCall, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
+    if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
     
     call = db.query(models.Call).filter(models.Call.id == call_id).first()
@@ -827,7 +828,7 @@ class BulkAssignCall(BaseModel):
 
 @app.put("/calls/assign-bulk")
 def assign_call_bulk(assignment: BulkAssignCall, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
+    if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
     
     # Check user exists
@@ -885,7 +886,7 @@ async def upload_calls(
     print(f"DEBUG: upload_calls start. Study: {study_name}, Type: {study_type}, Stage: {study_stage}, ID: {study_id}")
     
     try:
-        if current_user.role != "superuser":
+        if current_user.role != "superuser" and current_user.role != "coordinator":
             raise HTTPException(status_code=403, detail="Not authorized")
             
         # Ensure study
