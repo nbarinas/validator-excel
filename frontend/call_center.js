@@ -343,12 +343,42 @@ function applyColumnFilters() {
         if (!dateStart && !dateEnd) return true;
 
         // Resolve date
-        // c.created_at is ISO, c.collection_date is YYYY-MM-DD usually
-        let dateStr = '';
-        if (c.created_at) dateStr = new Date(c.created_at).toISOString().split('T')[0];
-        else if (c.collection_date) dateStr = c.collection_date.toString().substring(0, 10);
+        // c.created_at is ISO in DB (YYYY-MM-DD...) usually
+        // c.collection_date matches Excel upload. Might be YYYY-MM-DD or DD/MM/YYYY or DD-MM-YYYY
 
-        if (!dateStr) return false; // If filtering by date and no date, hide?
+        let dateStr = '';
+        if (c.created_at) {
+            dateStr = new Date(c.created_at).toISOString().split('T')[0];
+        } else if (c.collection_date) {
+            let raw = c.collection_date.toString().substring(0, 10).trim();
+            // Try to detect DD/MM/YYYY
+            if (raw.includes('/')) {
+                const parts = raw.split('/');
+                if (parts.length === 3) {
+                    // Assume DD/MM/YYYY if year is last
+                    if (parts[2].length === 4) {
+                        dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+                    } else if (parts[0].length === 4) {
+                        // YYYY/MM/DD
+                        dateStr = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                    }
+                }
+            } else if (raw.includes('-')) {
+                // Check if it's DD-MM-YYYY (common in some locales) vs YYYY-MM-DD
+                const parts = raw.split('-');
+                if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+                    // DD-MM-YYYY -> Convert to YYYY-MM-DD
+                    dateStr = `${parts[2]}-${parts[1]}-${parts[0]}`;
+                } else {
+                    // Assume YYYY-MM-DD
+                    dateStr = raw;
+                }
+            } else {
+                dateStr = raw; // Fallback
+            }
+        }
+
+        if (!dateStr) return false;
 
         if (dateStart && dateStr < dateStart) return false;
         if (dateEnd && dateStr > dateEnd) return false;
