@@ -107,6 +107,48 @@ function enterCRM() {
     loadStudies();
     loadStudyData(null); // Load global calls when entering
     loadAgents(); // Load users for assignment
+
+    // Toggle Temp Columns visibility based on role
+    const armandoCols = document.querySelectorAll('.col-temp-armando');
+    const auxiliarCols = document.querySelectorAll('.col-temp-auxiliar');
+
+    if (currentUserRole === 'superuser') {
+        armandoCols.forEach(el => el.style.display = 'table-cell');
+        auxiliarCols.forEach(el => el.style.display = 'table-cell');
+    } else if (currentUserRole === 'auxiliar') {
+        armandoCols.forEach(el => el.style.display = 'none');
+        auxiliarCols.forEach(el => el.style.display = 'table-cell');
+    } else {
+        armandoCols.forEach(el => el.style.display = 'none');
+        auxiliarCols.forEach(el => el.style.display = 'none');
+    }
+}
+
+async function updateTempInfo(callId, field, value) {
+    try {
+        const body = {};
+        body[field] = value;
+
+        // Optimistic UI update? No need, it's an input.
+        // Debouncing could be good but for now plain onchange/onblur
+
+        const res = await fetch(`/calls/${callId}/temp-info`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(body)
+        });
+
+        if (!res.ok) {
+            const err = await res.json();
+            alert("Error al actualizar: " + err.detail);
+        } else {
+            // Optional: visual feedback
+            console.log("Updated", field);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión al guardar");
+    }
 }
 
 function showUploadModal() {
@@ -709,22 +751,48 @@ function renderCallGrid(calls) {
 
         tr.innerHTML = `
             <td onclick="event.stopPropagation()"><input type="checkbox" class="call-checkbox" value="${call.id}"></td>
-            <td><i class="fas fa-phone"></i> ${call.phone_number}</td>
+            <td>
+                <i class="fas fa-phone"></i> ${call.phone_number}
+                ${(call.corrected_phone && call.corrected_phone !== call.phone_number)
+                ? `<br><span style="color:#059669; font-size:0.75rem; font-weight:bold;">➡ ${call.corrected_phone}</span>`
+                : ''}
+            </td>
             <td style="font-size: 0.8rem; color: #555;">${call.collection_date || (call.created_at ? new Date(call.created_at).toLocaleDateString() : '-')}</td>
+            
+            <!-- NEW COLUMN: Realization Date (Correct Position) -->
+            <td style="font-size: 0.8rem;">${call.realization_date ? new Date(call.realization_date).toLocaleString() : '-'}</td>
+
             <td>
                 <span style="font-size:0.8rem; color:#666; font-weight:bold;">${call.study_name || '-'}</span>
                 ${call.study_type ? `<br><span style="font-size:0.7rem; color:#1a73e8; font-weight:600;">${call.study_type.toUpperCase()}</span>` : ''}
                 ${call.study_stage ? `<span style="font-size:0.7rem; color:#f59e0b; font-weight:600; margin-left:0.3rem;">[${call.study_stage}]</span>` : ''}
             </td>
             <td><span style="font-size:0.8rem; color:${call.agent_name ? '#4caf50' : '#f44336'}; font-weight:bold;">${call.agent_name || 'Sin Asignar'}</span></td>
+            <td><span style="font-size:0.8rem; color:#888;">${call.previous_agent_name || '-'}</span></td>
             <td>${call.person_name || '-'}</td>
             <td>${call.city || '-'}</td>
             <td>${alertTime}</td>
             <!-- Old Obs Cell Removed -->
+            
             <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
             
             <td>${call.census || '-'}</td>
-            <td>${call.collection_time || call.initial_observation || '-'}</td>
+            <td>${call.collection_time || call.initial_observation || '-'}</td> <!-- This serves as Hora Original now -->
+            
+            <!-- Temp Armando -->
+            <td class="col-temp-armando" style="display: ${currentUserRole === 'superuser' ? 'table-cell' : 'none'};">
+                ${currentUserRole === 'superuser'
+                ? `<input type="text" value="${call.temp_armando || ''}" onclick="event.stopPropagation()" onchange="updateTempInfo(${call.id}, 'temp_armando', this.value)" style="width:100%; border:1px solid #ddd;">`
+                : ''}
+            </td>
+            
+            <!-- Temp Auxiliar -->
+            <td class="col-temp-auxiliar" style="display: ${currentUserRole === 'superuser' || currentUserRole === 'auxiliar' ? 'table-cell' : 'none'};">
+                ${(currentUserRole === 'superuser' || currentUserRole === 'auxiliar')
+                ? `<input type="text" value="${call.temp_auxiliar || ''}" onclick="event.stopPropagation()" onchange="updateTempInfo(${call.id}, 'temp_auxiliar', this.value)" style="width:100%; border:1px solid #ddd;">`
+                : ''}
+            </td>
+ 
             <td style="font-size:0.75rem; color:#334155;">
                 ${(call.last_observations && call.last_observations.length > 0)
                 ? call.last_observations.join('<br>')

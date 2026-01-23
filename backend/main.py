@@ -578,6 +578,24 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
                     log.append(f"Failed to add {col} to calls: {str(e)}")
             else:
                 log.append(f"Column {col} already exists in calls")
+
+        # --- CALLS MIGRATION (PART 2) ---
+        new_call_cols_2 = [
+            ("realization_date", "DATETIME"),
+            ("temp_armando", "TEXT"),
+            ("temp_auxiliar", "TEXT"),
+            ("previous_user_id", "INTEGER")
+        ]
+
+        for col, dtype in new_call_cols_2:
+            if col not in existing_call_cols:
+                try:
+                    db.execute(text(f"ALTER TABLE calls ADD COLUMN {col} {dtype}"))
+                    log.append(f"Added column {col} to calls")
+                except Exception as e:
+                    log.append(f"Failed to add {col} to calls: {str(e)}")
+            else:
+                log.append(f"Column {col} already exists in calls")
                 
         db.commit()
         return {"status": "migration completed", "log": log}
@@ -775,6 +793,14 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         # Prefer Full Name, fallback to username
         c_dict['agent_name'] = (c.user.full_name if c.user.full_name else c.user.username) if c.user else None
         
+        # Ensure new fields are in dict (if not auto-included by __dict__)
+        c_dict['realization_date'] = c.realization_date.isoformat() if c.realization_date else None
+        c_dict['temp_armando'] = c.temp_armando
+        c_dict['temp_auxiliar'] = c.temp_auxiliar
+        
+        # Previous Agent Name
+        c_dict['previous_agent_name'] = (c.previous_user.full_name if c.previous_user.full_name else c.previous_user.username) if c.previous_user else None
+        
         # Get last 4 observations
         # Sort by ID descending (newest first) and take top 4
         # Note: This relies on lazy loading. For high scale, use joinedload/subqueryload.
@@ -817,6 +843,10 @@ def assign_call(call_id: int, assignment: AssignCall, db: Session = Depends(data
     if not user:
          raise HTTPException(status_code=404, detail="User not found")
          
+    # Save Previous Agent if assignment changes
+    if call.user_id and call.user_id != assignment.user_id:
+        call.previous_user_id = call.user_id
+
     call.user_id = assignment.user_id
     db.commit()
     agent_name = user.full_name if user.full_name else user.username
@@ -837,9 +867,20 @@ def assign_call_bulk(assignment: BulkAssignCall, db: Session = Depends(database.
          raise HTTPException(status_code=404, detail="User not found")
     
     # Update all
-    db.query(models.Call).filter(models.Call.id.in_(assignment.call_ids)).update(
-        {models.Call.user_id: assignment.user_id}, synchronize_session=False
-    )
+    # Update all - Need to do it one by one to save previous_user_id properly or use a smart update query?
+    # Bulk update is faster but "previous_user_id = user_id" logic in SQL might be tricky with sqlalchemy update()
+    # Let's iterate for safety and correctness as N is usually manageable (e.g. 50-100)
+    
+    calls = db.query(models.Call).filter(models.Call.id.in_(assignment.call_ids)).all()
+    for call in calls:
+        if call.user_id and call.user_id != assignment.user_id:
+            call.previous_user_id = call.user_id
+        call.user_id = assignment.user_id
+        
+    db.commit()
+    # db.query(models.Call).filter(models.Call.id.in_(assignment.call_ids)).update(
+    #     {models.Call.user_id: assignment.user_id}, synchronize_session=False
+    # )
     db.commit()
     return {"status": "bulk_assigned", "count": len(assignment.call_ids)}
 
@@ -869,8 +910,48 @@ def update_call_status(call_id: int, status_update: UpdateCallStatus, db: Sessio
     # For now, we trust the frontend logic as per "simple" request, but basic sanity checks are good.
     
     call.status = status_update.status
+    
+    # Auto-update Realization Date
+    # If status is "managed" (Gestionado) or any "caida", set date to Now
+    # Also if "done" or "efectiva_campo"
+    trigger_statuses = [
+        "managed", "done", "efectiva_campo", 
+        "caida_desempeno", "caida_logistica", 
+        "caida_desempeno_campo", "caida_logistico_campo", 
+        "caidas", "caida", "en_campo", "en campo"
+    ]
+    
+    if call.status in trigger_statuses:
+        call.realization_date = datetime.now()
+        
     db.commit()
-    return {"status": call.status}
+    return {"status": call.status, "realization_date": call.realization_date}
+
+class TempInfoUpdate(BaseModel):
+    temp_armando: Optional[str] = None
+    temp_auxiliar: Optional[str] = None
+
+@app.put("/calls/{call_id}/temp-info")
+def update_temp_info(call_id: int, info: TempInfoUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+        
+    # Permission Check
+    # temp_armando: Only superuser
+    if info.temp_armando is not None:
+        if current_user.role != "superuser":
+             raise HTTPException(status_code=403, detail="Solo Super Usuario puede editar Temporal Armando")
+        call.temp_armando = info.temp_armando
+
+    # temp_auxiliar: Superuser or Auxiliar
+    if info.temp_auxiliar is not None:
+        if current_user.role != "superuser" and current_user.role != "auxiliar":
+             raise HTTPException(status_code=403, detail="No autorizado para editar Temporal Auxiliar")
+        call.temp_auxiliar = info.temp_auxiliar
+        
+    db.commit()
+    return {"status": "ok", "temp_armando": call.temp_armando, "temp_auxiliar": call.temp_auxiliar}
 
 @app.post("/upload-calls")
 async def upload_calls(
