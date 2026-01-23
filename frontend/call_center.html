@@ -486,7 +486,7 @@
                                         style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
                                 </th>
                                 <th>
-                                    Fecha
+                                    Fecha Original
                                     <div style="display: flex; gap: 2px; flex-direction: column;">
                                         <input type="date" id="colFilterDateStart" title="Desde"
                                             style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
@@ -494,6 +494,7 @@
                                             style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
                                     </div>
                                 </th>
+                                <th>Fecha Realización</th>
                                 <th>
                                     Estudio
                                     <select id="colFilterStudy" class="col-filter"
@@ -509,6 +510,7 @@
                                         <button class="multiselect-btn">Todos</button>
                                     </div>
                                 </th>
+                                <th>Agente Anterior</th>
                                 <th>
                                     Nombre
                                     <input type="text" id="colFilterName" placeholder="Buscar..."
@@ -537,6 +539,12 @@
                                 </th>
                                 <!-- Removed NSE, Edad, Barrio -->
                                 <th>Hora Original</th>
+
+                                <!-- New Temp Columns - Visibility handled by JS? No, just render them, hide if needed in JS. -->
+                                <th class="col-temp-armando" style="display:none; background:#ffedd5;">Temp Armando</th>
+                                <th class="col-temp-auxiliar" style="display:none; background:#dbeafe;">Temp Auxiliar
+                                </th>
+
                                 <th>Observaciones</th>
                             </tr>
                         </thead>

@@ -27,7 +27,7 @@ class User(Base):
     account_holder = Column(String(100), nullable=True) # Titular
     account_holder_cc = Column(String(20), nullable=True) # CC Titular
 
-    calls = relationship("Call", back_populates="user")
+    calls = relationship("Call", foreign_keys="Call.user_id", back_populates="user")
     observations = relationship("Observation", back_populates="user")
     schedules = relationship("Schedule", back_populates="user")
 
@@ -90,11 +90,19 @@ class Call(Base):
     survey_id = Column(String(100), nullable=True) # Alphanumeric survey identifier
     bonus_status = Column(String(20), nullable=True) # 'enviado' or 'no enviado'
     
+    # New Requested Fields
+    realization_date = Column(DateTime(timezone=True), nullable=True) # Fecha de Realización (Auto on action)
+    temp_armando = Column(Text, nullable=True) # Temporal Armando (Superuser only)
+    temp_auxiliar = Column(Text, nullable=True) # Temporal Auxiliar (Superuser & Auxiliar)
+    
+    previous_user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Tracks previous agent
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     study = relationship("Study", back_populates="calls")
-    user = relationship("User", back_populates="calls")
+    user = relationship("User", foreign_keys=[user_id], back_populates="calls")
+    previous_user = relationship("User", foreign_keys=[previous_user_id]) # Relationship for access
     observations = relationship("Observation", back_populates="call")
     schedules = relationship("Schedule", back_populates="call")
 
