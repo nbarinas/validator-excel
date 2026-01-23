@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 ui.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.4);">${user.role.toUpperCase()}</span>`;
             }
 
-            if (currentUserRole === 'superuser') {
+            if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
                 // Show Landing, Hide CRM
                 document.getElementById('superuserLanding').style.display = 'block';
                 document.getElementById('crmInterface').style.display = 'none';
@@ -79,8 +79,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             // AUTOMATICALLY LOAD ALL PENDING CALLS
             loadStudyData(null); // Null = all pending from open studies
 
-            // Show Excel Button for Superuser/Auxiliar
-            if (currentUserRole === 'superuser' || currentUserRole === 'auxiliar') {
+            // Show Excel Button for Superuser/Auxiliar/Coordinator
+            if (currentUserRole === 'superuser' || currentUserRole === 'auxiliar' || currentUserRole === 'coordinator') {
                 const btnExport = document.getElementById('btnExportExcel');
                 if (btnExport) btnExport.style.display = 'inline-block';
             }
@@ -592,8 +592,8 @@ function showGridView() {
     document.getElementById('callsGridView').style.display = 'block';
     document.getElementById('callDetailView').style.display = 'none';
 
-    // Restore sidebar only for superusers
-    if (currentUserRole === 'superuser') {
+    // Restore sidebar only for superusers/coordinators
+    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
         document.querySelector('.sidebar').style.display = 'flex';
         document.getElementById('crmInterface').style.gridTemplateColumns = '300px 1fr';
     } else {
@@ -889,7 +889,7 @@ function openCallDetail(call) {
     document.getElementById('scheduleSection').style.display = 'block';
 
     // ADMIN CONTROLS
-    if (currentUserRole === 'superuser') {
+    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
         document.getElementById('adminControls').style.display = 'block';
         document.getElementById('currentAgentName').textContent = call.agent_name || 'Sin Asignar';
         // Select logic
@@ -1032,7 +1032,7 @@ async function finishCall() {
 }
 
 async function loadAgents() {
-    if (currentUserRole !== 'superuser') return;
+    if (currentUserRole !== 'superuser' && currentUserRole !== 'coordinator') return;
     try {
         const res = await fetch('/users', { headers });
         if (res.ok) {
