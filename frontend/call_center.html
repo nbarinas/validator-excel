@@ -207,6 +207,59 @@
             background: #ef4444;
             box-shadow: 0 0 8px #ef4444;
         }
+
+        /* CUSTOM MULTI-SELECT */
+        .multiselect-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .multiselect-btn {
+            width: 100%;
+            padding: 2px;
+            font-size: 0.7rem;
+            text-align: left;
+            cursor: pointer;
+            background: white;
+            border: 1px solid #767676;
+            border-radius: 2px;
+            height: 22px;
+            /* Match other inputs */
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .multiselect-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            /* High z-index */
+            border: 1px solid #ddd;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .multiselect-content label {
+            color: black;
+            padding: 8px 12px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .multiselect-content label:hover {
+            background-color: #f1f1f1;
+        }
+
+        .multiselect-content.show {
+            display: block;
+        }
     </style>
 </head>
 
@@ -434,8 +487,12 @@
                                 </th>
                                 <th>
                                     Fecha
-                                    <input type="date" id="colFilterDate"
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                    <div style="display: flex; gap: 2px; flex-direction: column;">
+                                        <input type="date" id="colFilterDateStart" title="Desde"
+                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                        <input type="date" id="colFilterDateEnd" title="Hasta"
+                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                    </div>
                                 </th>
                                 <th>
                                     Estudio
@@ -446,10 +503,11 @@
                                 </th>
                                 <th>
                                     Agente
-                                    <select id="colFilterAgent" class="col-filter"
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                        <option value="">Todos</option>
-                                    </select>
+                                    <div id="colFilterAgentContainer" class="multiselect-container"
+                                        style="margin-top: 2px;">
+                                        <!-- JS will inject here -->
+                                        <button class="multiselect-btn">Todos</button>
+                                    </div>
                                 </th>
                                 <th>
                                     Nombre
@@ -466,10 +524,11 @@
                                 <!-- Old Observaciones Pos -->
                                 <th>
                                     Estado
-                                    <select id="colFilterStatus"
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                        <option value="">Todos</option>
-                                    </select>
+                                    <div id="colFilterStatusContainer" class="multiselect-container"
+                                        style="margin-top: 2px;">
+                                        <!-- JS will inject here -->
+                                        <button class="multiselect-btn">Todos</button>
+                                    </div>
                                 </th>
                                 <th>
                                     Censo
