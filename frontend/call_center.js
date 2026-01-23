@@ -344,7 +344,7 @@ async function loadStudies() {
     }
 });
 
-['colFilterCity', 'colFilterStudy', 'colFilterDateStart', 'colFilterDateEnd'].forEach(id => {
+['colFilterCity', 'colFilterStudy', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', function () {
@@ -360,6 +360,8 @@ function applyColumnFilters() {
     const censusTerm = document.getElementById('colFilterCensus') ? document.getElementById('colFilterCensus').value.toLowerCase().trim() : '';
     const dateStart = document.getElementById('colFilterDateStart') ? document.getElementById('colFilterDateStart').value : '';
     const dateEnd = document.getElementById('colFilterDateEnd') ? document.getElementById('colFilterDateEnd').value : '';
+    const realStart = document.getElementById('colFilterRealizationStart') ? document.getElementById('colFilterRealizationStart').value : '';
+    const realEnd = document.getElementById('colFilterRealizationEnd') ? document.getElementById('colFilterRealizationEnd').value : '';
 
     // New Filters
     const studyTerm = document.getElementById('colFilterStudy').value.toLowerCase().trim();
@@ -374,6 +376,7 @@ function applyColumnFilters() {
 
     const selectedAgents = getMultiSelectValues('colFilterAgentContainer');
     const selectedStatuses = getMultiSelectValues('colFilterStatusContainer');
+    const selectedPrevAgents = getMultiSelectValues('colFilterPreviousAgentContainer');
 
     // Helper Checks
     const checkPhone = (c) => !phoneTerm || (c.phone_number || '').toString().toLowerCase().includes(phoneTerm);
@@ -421,6 +424,23 @@ function applyColumnFilters() {
         return true;
     };
 
+    const checkRealizationDate = (c) => {
+        if (!realStart && !realEnd) return true;
+        const rawDate = c.realization_date;
+        if (!rawDate) return false;
+
+        let dateStr = '';
+        const dateString = rawDate.toString().trim();
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}/)) dateStr = dateString.substring(0, 10);
+
+        if (!dateStr) return false;
+
+        if (realStart && dateStr < realStart) return false;
+        if (realEnd && dateStr > realEnd) return false;
+
+        return true;
+    };
+
     // Selects
     const checkStudy = (c) => !studyTerm || (c.study_name || '').toString().toLowerCase() === studyTerm;
 
@@ -434,6 +454,13 @@ function applyColumnFilters() {
         const val = agentDisplay.toLowerCase().trim();
 
         return selectedAgents.includes(val);
+    };
+
+    const checkPrevAgent = (c) => {
+        if (selectedPrevAgents.length === 0) return true;
+        const prevAgentDisplay = c.previous_agent_name || '-';
+        const val = prevAgentDisplay.toLowerCase().trim();
+        return selectedPrevAgents.includes(val);
     };
 
     const checkStatus = (c) => {
@@ -455,7 +482,7 @@ function applyColumnFilters() {
     // 1. Filter Grid (Intersection of ALL)
     filteredCalls = allCalls.filter(c =>
         checkPhone(c) && checkName(c) && checkCity(c) && checkCensus(c) &&
-        checkStudy(c) && checkAgent(c) && checkStatus(c) && checkDate(c)
+        checkStudy(c) && checkAgent(c) && checkPrevAgent(c) && checkStatus(c) && checkDate(c) && checkRealizationDate(c)
     );
     renderCallGrid(filteredCalls);
 
@@ -466,13 +493,13 @@ function applyColumnFilters() {
 }
 
 function resetFilters() {
-    ['colFilterPhone', 'colFilterName', 'colFilterCity', 'colFilterStudy', 'colFilterCensus', 'colFilterDateStart', 'colFilterDateEnd'].forEach(id => {
+    ['colFilterPhone', 'colFilterName', 'colFilterCity', 'colFilterStudy', 'colFilterCensus', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
 
     // Reset Multi-Selects
-    ['colFilterAgentContainer', 'colFilterStatusContainer'].forEach(id => {
+    ['colFilterAgentContainer', 'colFilterStatusContainer', 'colFilterPreviousAgentContainer'].forEach(id => {
         const c = document.getElementById(id);
         if (c) {
             c.querySelectorAll('input').forEach(chk => chk.checked = false);
@@ -704,6 +731,11 @@ async function loadStudyData(studyId) {
         const uniqueAgents = [...new Set(possibleAgents)].filter(x => x).sort();
 
         createMultiSelect('colFilterAgentContainer', uniqueAgents, applyColumnFilters);
+
+        // Populate Previous Agent Dropdown (Dynamic Multi-Select)
+        const possiblePrevAgents = allCalls.map(c => c.previous_agent_name || '-');
+        const uniquePrevAgents = [...new Set(possiblePrevAgents)].sort();
+        createMultiSelect('colFilterPreviousAgentContainer', uniquePrevAgents, applyColumnFilters);
 
 
         // Helper to restore selections? 
@@ -1120,6 +1152,14 @@ async function loadAgents() {
                 bulkSel.appendChild(opt);
             });
 
+            // Add "Unassign" option for Superusers
+            const unassignOpt = document.createElement('option');
+            unassignOpt.value = "UNASSIGN";
+            unassignOpt.textContent = "Desasignar / Liberar";
+            unassignOpt.style.color = "red";
+            unassignOpt.style.fontWeight = "bold";
+            bulkSel.appendChild(unassignOpt);
+
             // Show Bulk Actions
             document.getElementById('bulkActions').style.display = 'block';
         }
@@ -1180,13 +1220,22 @@ async function bulkAssign() {
         return;
     }
 
+    // Check for explicit "UNASSIGN" value or valid ID
+    let finalUserId = null;
+    if (userId === "UNASSIGN") {
+        if (!confirm("¿Está seguro de desasignar estas llamadas? Quedarán libres.")) return;
+        finalUserId = null;
+    } else {
+        finalUserId = parseInt(userId);
+    }
+
     const ids = Array.from(checks).map(c => parseInt(c.value));
 
     try {
         const res = await fetch('/calls/assign-bulk', {
             method: 'PUT',
             headers,
-            body: JSON.stringify({ call_ids: ids, user_id: parseInt(userId) })
+            body: JSON.stringify({ call_ids: ids, user_id: finalUserId })
         });
 
         if (res.ok) {
