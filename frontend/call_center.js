@@ -302,7 +302,7 @@ async function loadStudies() {
     }
 });
 
-['colFilterCity', 'colFilterStatus', 'colFilterStudy', 'colFilterAgent', 'colFilterDate'].forEach(id => {
+['colFilterCity', 'colFilterStudy', 'colFilterDateStart', 'colFilterDateEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', function () {
@@ -316,12 +316,22 @@ function applyColumnFilters() {
     const nameTerm = document.getElementById('colFilterName').value.toLowerCase().trim();
     const cityTerm = document.getElementById('colFilterCity').value.toLowerCase().trim();
     const censusTerm = document.getElementById('colFilterCensus') ? document.getElementById('colFilterCensus').value.toLowerCase().trim() : '';
-    const dateTerm = document.getElementById('colFilterDate') ? document.getElementById('colFilterDate').value : '';
+    const dateStart = document.getElementById('colFilterDateStart') ? document.getElementById('colFilterDateStart').value : '';
+    const dateEnd = document.getElementById('colFilterDateEnd') ? document.getElementById('colFilterDateEnd').value : '';
 
     // New Filters
     const studyTerm = document.getElementById('colFilterStudy').value.toLowerCase().trim();
-    const agentTerm = document.getElementById('colFilterAgent').value.toLowerCase().trim();
-    const statusTerm = document.getElementById('colFilterStatus').value.toLowerCase().trim();
+    // Agents & Status are now multi-selects handled by checking checkboxes in their containers
+
+    // Helper to get checked values from a container
+    const getMultiSelectValues = (containerId) => {
+        const container = document.getElementById(containerId);
+        if (!container) return [];
+        return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value.toLowerCase());
+    };
+
+    const selectedAgents = getMultiSelectValues('colFilterAgentContainer');
+    const selectedStatuses = getMultiSelectValues('colFilterStatusContainer');
 
     // Helper Checks
     const checkPhone = (c) => !phoneTerm || (c.phone_number || '').toString().toLowerCase().includes(phoneTerm);
@@ -330,48 +340,50 @@ function applyColumnFilters() {
     const checkCity = (c) => !cityTerm || (c.city || '').toString().toLowerCase() === cityTerm;
 
     const checkDate = (c) => {
-        if (!dateTerm) return true;
-        // Check created_at (ISO)
-        let match = false;
-        if (c.created_at) {
-            const dStr = new Date(c.created_at).toISOString().split('T')[0];
-            if (dStr === dateTerm) match = true;
-        }
-        // Check collection_date (String or Date)
-        if (!match && c.collection_date) {
-            // collection_date might be "2026-01-21 00:00:00" or just "2026-01-21"
-            if (c.collection_date.toString().includes(dateTerm)) match = true;
-        }
-        return match;
+        if (!dateStart && !dateEnd) return true;
+
+        // Resolve date
+        // c.created_at is ISO, c.collection_date is YYYY-MM-DD usually
+        let dateStr = '';
+        if (c.created_at) dateStr = new Date(c.created_at).toISOString().split('T')[0];
+        else if (c.collection_date) dateStr = c.collection_date.toString().substring(0, 10);
+
+        if (!dateStr) return false; // If filtering by date and no date, hide?
+
+        if (dateStart && dateStr < dateStart) return false;
+        if (dateEnd && dateStr > dateEnd) return false;
+
+        return true;
     };
 
     // Selects
     const checkStudy = (c) => !studyTerm || (c.study_name || '').toString().toLowerCase() === studyTerm;
 
     const checkAgent = (c) => {
-        if (!agentTerm) return true;
-        // Logic must match populate/Grid: Name (with ID string included) takes precedence.
-        // Grid uses: call.agent_name || 'Sin Asignar'
-        // Populate uses: c.agent_name || (c.agent_id ? ... : 'Sin Asignar')
-        // In most cases, agent_name is populated by API as "Name (ID)".
+        if (selectedAgents.length === 0) return true; // If none checked, it implies ALL or nothing filtered? "Todos" logic. 
+        // Based on UI, usually unchecked means "All" in this context? 
+        // Wait, my updateButtonText says "Todos" if ALL checked or NONE checked.
+        // Let's assume if NONE checked, we show ALL.
+
         const agentDisplay = c.agent_name || (c.agent_id ? `Agente ${c.agent_id}` : 'Sin Asignar');
-        return agentDisplay.toLowerCase().trim().includes(agentTerm);
+        const val = agentDisplay.toLowerCase().trim();
+
+        return selectedAgents.includes(val);
     };
 
     const checkStatus = (c) => {
-        if (!statusTerm) return true;
+        if (selectedStatuses.length === 0) return true; // Show all if none selected
+
         const s = (c.status || 'pending').toLowerCase().trim();
         const translated = translateStatus(c.status || 'pending').toLowerCase().trim();
 
-        // Term is the value from select (e.g., 'managed', 'pending')
-        // But row data might be 'Managed', 'Gestionado', 'managed', etc.
-        // We also want to check against the LABEL of the term (e.g. if term is 'managed', label is 'Gestionado')
-        const termLabel = (statusMap[statusTerm] || '').toLowerCase();
+        // Check if ANY of the selected statuses matches this call
+        // The values in selectedStatuses come from the options we populated.
+        // Since we populate with both raw? No, populate usually does display text?
+        // Let's see how we populate. We should populate with consistent values.
 
-        return s === statusTerm ||
-            s === termLabel ||
-            translated === statusTerm ||
-            translated === termLabel;
+        // We will populate with Display Values (Translated). So we should compare translated.
+        return selectedStatuses.includes(translated) || selectedStatuses.includes(s);
     };
 
 
@@ -389,12 +401,116 @@ function applyColumnFilters() {
 }
 
 function resetFilters() {
-    ['colFilterPhone', 'colFilterName', 'colFilterCity', 'colFilterStudy', 'colFilterAgent', 'colFilterStatus', 'colFilterCensus', 'colFilterDate'].forEach(id => {
+    ['colFilterPhone', 'colFilterName', 'colFilterCity', 'colFilterStudy', 'colFilterCensus', 'colFilterDateStart', 'colFilterDateEnd'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
+
+    // Reset Multi-Selects
+    ['colFilterAgentContainer', 'colFilterStatusContainer'].forEach(id => {
+        const c = document.getElementById(id);
+        if (c) {
+            c.querySelectorAll('input').forEach(chk => chk.checked = false);
+            const btn = c.querySelector('.multiselect-btn');
+            if (btn) btn.textContent = 'Todos';
+        }
+    });
+
     applyColumnFilters();
 }
+
+
+// MULTI-SELECT HELPER
+function createMultiSelect(containerId, options, onChangeCallback) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = ''; // Clear
+
+    // 1. Button
+    const btn = document.createElement('button');
+    btn.className = 'multiselect-btn';
+    btn.textContent = 'Todos';
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        // Toggle visibility
+        const content = container.querySelector('.multiselect-content');
+        if (content) {
+            // Close others
+            document.querySelectorAll('.multiselect-content').forEach(el => {
+                if (el !== content) el.classList.remove('show');
+            });
+            content.classList.toggle('show');
+        }
+    };
+    container.appendChild(btn);
+
+    // 2. Content Div
+    const content = document.createElement('div');
+    content.className = 'multiselect-content';
+    container.appendChild(content);
+
+    // 3. Options
+    // Add "Select All" / "All" logic implicity or explicitly?
+    // Let's have a "Todos" option or just start with all unchecked = All?
+    // User wants "escoger uno o varios".
+    // Let's add explicit "Deselect All" / "Select All" at top?
+    // For simplicity: List all options with checkboxes. If none checked, or "Todos" checked, it means all.
+
+    // Let's add a "Todos" checkbox at top
+    // const allLabel = document.createElement('label');
+    // allLabel.innerHTML = `<input type="checkbox" value="ALL" checked> <b>Todos</b>`;
+    // content.appendChild(allLabel);
+
+    options.forEach(optVal => {
+        const label = document.createElement('label');
+        // If we want to support value/label pairs, options could be objects. 
+        // For now options are strings.
+        const val = optVal;
+        const txt = optVal; // Or translate status?
+
+        const chk = document.createElement('input');
+        chk.type = 'checkbox';
+        chk.value = val;
+        // chk.checked = true; // Default all checked? Or none? 
+        // Usually filters start with "All" (none checked effectively or special logic)
+
+        chk.onchange = () => {
+            updateButtonText();
+            onChangeCallback();
+        }
+
+        label.appendChild(chk);
+        label.appendChild(document.createTextNode(' ' + txt));
+        content.appendChild(label);
+    });
+
+    // Helper to update button text
+    function updateButtonText() {
+        const checked = Array.from(content.querySelectorAll('input[type="checkbox"]:checked'));
+        if (checked.length === 0 || checked.length === options.length) {
+            btn.textContent = 'Todos';
+        } else {
+            if (checked.length <= 2) {
+                btn.textContent = checked.map(c => c.parentElement.textContent.trim()).join(', ');
+            } else {
+                btn.textContent = `${checked.length} seleccionados`;
+            }
+        }
+    }
+}
+
+// Global listener for closing multi-selects
+window.addEventListener('click', (e) => {
+    if (!e.target.matches('.multiselect-btn') && !e.target.closest('.multiselect-content')) {
+        document.querySelectorAll('.multiselect-content').forEach(el => el.classList.remove('show'));
+    }
+    // Existing popup logic
+    if (!e.target.closest('#filterPopup')) {
+        const fp = document.getElementById('filterPopup');
+        if (fp) fp.style.display = 'none';
+    }
+});
 
 function populateSelectFilter(elementId, values) {
     const sel = document.getElementById(elementId);
@@ -513,25 +629,16 @@ async function loadStudyData(studyId) {
         // Populate Study Dropdown
         populateSelectFilter('colFilterStudy', allCalls.map(c => (c.study_name || '').trim()).filter(x => x));
 
-        // Populate Status Dropdown (Dynamic)
-        // Get unique raw statuses from data
-        const uniqueStatuses = [...new Set(allCalls.map(c => (c.status || 'pending').toLowerCase().trim()))].sort();
-        const statusSel = document.getElementById('colFilterStatus');
+        // Populate Status Dropdown (Dynamic Multi-Select)
+        const uniqueStatuses = [...new Set(allCalls.map(c => translateStatus(c.status || 'pending').trim()))].sort();
+        createMultiSelect('colFilterStatusContainer', uniqueStatuses, applyColumnFilters);
 
-        if (statusSel) {
-            // Preserve current selection if possible, though reloading usually resets.
-            statusSel.innerHTML = '<option value="">Todos</option>';
-            uniqueStatuses.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s; // Raw value (e.g. 'managed')
-                opt.textContent = translateStatus(s); // Translated (e.g. 'Gestionado')
-                statusSel.appendChild(opt);
-            });
-        }
+        // Populate Agent Dropdown (Dynamic Multi-Select)
+        const possibleAgents = allCalls.map(c => c.agent_name || (c.agent_id ? `Agente ${c.agent_id}` : 'Sin Asignar'));
+        // Add current user if agent? No, list all agents in data.
+        const uniqueAgents = [...new Set(possibleAgents)].filter(x => x).sort();
 
-        // Populate Agent Dropdown
-        // Need to replicate agent display logic
-        populateSelectFilter('colFilterAgent', allCalls.map(c => c.agent_name || (c.agent_id ? `Agente ${c.agent_id}` : 'Sin Asignar')).filter(x => x && x !== 'Sin Asignar').concat(['Sin Asignar'])); // Ensure Sin Asignar is an option? uniqueValues will handle duplicate 'Sin Asignar'.
+        createMultiSelect('colFilterAgentContainer', uniqueAgents, applyColumnFilters);
 
 
         // Helper to restore selections? 
@@ -666,11 +773,12 @@ function openFilter(column, event) {
 }
 
 // Global listener
-window.addEventListener('click', (e) => {
-    // Prevent closing if clicking inside the popup
-    if (e.target.closest('#filterPopup')) return;
-    closeFilter();
-});
+// Global listener merged above
+// window.addEventListener('click', (e) => {
+//     // Prevent closing if clicking inside the popup
+//     if (e.target.closest('#filterPopup')) return;
+//     closeFilter();
+// });
 
 function applyFilter() {
     if (currentFilterColumn) {
