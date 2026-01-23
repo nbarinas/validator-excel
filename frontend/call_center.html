@@ -494,7 +494,15 @@
                                             style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
                                     </div>
                                 </th>
-                                <th>Fecha Realización</th>
+                                <th>
+                                    Fecha Realización
+                                    <div style="display: flex; gap: 2px; flex-direction: column;">
+                                        <input type="date" id="colFilterRealizationStart" title="Desde"
+                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                        <input type="date" id="colFilterRealizationEnd" title="Hasta"
+                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                    </div>
+                                </th>
                                 <th>
                                     Estudio
                                     <select id="colFilterStudy" class="col-filter"
@@ -510,7 +518,14 @@
                                         <button class="multiselect-btn">Todos</button>
                                     </div>
                                 </th>
-                                <th>Agente Anterior</th>
+                                <th>
+                                    Agente Anterior
+                                    <div id="colFilterPreviousAgentContainer" class="multiselect-container"
+                                        style="margin-top: 2px;">
+                                        <!-- JS will inject here -->
+                                        <button class="multiselect-btn">Todos</button>
+                                    </div>
+                                </th>
                                 <th>
                                     Nombre
                                     <input type="text" id="colFilterName" placeholder="Buscar..."

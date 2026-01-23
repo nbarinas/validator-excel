@@ -854,33 +854,31 @@ def assign_call(call_id: int, assignment: AssignCall, db: Session = Depends(data
 
 class BulkAssignCall(BaseModel):
     call_ids: List[int]
-    user_id: int
+    user_id: Optional[int] = None # None allows unassignment
 
 @app.put("/calls/assign-bulk")
 def assign_call_bulk(assignment: BulkAssignCall, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    # Check user exists
-    user = db.query(models.User).filter(models.User.id == assignment.user_id).first()
-    if not user:
-         raise HTTPException(status_code=404, detail="User not found")
+    # Check user exists ONLY if assigning (not unassigning)
+    if assignment.user_id is not None:
+        user = db.query(models.User).filter(models.User.id == assignment.user_id).first()
+        if not user:
+             raise HTTPException(status_code=404, detail="User not found")
     
     # Update all
-    # Update all - Need to do it one by one to save previous_user_id properly or use a smart update query?
-    # Bulk update is faster but "previous_user_id = user_id" logic in SQL might be tricky with sqlalchemy update()
-    # Let's iterate for safety and correctness as N is usually manageable (e.g. 50-100)
+    # Need to do it one by one to save previous_user_id properly
     
     calls = db.query(models.Call).filter(models.Call.id.in_(assignment.call_ids)).all()
     for call in calls:
-        if call.user_id and call.user_id != assignment.user_id:
-            call.previous_user_id = call.user_id
+        if call.user_id: # If previously assigned
+             # If we are unassigning (assignment.user_id is None) OR assigning to different user
+             if assignment.user_id is None or call.user_id != assignment.user_id:
+                  call.previous_user_id = call.user_id
+        
         call.user_id = assignment.user_id
         
-    db.commit()
-    # db.query(models.Call).filter(models.Call.id.in_(assignment.call_ids)).update(
-    #     {models.Call.user_id: assignment.user_id}, synchronize_session=False
-    # )
     db.commit()
     return {"status": "bulk_assigned", "count": len(assignment.call_ids)}
 
