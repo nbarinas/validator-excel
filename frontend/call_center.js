@@ -104,6 +104,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 function enterCRM() {
     document.getElementById('superuserLanding').style.display = 'none';
     document.getElementById('crmInterface').style.display = 'grid'; // Restore grid
+
+    // Toggle Online Bars
+    const landingBar = document.getElementById('onlineHeaderBar_Landing');
+    const crmBar = document.getElementById('onlineHeaderBar_CRM');
+    if (landingBar) landingBar.style.display = 'none';
+    if (crmBar) crmBar.style.display = 'flex';
+
     loadStudies();
     loadStudyData(null); // Load global calls when entering
     loadAgents(); // Load users for assignment
