@@ -270,23 +270,32 @@
     <div style="max-width: 1400px; margin: 0 auto; padding: 1rem 2rem;">
         <!-- Top Nav -->
         <!-- Top Nav -->
+        <!-- Top Nav (Consolidated Header) -->
         <div
-            style="position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; min-height: 40px;">
+            style="position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; min-height: 40px; background: rgba(255, 255, 255, 0.05); padding: 0.5rem 1rem; border-radius: 8px;">
+            <!-- Left: Back Button -->
             <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold; z-index: 10;">&larr; Volver al
                 Dashboard</a>
 
-            <!-- Online Users Bar (Landing Page Version - Centered) -->
-            <div id="onlineHeaderBar_Landing" class="online-header-bar"
-                style="display: none; position: absolute; left: 50%; transform: translateX(-50%); top: 0; margin: 0; white-space: nowrap; background: rgba(255,255,255,0.1); border:none; width: auto;">
-                <!-- Users injected here -->
+            <!-- Center: Title and Landing Online Bar -->
+            <div
+                style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: absolute; left: 0; width: 100%; pointer-events: none;">
+                <h1 style="margin: 0; font-size: 1.25rem; color: white; pointer-events: auto;">Call Center CRM</h1>
+
+                <!-- Online Users Bar (Landing Page Version) -->
+                <!-- Only visible in Landing Mode -->
+                <div id="onlineHeaderBar_Landing" class="online-header-bar"
+                    style="display: none; justify-content: center; margin-top: 5px; white-space: nowrap; background: transparent; border:none; width: auto; pointer-events: auto;">
+                    <!-- Users injected here -->
+                </div>
             </div>
 
+            <!-- Right: User Info -->
             <div id="userInfoDisplay"
                 style="color: white; font-size: 1rem; display: flex; align-items: center; z-index: 10;"></div>
         </div>
 
-        <!-- System Title -->
-        <h1 style="text-align: center; margin-bottom: 1.5rem; color: white;">Call Center CRM</h1>
+        <!-- Standalone H1 Removed -->
 
         <!-- System Title -->
         <!-- SUPERUSER LANDING (Hidden by default) -->
