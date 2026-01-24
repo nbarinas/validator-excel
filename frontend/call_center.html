@@ -159,18 +159,19 @@
             background: #f0f0f0;
         }
 
-        /* Online Status Bar Styles */
+        /* Online Status Bar Styles - Light Theme Update */
         .online-header-bar {
-            background: rgba(255, 255, 255, 0.1);
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
             border-radius: 8px;
             padding: 0.5rem 1rem;
             display: flex;
             align-items: center;
             gap: 1.5rem;
             overflow-x: auto;
-            max-width: 600px;
-            /* Limit width */
+            width: 100%;
             scrollbar-width: thin;
+            margin-bottom: 1rem;
         }
 
         .status-pill {
@@ -178,9 +179,10 @@
             align-items: center;
             gap: 0.5rem;
             font-size: 0.85rem;
-            color: #e2e8f0;
+            color: #1e293b;
             white-space: nowrap;
-            background: rgba(0, 0, 0, 0.2);
+            background: white;
+            border: 1px solid #cbd5e1;
             padding: 2px 8px;
             border-radius: 12px;
         }
@@ -273,11 +275,7 @@
             <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold; z-index: 10;">&larr; Volver al
                 Dashboard</a>
 
-            <!-- Online Users Bar (Centered in header) -->
-            <div id="onlineHeaderBar" class="online-header-bar"
-                style="display: none; position: absolute; left: 50%; transform: translateX(-50%); top: 0; margin: 0; white-space: nowrap;">
-                <!-- Users injected here -->
-            </div>
+
 
             <div id="userInfoDisplay"
                 style="color: white; font-size: 1rem; display: flex; align-items: center; z-index: 10;"></div>
@@ -445,6 +443,11 @@
 
         <!-- MAIN CONTENT: Grid & Detail -->
         <div class="main-content">
+
+            <!-- Online Users Bar (Moved here) -->
+            <div id="onlineHeaderBar" class="online-header-bar" style="display: none;">
+                <!-- Users injected here -->
+            </div>
 
             <!-- EMPTY STATE -->
             <div id="emptyState" style="text-align: center; margin-top: 5rem; color: #666;">
