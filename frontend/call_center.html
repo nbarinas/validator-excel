@@ -275,7 +275,11 @@
             <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold; z-index: 10;">&larr; Volver al
                 Dashboard</a>
 
-
+            <!-- Online Users Bar (Landing Page Version - Centered) -->
+            <div id="onlineHeaderBar_Landing" class="online-header-bar"
+                style="display: none; position: absolute; left: 50%; transform: translateX(-50%); top: 0; margin: 0; white-space: nowrap; background: rgba(255,255,255,0.1); border:none; width: auto;">
+                <!-- Users injected here -->
+            </div>
 
             <div id="userInfoDisplay"
                 style="color: white; font-size: 1rem; display: flex; align-items: center; z-index: 10;"></div>
@@ -444,8 +448,8 @@
         <!-- MAIN CONTENT: Grid & Detail -->
         <div class="main-content">
 
-            <!-- Online Users Bar (Moved here) -->
-            <div id="onlineHeaderBar" class="online-header-bar" style="display: none;">
+            <!-- Online Users Bar (CRM Version - Top of Panel) -->
+            <div id="onlineHeaderBar_CRM" class="online-header-bar" style="display: none;">
                 <!-- Users injected here -->
             </div>
 
@@ -796,6 +800,7 @@
 
     <script src="/static/call_center.js?v=16"></script>
     <script>
+        // Online Status Logic
         async function updateOnlineStatus() {
             const token = localStorage.getItem('token');
             if (!token) return;
@@ -806,43 +811,49 @@
                 });
                 if (res.ok) {
                     const users = await res.json();
-                    const container = document.getElementById('onlineHeaderBar');
-                    container.innerHTML = ''; // Start clean
 
-                    const now = new Date();
-                    let activeCount = 0;
+                    // Render to BOTH containers (Landing and CRM)
+                    ['onlineHeaderBar_Landing', 'onlineHeaderBar_CRM'].forEach(containerId => {
+                        const container = document.getElementById(containerId);
+                        if (!container) return; // Skip if missing
 
-                    users.forEach(u => {
-                        if (!u.last_seen) return;
+                        container.innerHTML = ''; // Start clean
 
-                        let lastSeenDate = new Date(u.last_seen + (u.last_seen.endsWith('Z') ? '' : 'Z'));
-                        let diffMinutes = (now - lastSeenDate) / 1000 / 60;
+                        const now = new Date();
+                        let activeCount = 0;
 
-                        // Hide if inactive > 20m (Reverted as asked)
-                        if (diffMinutes > 20) return;
+                        users.forEach(u => {
+                            if (!u.last_seen) return;
 
-                        let colorClass = 'status-green';
-                        if (diffMinutes >= 15) colorClass = 'status-red';
-                        else if (diffMinutes >= 10) colorClass = 'status-yellow';
+                            let lastSeenDate = new Date(u.last_seen + (u.last_seen.endsWith('Z') ? '' : 'Z'));
+                            let diffMinutes = (now - lastSeenDate) / 1000 / 60;
 
-                        activeCount++;
+                            // Hide if inactive > 20m
+                            if (diffMinutes > 20) return;
 
-                        const pill = document.createElement('div');
-                        pill.className = 'status-pill';
+                            let colorClass = 'status-green';
+                            if (diffMinutes >= 15) colorClass = 'status-red';
+                            else if (diffMinutes >= 10) colorClass = 'status-yellow';
 
-                        // Tooltip logic for details
-                        pill.title = `Rol: ${u.role}\nHace ${Math.floor(diffMinutes)} min`;
+                            activeCount++;
 
-                        pill.innerHTML = `
-                            <div class="status-dot ${colorClass}"></div>
-                            <span>${u.full_name || u.username}</span>
-                        `;
-                        container.appendChild(pill);
+                            const pill = document.createElement('div');
+                            pill.className = 'status-pill';
+
+                            // Tooltip logic for details
+                            pill.title = `Rol: ${u.role}\nHace ${Math.floor(diffMinutes)} min`;
+
+                            pill.innerHTML = `
+                                <div class="status-dot ${colorClass}"></div>
+                                <span>${u.full_name || u.username}</span>
+                            `;
+                            container.appendChild(pill);
+                        });
+
+                        if (activeCount === 0) {
+                            container.innerHTML = '<span style="color: #94a3b8; font-size: 0.8rem; font-style: italic;">Sin usuarios activos</span>';
+                        }
                     });
-
-                    if (activeCount === 0) {
-                        container.innerHTML = '<span style="color: #94a3b8; font-size: 0.8rem; font-style: italic;">Sin usuarios activos</span>';
-                    }
                 }
             } catch (e) {
                 console.error("Error fetching status", e);
@@ -857,8 +868,22 @@
                     const res = await fetch('/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
                     if (res.ok) {
                         const user = await res.json();
-                        // SHOW FOR EVERYONE
-                        document.getElementById('onlineHeaderBar').style.display = 'flex';
+
+                        // Initial visibility logic
+                        const landingBar = document.getElementById('onlineHeaderBar_Landing');
+                        const crmBar = document.getElementById('onlineHeaderBar_CRM');
+
+                        if (user.role === 'superuser' || user.role === 'coordinator') {
+                            // Start at Landing
+                            if (landingBar) landingBar.style.display = 'flex';
+                            if (crmBar) crmBar.style.display = 'none'; // Hidden until CRM entered
+                        } else {
+                            // Agent/Auxiliar starts in CRM
+                            if (landingBar) landingBar.style.display = 'none'; // Should not see header version to avoid overlap?
+                            // Actually agents don't see Landing, so header version might overlap if not hidden.
+                            if (crmBar) crmBar.style.display = 'flex';
+                        }
+
                         updateOnlineStatus();
                         setInterval(updateOnlineStatus, 30000); // Poll every 30s
                     }
