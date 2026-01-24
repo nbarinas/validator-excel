@@ -259,6 +259,9 @@ async function loadManageStudiesTable() {
                          <button onclick="toggleStudyStatus(${s.id})" style="cursor:pointer; background: ${s.is_active ? '#ef4444' : '#22c55e'}; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
                             ${s.is_active ? 'Desactivar' : 'Activar'}
                          </button>
+                         <button onclick="openAssignAux(${s.id}, '${s.name}')" style="cursor:pointer; background: #6366f1; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
+                            <i class="fas fa-users-cog"></i> Asignar
+                         </button>
                          <button onclick="deleteStudy(${s.id})" style="cursor:pointer; background: #991b1b; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Eliminar Permanentemente">
                             <i class="fas fa-trash"></i>
                          </button>
@@ -973,6 +976,18 @@ function openCallDetail(call) {
     document.getElementById('censusHousing').value = call.housing_description || '';
     document.getElementById('censusChildren').value = call.children_age || '';
 
+    // POPULATE DOG DATA SECTION
+    const dogSection = document.getElementById('dogSection');
+    if (call.dog_name) {
+        dogSection.style.display = 'block';
+        document.getElementById('dogName').value = call.dog_name || '';
+        document.getElementById('dogUserType').value = call.dog_user_type || '';
+        document.getElementById('stoolTexture').value = call.stool_texture || '';
+        document.getElementById('healthStatus').value = call.health_status || '';
+    } else {
+        dogSection.style.display = 'none';
+    }
+
     // WhatsApp field
     const whatsappField = document.getElementById('whatsappNumber');
     if (whatsappField) whatsappField.value = call.whatsapp || '';
@@ -1431,4 +1446,83 @@ function exportToExcel() {
 
     // Download
     XLSX.writeFile(wb, fileName);
+}
+
+// --- AUXILIAR ASSIGNMENT ---
+let currentAssignStudyId = null;
+
+async function openAssignAux(studyId, studyName) {
+    currentAssignStudyId = studyId;
+    document.getElementById('assignAuxTitle').textContent = "Estudio: " + studyName;
+    document.getElementById('assignAuxList').innerHTML = 'Cargando...';
+    document.getElementById('assignAuxModal').style.display = 'flex';
+
+    try {
+        // 1. Get All Users (to filter Auxiliaries)
+        const uRes = await fetch('/users', { headers });
+        if (!uRes.ok) throw new Error("Error loading users");
+        const allUsers = await uRes.json();
+        const auxiliaries = allUsers.filter(u => u.role === 'auxiliar');
+
+        // 2. Get Assigned Users
+        const aRes = await fetch(`/studies/${studyId}/assistants`, { headers });
+        if (!aRes.ok) throw new Error("Error loading assignments");
+        const assigned = await aRes.json();
+        const assignedIds = new Set(assigned.map(u => u.id));
+
+        // 3. Render
+        const container = document.getElementById('assignAuxList');
+        container.innerHTML = '';
+
+        if (auxiliaries.length === 0) {
+            container.innerHTML = '<p style="color:red;">No hay usuarios con rol "auxiliar" en el sistema.</p>';
+            return;
+        }
+
+        auxiliaries.forEach(aux => {
+            const isChecked = assignedIds.has(aux.id) ? 'checked' : '';
+            const div = document.createElement('div');
+            div.innerHTML = `
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:5px; border-radius:4px; border:1px solid #eee;">
+                    <input type="checkbox" class="aux-check" value="${aux.id}" ${isChecked}>
+                    <div>
+                        <span style="font-weight:bold; display:block;">${aux.full_name || aux.username}</span>
+                        <span style="font-size:0.8rem; color:#666;">${aux.username}</span>
+                    </div>
+                </label>
+            `;
+            container.appendChild(div);
+        });
+
+    } catch (e) {
+        console.error(e);
+        document.getElementById('assignAuxList').textContent = "Error al cargar datos.";
+    }
+}
+
+function closeAssignAux() {
+    document.getElementById('assignAuxModal').style.display = 'none';
+    currentAssignStudyId = null;
+}
+
+async function saveStudyAssistants() {
+    if (!currentAssignStudyId) return;
+
+    const checks = document.querySelectorAll('.aux-check:checked');
+    const userIds = Array.from(checks).map(c => parseInt(c.value));
+
+    try {
+        const res = await fetch(`/studies/${currentAssignStudyId}/assistants`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ user_ids: userIds })
+        });
+
+        if (res.ok) {
+            alert("Asignaciones guardadas");
+            closeAssignAux();
+        } else {
+            alert("Error al guardar");
+        }
+    } catch (e) { console.error(e); alert("asigna error"); }
 }

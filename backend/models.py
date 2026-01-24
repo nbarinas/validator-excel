@@ -30,6 +30,15 @@ class User(Base):
     calls = relationship("Call", foreign_keys="Call.user_id", back_populates="user")
     observations = relationship("Observation", back_populates="user")
     schedules = relationship("Schedule", back_populates="user")
+    assigned_studies = relationship("Study", secondary="study_assignments", back_populates="assistants")
+
+from sqlalchemy import Table
+
+# Association Table for Auxiliar <-> Study
+study_assignments = Table('study_assignments', Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('study_id', Integer, ForeignKey('studies.id'))
+)
 
 class Study(Base):
     __tablename__ = "studies"
@@ -46,6 +55,7 @@ class Study(Base):
     is_active = Column(Boolean, default=True) # Soft delete / Hide functionality
 
     calls = relationship("Call", back_populates="study")
+    assistants = relationship("User", secondary=study_assignments, back_populates="assigned_studies")
 
 class Call(Base):
     __tablename__ = "calls"
@@ -96,6 +106,12 @@ class Call(Base):
     temp_auxiliar = Column(Text, nullable=True) # Temporal Auxiliar (Superuser & Auxiliar)
     
     previous_user_id = Column(Integer, ForeignKey("users.id"), nullable=True) # Tracks previous agent
+
+    # Dog Food Study Fields
+    dog_name = Column(String(100), nullable=True)
+    dog_user_type = Column(String(50), nullable=True) # Mezclador, etc.
+    stool_texture = Column(String(200), nullable=True)
+    health_status = Column(String(200), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
