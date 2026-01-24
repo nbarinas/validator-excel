@@ -393,7 +393,7 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(dat
 
 @app.get("/users")
 def list_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
+    if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
     
     users = db.query(models.User).all()
@@ -584,7 +584,11 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("realization_date", "DATETIME"),
             ("temp_armando", "TEXT"),
             ("temp_auxiliar", "TEXT"),
-            ("previous_user_id", "INTEGER")
+            ("previous_user_id", "INTEGER"),
+            ("dog_name", "VARCHAR(100)"),
+            ("dog_user_type", "VARCHAR(50)"),
+            ("stool_texture", "VARCHAR(200)"),
+            ("health_status", "VARCHAR(200)")
         ]
 
         for col, dtype in new_call_cols_2:
@@ -717,8 +721,42 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
     elif current_user.role != "superuser" and current_user.role != "coordinator":
         # Non-admins can't see inactive even if they ask
         query = query.filter(models.Study.is_active == True)
+    
+    # AUXILIAR Filter: Only see assigned studies
+    if current_user.role == "auxiliar":
+        query = query.join(models.study_assignments).filter(models.study_assignments.c.user_id == current_user.id)
         
     return query.all()
+
+class AssistantAssignment(BaseModel):
+    user_ids: List[int]
+
+@app.post("/studies/{study_id}/assistants")
+def assign_study_assistants(study_id: int, assignment: AssistantAssignment, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser" and current_user.role != "coordinator":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+         raise HTTPException(status_code=404, detail="Study not found")
+
+    # Clear existing and assigned new
+    # Get users
+    users = db.query(models.User).filter(models.User.id.in_(assignment.user_ids)).all()
+    study.assistants = users
+    db.commit()
+    return {"status": "updated", "count": len(users)}
+
+@app.get("/studies/{study_id}/assistants")
+def get_study_assistants(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser" and current_user.role != "coordinator":
+         raise HTTPException(status_code=403, detail="Not authorized")
+         
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+         raise HTTPException(status_code=404, detail="Study not found")
+         
+    return [{"id": u.id, "username": u.username, "full_name": u.full_name, "role": u.role} for u in study.assistants]
 
 @app.put("/studies/{study_id}/toggle")
 def toggle_study_status(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -769,6 +807,13 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         if current_user.role != "superuser" and current_user.role != "auxiliar" and current_user.role != "coordinator":
             query = query.filter(models.Call.status.in_(["pending", "scheduled"]))
             query = query.filter(models.Call.user_id == current_user.id) # Only assigned
+        
+        # Auxiliar restriction: Only calls from assigned studies (if global view)
+        if current_user.role == "auxiliar":
+             # We need to filter studies where user is assistant
+             # Using EXISTS or JOIN
+             query = query.join(models.study_assignments, models.Study.id == models.study_assignments.c.study_id)\
+                          .filter(models.study_assignments.c.user_id == current_user.id)
 
 
     # Order by ID desc
@@ -797,6 +842,10 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         c_dict['realization_date'] = c.realization_date.isoformat() if c.realization_date else None
         c_dict['temp_armando'] = c.temp_armando
         c_dict['temp_auxiliar'] = c.temp_auxiliar
+        c_dict['dog_name'] = c.dog_name
+        c_dict['dog_user_type'] = c.dog_user_type
+        c_dict['stool_texture'] = c.stool_texture
+        c_dict['health_status'] = c.health_status
         
         # Previous Agent Name
         c_dict['previous_agent_name'] = (c.previous_user.full_name if c.previous_user.full_name else c.previous_user.username) if c.previous_user else None
@@ -1017,7 +1066,7 @@ async def upload_calls(
             "product_brand": ["marca de producto", "marca"],
             "extra_phone": ["otro numero", "otro telefono", "telefono 2"],
             "person_cc": ["cedula", "cédula", "cc", "id", "identificacion"],
-            "person_name": ["nombre", "cliente", "usuario", "nombre y apellido"],
+            "person_name": ["nombre", "cliente", "usuario", "nombre y apellido", "nombre completo"],
             # New Census Fields
             "nse": ["nse", "estrato", "nivel socioeconomico"],
             "age": ["edad", "age"],
@@ -1032,7 +1081,12 @@ async def upload_calls(
             "implantation_date": ["fecha implantacion", "fecha implantación", "fecha imp"],
             "collection_date": ["fecha recoleccion", "fecha recolección", "fecha recogida", "fecha rec"],
             "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora rec"],
-            "census": ["censo", "id", "identifier"]
+            "census": ["censo", "id", "identifier"],
+            # Dog Food Study
+            "dog_name": ["nombre del perro", "dog name", "mascota"],
+            "dog_user_type": ["tipo de usuario", "tipo usuario", "user type"],
+            "stool_texture": ["textura popo del perro", "textura", "textura heces"],
+            "health_status": ["estado de salud", "salud", "condicion"]
         }
 
         calls_to_add = []
@@ -1109,6 +1163,12 @@ async def upload_calls(
                 implantation_date=get_val("implantation_date")[:50] if get_val("implantation_date") else None,
                 collection_date=get_val("collection_date")[:50] if get_val("collection_date") else None,
                 collection_time=get_val("collection_time")[:50] if get_val("collection_time") else None,
+                
+                # Dog Study Fields
+                dog_name=get_val("dog_name")[:100] if get_val("dog_name") else None,
+                dog_user_type=get_val("dog_user_type")[:50] if get_val("dog_user_type") else None,
+                stool_texture=get_val("stool_texture")[:200] if get_val("stool_texture") else None,
+                health_status=get_val("health_status")[:200] if get_val("health_status") else None,
                 
                 status="pending"
             )

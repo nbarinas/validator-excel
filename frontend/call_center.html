@@ -335,402 +335,453 @@
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- UPLOAD MODAL -->
-        <div id="uploadModal"
-            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
-            <div style="background: white; padding: 2rem; border-radius: 12px; width: 500px; max-width: 90%;">
-                <h2 style="margin-top: 0; color: #1e293b;">Cargar Base de Llamadas</h2>
+    <!-- ASSIGN AUXILIARIES MODAL -->
+    <div id="assignAuxModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1001; justify-content: center; align-items: center;">
+        <div
+            style="background: white; padding: 2rem; border-radius: 12px; width: 400px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h2 style="margin-top: 0; color: #1e293b;">Asignar Auxiliares</h2>
+            <h4 id="assignAuxTitle" style="color: #6366f1; margin-bottom: 1rem;">Estudio: ...</h4>
+            <p class="obs-meta" style="margin-bottom: 1rem;">Seleccione los auxiliares que verán este estudio:</p>
+
+            <div id="assignAuxList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem;">
+                <!-- Checkboxes injected by JS -->
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="closeAssignAux()"
+                    style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="saveStudyAssistants()"
+                    style="background: #22c55e; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD MODAL -->
+    <div id="uploadModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 500px; max-width: 90%;">
+            <h2 style="margin-top: 0; color: #1e293b;">Cargar Base de Llamadas</h2>
+            <div class="form-group">
+                <label style="color: #475569;">Archivo Excel</label>
+                <input type="file" id="uploadFile" accept=".xlsx, .xls">
+                <p class="obs-meta" style="color: #64748b;">Columnas requeridas: Telefono, Ciudad, Observaciones,
+                    Hora de llamada, Marca de
+                    producto, Otro numero</p>
+            </div>
+            <!-- Logic: Create new or append? User said "Cargar Nuevo Estudio" -->
+            <div class="form-group">
+                <label style="color: #475569;">Nombre del Nuevo Estudio</label>
+                <input type="text" id="uploadStudyName" placeholder="Ej: Estudio Diciembre 2025">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                 <div class="form-group">
-                    <label style="color: #475569;">Archivo Excel</label>
-                    <input type="file" id="uploadFile" accept=".xlsx, .xls">
-                    <p class="obs-meta" style="color: #64748b;">Columnas requeridas: Telefono, Ciudad, Observaciones,
-                        Hora de llamada, Marca de
-                        producto, Otro numero</p>
+                    <label style="color: #475569;">Tipo de Estudio</label>
+                    <select id="uploadStudyType" style="width: 100%; padding: 0.5rem;">
+                        <option value="validacion">Validación</option>
+                        <option value="fatiga">Fatiga</option>
+                    </select>
                 </div>
-                <!-- Logic: Create new or append? User said "Cargar Nuevo Estudio" -->
                 <div class="form-group">
-                    <label style="color: #475569;">Nombre del Nuevo Estudio</label>
-                    <input type="text" id="uploadStudyName" placeholder="Ej: Estudio Diciembre 2025">
+                    <label style="color: #475569;">Etapa (R)</label>
+                    <select id="uploadStudyStage" style="width: 100%; padding: 0.5rem;">
+                        <option value="R1">R1</option>
+                        <option value="R2">R2</option>
+                        <option value="R3">R3</option>
+                        <option value="R4">R4</option>
+                        <option value="R5">R5</option>
+                        <option value="Rf">Rf (Final)</option>
+                    </select>
                 </div>
+            </div>
+            <!-- Or Append to existing? For now just create new as requested -->
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                <button onclick="closeUploadModal()"
+                    style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="uploadCalls()"
+                    style="background: #6366f1; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cargar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="crm-container" id="crmInterface" style="padding: 0; margin: 0; height: calc(100vh - 150px);">
+        <!-- SIDEBAR: Selection & Search -->
+        <div class="sidebar">
+            <div class="form-group">
+                <label>Estudio Activo</label>
+                <select id="studySelect" class="form-input">
+                    <option value="">Seleccione Estudio...</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="searchPanel">
+                <label>Filtros</label>
+                <!-- Date Filters Removed -->
+                <select id="filterStatus" style="margin-bottom: 0.5rem; width: 100%;">
+                    <option value="">Estado: Todos</option>
+                    <option value="pending">Pendiente</option>
+                    <option value="managed">Gestionado</option>
+                    <option value="scheduled">Agendado</option>
+                    <option value="done">Terminado</option>
+                    <option value="caidas">Caídas</option>
+                    <option value="en campo">En Campo</option>
+                </select>
+
+                <input type="text" placeholder="Buscar por teléfono, nombre..." id="searchPhone">
+                <button class="btn-submit" onclick="searchCalls()">Buscar</button>
+            </div>
+
+            <div id="callsList" style="flex: 1; overflow-y: auto;">
+                <!-- List of recent calls -->
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT: Grid & Detail -->
+        <div class="main-content">
+
+            <!-- EMPTY STATE -->
+            <div id="emptyState" style="text-align: center; margin-top: 5rem; color: #666;">
+                <i class="fas fa-arrow-left" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h2>Seleccione un Estudio</h2>
+                <p>Elija una campaña del menú lateral para ver las llamadas disponibles.</p>
+            </div>
+
+            <!-- GRID VIEW: List of Calls -->
+            <div id="callsGridView" style="display: none;">
+
+                <!-- Bulk Actions (Superuser only) -->
+                <div id="bulkActions"
+                    style="display: none; background: #eef2ff; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #6366f1;">
+                    <span style="font-weight: bold; color: #6366f1;">Acciones Masivas:</span>
+                    <select id="bulkAgentSelect"
+                        style="padding: 0.5rem; margin-left: 1rem; border-radius: 4px; border: 1px solid #ddd;"></select>
+                    <button onclick="bulkAssign()"
+                        style="background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar
+                        Seleccionados</button>
+                </div>
+
+                <div class="header-nav">
+                    <div>
+                        <h3 style="display: inline-block; margin-right: 10px;">Listado de Llamadas</h3>
+                        <span id="callCounter" style="font-size: 0.9rem; color: #666; font-weight: normal;">(0
+                            registros)</span>
+                    </div>
+                    <div>
+                        <button id="btnExportExcel" onclick="exportToExcel()"
+                            style="display: none; cursor: pointer; background: #22c55e; border: 1px solid #16a34a; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: white;">
+                            <i class="fas fa-file-excel"></i> Descargar Excel
+                        </button>
+                        <button onclick="resetFilters()"
+                            style="cursor: pointer; background: #e2e8f0; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: #334155;">
+                            <i class="fas fa-undo"></i> Restablecer Filtros
+                        </button>
+                        <span class="obs-meta">Seleccione una llamada para gestionar</span>
+                    </div>
+                </div>
+
+                <!-- FILTER POPUP COMPONENT (Hidden) -->
+                <div id="filterPopup"
+                    style="display: none; position: absolute; background: white; border: 1px solid #ccc; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 10px; border-radius: 4px; width: 200px; z-index: 1000;">
+                    <input type="text" id="filterSearch" placeholder="Buscar..."
+                        style="width: 100%; padding: 4px; margin-bottom: 5px; box-sizing: border-box;">
+                    <div id="filterOptions" style="max-height: 150px; overflow-y: auto; margin-bottom: 5px;">
+                        <!-- Checkboxes will go here -->
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <button onclick="applyFilter()"
+                            style="background: #22c55e; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">Aplicar</button>
+                        <button onclick="closeFilter()"
+                            style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">Cerrar</button>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                            </th>
+                            <th>
+                                Teléfono
+                                <input type="text" id="colFilterPhone" placeholder="Buscar..."
+                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                            </th>
+                            <th>
+                                Fecha Original
+                                <div style="display: flex; gap: 2px; flex-direction: column;">
+                                    <input type="date" id="colFilterDateStart" title="Desde"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                    <input type="date" id="colFilterDateEnd" title="Hasta"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                </div>
+                            </th>
+                            <th>
+                                Fecha Realización
+                                <div style="display: flex; gap: 2px; flex-direction: column;">
+                                    <input type="date" id="colFilterRealizationStart" title="Desde"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                    <input type="date" id="colFilterRealizationEnd" title="Hasta"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                </div>
+                            </th>
+                            <th>
+                                Estudio
+                                <select id="colFilterStudy" class="col-filter"
+                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                    <option value="">Todos</option>
+                                </select>
+                            </th>
+                            <th>
+                                Agente
+                                <div id="colFilterAgentContainer" class="multiselect-container"
+                                    style="margin-top: 2px;">
+                                    <!-- JS will inject here -->
+                                    <button class="multiselect-btn">Todos</button>
+                                </div>
+                            </th>
+                            <th>
+                                Agente Anterior
+                                <div id="colFilterPreviousAgentContainer" class="multiselect-container"
+                                    style="margin-top: 2px;">
+                                    <!-- JS will inject here -->
+                                    <button class="multiselect-btn">Todos</button>
+                                </div>
+                            </th>
+                            <th>
+                                Nombre
+                                <input type="text" id="colFilterName" placeholder="Buscar..."
+                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                            </th>
+                            <th>
+                                Ciudad
+                                <select id="colFilterCity"
+                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                                    <option value="">Todas</option>
+                                </select>
+                            <th>Agenda/Alerta</th>
+                            <!-- Old Observaciones Pos -->
+                            <th>
+                                Estado
+                                <div id="colFilterStatusContainer" class="multiselect-container"
+                                    style="margin-top: 2px;">
+                                    <!-- JS will inject here -->
+                                    <button class="multiselect-btn">Todos</button>
+                                </div>
+                            </th>
+                            <th>
+                                Censo
+                                <input type="text" id="colFilterCensus" placeholder="Buscar..."
+                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px; box-sizing: border-box;">
+                            </th>
+                            <!-- Removed NSE, Edad, Barrio -->
+                            <th>Hora Original</th>
+
+                            <!-- New Temp Columns - Visibility handled by JS? No, just render them, hide if needed in JS. -->
+                            <th class="col-temp-armando" style="display:none; background:#ffedd5;">Temp Armando</th>
+                            <th class="col-temp-auxiliar" style="display:none; background:#dbeafe;">Temp Auxiliar
+                            </th>
+
+                            <th>Observaciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="callsGridBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- DETAIL VIEW: Single Call -->
+            <div id="callDetailView" style="display: none;">
+                <button onclick="showGridView()"
+                    style="margin-bottom: 1rem; background: transparent; color: #1a73e8; border: none; cursor: pointer; font-weight: bold;">
+                    <i class="fas fa-arrow-left"></i> Volver a la Lista
+                </button>
+
+                <div class="header-nav">
+                    <h3 id="callDetailTitle"
+                        style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">
+                        Detalle de Llamada</h3>
+                    <span id="callStatusBadge" class="alert-badge">Programada</span>
+                </div>
+
+                <div class="form-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Nombre Persona</label>
+                        <input type="text" id="personName" readonly style="background: #f9fafb;">
+                    </div>
+                    <div class="form-group">
+                        <label>Ciudad</label>
+                        <input type="text" id="personCity" readonly style="background: #f9fafb;">
+                    </div>
+                    <div class="form-group">
+                        <label>Código del Producto</label>
+                        <input type="text" id="personBrand" readonly style="background: #f9fafb;">
+                    </div>
+                    <div class="form-group">
+                        <label>Observación Inicial</label>
+                        <input type="text" id="initialObs" readonly style="background: #f9fafb;">
+                    </div>
+                    <div class="form-group">
+                        <label>Hora Cita (Original)</label>
+                        <input type="text" id="apptTime" readonly style="background: #f9fafb;">
+                    </div>
+                    <div class="form-group">
+                        <label>Info Extra</label>
+                        <input type="text" id="extraPhone" placeholder="Otro dato...">
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- NEW DOG DATA SECTION (Sibate) -->
+            <div class="form-section" id="dogSection"
+                style="background: #fff7ed; padding: 1rem; border-radius: 8px; border: 1px solid #ffedd5; display: none;">
+                <h4 style="color: #9a3412; margin-top: 0;">Datos del Perro <span
+                        style="font-size:0.8rem; color:#c2410c; font-weight:normal;">(Sibate)</span></h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                    <div class="form-group">
+                        <label>Nombre del Perro</label>
+                        <input type="text" id="dogName" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Usuario</label>
+                        <input type="text" id="dogUserType" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Textura Popó</label>
+                        <input type="text" id="stoolTexture" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group" style="grid-column: span 4;">
+                        <label>Estado de Salud</label>
+                        <input type="text" id="healthStatus" readonly style="background: #fff7ed;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW CENSUS DATA SECTION -->
+            <div class="form-section" id="censusSection"
+                style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                    <div class="form-group">
+                        <label>Censo / ID</label>
+                        <input type="text" id="censusId" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>NSE</label>
+                        <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Edad</label>
+                        <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Rango Edad</label>
+                        <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Barrio</label>
+                        <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Vivienda</label>
+                        <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Hijos</label>
+                        <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
+                    </div>
+                    <!-- More fields if needed -->
+                </div>
+            </div>
+
+
+
+            <div class="form-section">
+                <h4>Contactabilidad</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
-                        <label style="color: #475569;">Tipo de Estudio</label>
-                        <select id="uploadStudyType" style="width: 100%; padding: 0.5rem;">
-                            <option value="validacion">Validación</option>
-                            <option value="fatiga">Fatiga</option>
-                        </select>
+                        <label>Número de Celular</label>
+                        <input type="text" id="phoneNumber">
                     </div>
                     <div class="form-group">
-                        <label style="color: #475569;">Etapa (R)</label>
-                        <select id="uploadStudyStage" style="width: 100%; padding: 0.5rem;">
-                            <option value="R1">R1</option>
-                            <option value="R2">R2</option>
-                            <option value="R3">R3</option>
-                            <option value="R4">R4</option>
-                            <option value="R5">R5</option>
-                            <option value="Rf">Rf (Final)</option>
-                        </select>
+                        <label>Celular Corregido / Nuevo</label>
+                        <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
+                    </div>
+                    <div class="form-group">
+                        <label>CC Persona</label>
+                        <input type="text" id="personCC">
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp</label>
+                        <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
                     </div>
                 </div>
-                <!-- Or Append to existing? For now just create new as requested -->
-                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
-                    <button onclick="closeUploadModal()"
-                        style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
-                    <button onclick="uploadCalls()"
-                        style="background: #6366f1; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cargar</button>
-                </div>
+                <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
+                    Contacto</button>
             </div>
-        </div>
+            <!-- Observations -->
+            <div class="form-section" id="obsSection" style="display: none;">
+                <h3>Observaciones (Progresivo)</h3>
+                <div class="obs-list" id="obsFeed">
+                    <!-- Javascript will populate -->
+                </div>
+                <textarea id="newObs" rows="3" placeholder="Escriba el resultado de la llamada..."
+                    style="width: 100%; border-color: #ddd;"></textarea>
+                <button class="btn-submit" onclick="addObservation()">Agregar Observación</button>
+            </div>
 
-        <div class="crm-container" id="crmInterface" style="padding: 0; margin: 0; height: calc(100vh - 150px);">
-            <!-- SIDEBAR: Selection & Search -->
-            <div class="sidebar">
+            <!-- Scheduling -->
+            <div class="form-section" id="scheduleSection" style="display: none;">
+                <h3>Programar Alerta</h3>
                 <div class="form-group">
-                    <label>Estudio Activo</label>
-                    <select id="studySelect" class="form-input">
-                        <option value="">Seleccione Estudio...</option>
-                    </select>
+                    <label>Hora Programada</label>
+                    <input type="datetime-local" id="scheduleTime">
                 </div>
+                <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
+                    Llamada</button>
+            </div>
 
-                <div class="form-group" id="searchPanel">
-                    <label>Filtros</label>
-                    <!-- Date Filters Removed -->
-                    <select id="filterStatus" style="margin-bottom: 0.5rem; width: 100%;">
-                        <option value="">Estado: Todos</option>
-                        <option value="pending">Pendiente</option>
-                        <option value="managed">Gestionado</option>
-                        <option value="scheduled">Agendado</option>
-                        <option value="done">Terminado</option>
-                        <option value="caidas">Caídas</option>
-                        <option value="en campo">En Campo</option>
-                    </select>
-
-                    <input type="text" placeholder="Buscar por teléfono, nombre..." id="searchPhone">
-                    <button class="btn-submit" onclick="searchCalls()">Buscar</button>
-                </div>
-
-                <div id="callsList" style="flex: 1; overflow-y: auto;">
-                    <!-- List of recent calls -->
+            <!-- ADMIN: Assign Agent -->
+            <div class="form-section" id="adminControls"
+                style="display: none; border-top: 2px solid #6366f1; background: #eef2ff; padding: 1rem; border-radius: 8px;">
+                <h3 style="color: #6366f1;">Administración</h3>
+                <p>Agente Asignado: <span id="currentAgentName" style="font-weight: bold;">-</span></p>
+                <div class="form-group">
+                    <label>Asignar a:</label>
+                    <select id="agentSelect" class="form-input"></select>
+                    <button onclick="assignAgent()"
+                        style="margin-top: 0.5rem; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar</button>
                 </div>
             </div>
 
-            <!-- MAIN CONTENT: Grid & Detail -->
-            <div class="main-content">
+            <!-- Actions Footer -->
+            <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
 
-                <!-- EMPTY STATE -->
-                <div id="emptyState" style="text-align: center; margin-top: 5rem; color: #666;">
-                    <i class="fas fa-arrow-left" style="font-size: 3rem; margin-bottom: 1rem;"></i>
-                    <h2>Seleccione un Estudio</h2>
-                    <p>Elija una campaña del menú lateral para ver las llamadas disponibles.</p>
+                <!-- NEW DYNAMIC ACTION BUTTONS -->
+                <div id="actionButtons"
+                    style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
+                    <!-- Populated by JS -->
                 </div>
 
-                <!-- GRID VIEW: List of Calls -->
-                <div id="callsGridView" style="display: none;">
-
-                    <!-- Bulk Actions (Superuser only) -->
-                    <div id="bulkActions"
-                        style="display: none; background: #eef2ff; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #6366f1;">
-                        <span style="font-weight: bold; color: #6366f1;">Acciones Masivas:</span>
-                        <select id="bulkAgentSelect"
-                            style="padding: 0.5rem; margin-left: 1rem; border-radius: 4px; border: 1px solid #ddd;"></select>
-                        <button onclick="bulkAssign()"
-                            style="background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar
-                            Seleccionados</button>
-                    </div>
-
-                    <div class="header-nav">
-                        <div>
-                            <h3 style="display: inline-block; margin-right: 10px;">Listado de Llamadas</h3>
-                            <span id="callCounter" style="font-size: 0.9rem; color: #666; font-weight: normal;">(0
-                                registros)</span>
-                        </div>
-                        <div>
-                            <button id="btnExportExcel" onclick="exportToExcel()"
-                                style="display: none; cursor: pointer; background: #22c55e; border: 1px solid #16a34a; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: white;">
-                                <i class="fas fa-file-excel"></i> Descargar Excel
-                            </button>
-                            <button onclick="resetFilters()"
-                                style="cursor: pointer; background: #e2e8f0; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: #334155;">
-                                <i class="fas fa-undo"></i> Restablecer Filtros
-                            </button>
-                            <span class="obs-meta">Seleccione una llamada para gestionar</span>
-                        </div>
-                    </div>
-
-                    <!-- FILTER POPUP COMPONENT (Hidden) -->
-                    <div id="filterPopup"
-                        style="display: none; position: absolute; background: white; border: 1px solid #ccc; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 10px; border-radius: 4px; width: 200px; z-index: 1000;">
-                        <input type="text" id="filterSearch" placeholder="Buscar..."
-                            style="width: 100%; padding: 4px; margin-bottom: 5px; box-sizing: border-box;">
-                        <div id="filterOptions" style="max-height: 150px; overflow-y: auto; margin-bottom: 5px;">
-                            <!-- Checkboxes will go here -->
-                        </div>
-                        <div style="display: flex; justify-content: space-between;">
-                            <button onclick="applyFilter()"
-                                style="background: #22c55e; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">Aplicar</button>
-                            <button onclick="closeFilter()"
-                                style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">Cerrar</button>
-                        </div>
-                    </div>
-
-                    <table>
-                        <thead>
-                            <tr>
-                                <th style="width: 30px;"><input type="checkbox" id="selectAll"
-                                        onclick="toggleSelectAll()">
-                                </th>
-                                <th>
-                                    Teléfono
-                                    <input type="text" id="colFilterPhone" placeholder="Buscar..."
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                </th>
-                                <th>
-                                    Fecha Original
-                                    <div style="display: flex; gap: 2px; flex-direction: column;">
-                                        <input type="date" id="colFilterDateStart" title="Desde"
-                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
-                                        <input type="date" id="colFilterDateEnd" title="Hasta"
-                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
-                                    </div>
-                                </th>
-                                <th>
-                                    Fecha Realización
-                                    <div style="display: flex; gap: 2px; flex-direction: column;">
-                                        <input type="date" id="colFilterRealizationStart" title="Desde"
-                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
-                                        <input type="date" id="colFilterRealizationEnd" title="Hasta"
-                                            style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
-                                    </div>
-                                </th>
-                                <th>
-                                    Estudio
-                                    <select id="colFilterStudy" class="col-filter"
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                        <option value="">Todos</option>
-                                    </select>
-                                </th>
-                                <th>
-                                    Agente
-                                    <div id="colFilterAgentContainer" class="multiselect-container"
-                                        style="margin-top: 2px;">
-                                        <!-- JS will inject here -->
-                                        <button class="multiselect-btn">Todos</button>
-                                    </div>
-                                </th>
-                                <th>
-                                    Agente Anterior
-                                    <div id="colFilterPreviousAgentContainer" class="multiselect-container"
-                                        style="margin-top: 2px;">
-                                        <!-- JS will inject here -->
-                                        <button class="multiselect-btn">Todos</button>
-                                    </div>
-                                </th>
-                                <th>
-                                    Nombre
-                                    <input type="text" id="colFilterName" placeholder="Buscar..."
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                </th>
-                                <th>
-                                    Ciudad
-                                    <select id="colFilterCity"
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                        <option value="">Todas</option>
-                                    </select>
-                                <th>Agenda/Alerta</th>
-                                <!-- Old Observaciones Pos -->
-                                <th>
-                                    Estado
-                                    <div id="colFilterStatusContainer" class="multiselect-container"
-                                        style="margin-top: 2px;">
-                                        <!-- JS will inject here -->
-                                        <button class="multiselect-btn">Todos</button>
-                                    </div>
-                                </th>
-                                <th>
-                                    Censo
-                                    <input type="text" id="colFilterCensus" placeholder="Buscar..."
-                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px; box-sizing: border-box;">
-                                </th>
-                                <!-- Removed NSE, Edad, Barrio -->
-                                <th>Hora Original</th>
-
-                                <!-- New Temp Columns - Visibility handled by JS? No, just render them, hide if needed in JS. -->
-                                <th class="col-temp-armando" style="display:none; background:#ffedd5;">Temp Armando</th>
-                                <th class="col-temp-auxiliar" style="display:none; background:#dbeafe;">Temp Auxiliar
-                                </th>
-
-                                <th>Observaciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="callsGridBody">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- DETAIL VIEW: Single Call -->
-                <div id="callDetailView" style="display: none;">
+                <div style="display: flex; justify-content: space-between;">
                     <button onclick="showGridView()"
-                        style="margin-bottom: 1rem; background: transparent; color: #1a73e8; border: none; cursor: pointer; font-weight: bold;">
-                        <i class="fas fa-arrow-left"></i> Volver a la Lista
-                    </button>
+                        style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
+                        Cancelar / Volver</button>
 
-                    <div class="header-nav">
-                        <h3 id="callDetailTitle"
-                            style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">
-                            Detalle de Llamada</h3>
-                        <span id="callStatusBadge" class="alert-badge">Programada</span>
-                    </div>
-
-                    <div class="form-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label>Nombre Persona</label>
-                            <input type="text" id="personName" readonly style="background: #f9fafb;">
-                        </div>
-                        <div class="form-group">
-                            <label>Ciudad</label>
-                            <input type="text" id="personCity" readonly style="background: #f9fafb;">
-                        </div>
-                        <div class="form-group">
-                            <label>Código del Producto</label>
-                            <input type="text" id="personBrand" readonly style="background: #f9fafb;">
-                        </div>
-                        <div class="form-group">
-                            <label>Observación Inicial</label>
-                            <input type="text" id="initialObs" readonly style="background: #f9fafb;">
-                        </div>
-                        <div class="form-group">
-                            <label>Hora Cita (Original)</label>
-                            <input type="text" id="apptTime" readonly style="background: #f9fafb;">
-                        </div>
-                        <div class="form-group">
-                            <label>Info Extra</label>
-                            <input type="text" id="extraPhone" placeholder="Otro dato...">
-                        </div>
-                    </div>
-
-                    <!-- NEW CENSUS DATA SECTION -->
-                    <div class="form-section" id="censusSection"
-                        style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                        <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
-                        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
-                            <div class="form-group">
-                                <label>Censo / ID</label>
-                                <input type="text" id="censusId" readonly style="background: #e2e8f0;">
-                            </div>
-                            <div class="form-group">
-                                <label>NSE</label>
-                                <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
-                            </div>
-                            <div class="form-group">
-                                <label>Edad</label>
-                                <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
-                            </div>
-                            <div class="form-group">
-                                <label>Rango Edad</label>
-                                <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
-                            </div>
-                            <div class="form-group">
-                                <label>Barrio</label>
-                                <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
-                            </div>
-                            <div class="form-group">
-                                <label>Dirección</label>
-                                <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
-                            </div>
-                            <div class="form-group">
-                                <label>Vivienda</label>
-                                <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
-                            </div>
-                            <div class="form-group">
-                                <label>Hijos</label>
-                                <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
-                            </div>
-                            <!-- More fields if needed -->
-                        </div>
-                    </div>
-
-                    <div class="form-section">
-                        <h4>Contactabilidad</h4>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                            <div class="form-group">
-                                <label>Número de Celular</label>
-                                <input type="text" id="phoneNumber">
-                            </div>
-                            <div class="form-group">
-                                <label>Celular Corregido / Nuevo</label>
-                                <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
-                            </div>
-                            <div class="form-group">
-                                <label>CC Persona</label>
-                                <input type="text" id="personCC">
-                            </div>
-                            <div class="form-group">
-                                <label>WhatsApp</label>
-                                <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
-                            </div>
-                        </div>
-                        <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
-                            Contacto</button>
-                    </div>
-                    <!-- Observations -->
-                    <div class="form-section" id="obsSection" style="display: none;">
-                        <h3>Observaciones (Progresivo)</h3>
-                        <div class="obs-list" id="obsFeed">
-                            <!-- Javascript will populate -->
-                        </div>
-                        <textarea id="newObs" rows="3" placeholder="Escriba el resultado de la llamada..."
-                            style="width: 100%; border-color: #ddd;"></textarea>
-                        <button class="btn-submit" onclick="addObservation()">Agregar Observación</button>
-                    </div>
-
-                    <!-- Scheduling -->
-                    <div class="form-section" id="scheduleSection" style="display: none;">
-                        <h3>Programar Alerta</h3>
-                        <div class="form-group">
-                            <label>Hora Programada</label>
-                            <input type="datetime-local" id="scheduleTime">
-                        </div>
-                        <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
-                            Llamada</button>
-                    </div>
-
-                    <!-- ADMIN: Assign Agent -->
-                    <div class="form-section" id="adminControls"
-                        style="display: none; border-top: 2px solid #6366f1; background: #eef2ff; padding: 1rem; border-radius: 8px;">
-                        <h3 style="color: #6366f1;">Administración</h3>
-                        <p>Agente Asignado: <span id="currentAgentName" style="font-weight: bold;">-</span></p>
-                        <div class="form-group">
-                            <label>Asignar a:</label>
-                            <select id="agentSelect" class="form-input"></select>
-                            <button onclick="assignAgent()"
-                                style="margin-top: 0.5rem; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar</button>
-                        </div>
-                    </div>
-
-                    <!-- Actions Footer -->
-                    <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
-
-                        <!-- NEW DYNAMIC ACTION BUTTONS -->
-                        <div id="actionButtons"
-                            style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
-                            <!-- Populated by JS -->
-                        </div>
-
-                        <div style="display: flex; justify-content: space-between;">
-                            <button onclick="showGridView()"
-                                style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
-                                Cancelar / Volver</button>
-
-                            <button id="btnCloseCall" onclick="finishCall()"
-                                style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
-                                Close</button>
-                        </div>
-                    </div>
+                    <button id="btnCloseCall" onclick="finishCall()"
+                        style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
+                        Close</button>
                 </div>
             </div>
         </div>
+    </div>
+    </div>
 
     </div>
     </div>
