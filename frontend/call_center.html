@@ -267,16 +267,20 @@
     <!-- Layout Wrapper -->
     <div style="max-width: 1400px; margin: 0 auto; padding: 1rem 2rem;">
         <!-- Top Nav -->
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold;">&larr; Volver al Dashboard</a>
+        <!-- Top Nav -->
+        <div
+            style="position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; min-height: 40px;">
+            <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold; z-index: 10;">&larr; Volver al
+                Dashboard</a>
 
-            <div id="userInfoDisplay" style="color: white; font-size: 1rem; display: flex; align-items: center;"></div>
-        </div>
+            <!-- Online Users Bar (Centered in header) -->
+            <div id="onlineHeaderBar" class="online-header-bar"
+                style="display: none; position: absolute; left: 50%; transform: translateX(-50%); top: 0; margin: 0; white-space: nowrap;">
+                <!-- Users injected here -->
+            </div>
 
-        <!-- Online Users Bar (Centered above title) -->
-        <div id="onlineHeaderBar" class="online-header-bar"
-            style="display: none; margin: 0 auto 1rem auto; justify-content: center;">
-            <!-- Users injected here -->
+            <div id="userInfoDisplay"
+                style="color: white; font-size: 1rem; display: flex; align-items: center; z-index: 10;"></div>
         </div>
 
         <!-- System Title -->
