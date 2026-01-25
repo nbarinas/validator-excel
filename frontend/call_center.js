@@ -42,15 +42,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (uRes.ok) {
             const user = await uRes.json();
             currentUserRole = user.role;
-            const ui = document.getElementById('userInfoDisplay');
-            if (ui) {
-                const name = user.full_name || user.username;
-                ui.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.4);">${user.role.toUpperCase()}</span>`;
-            }
+            const infoDivs = ['userInfoDisplay', 'userInfoDisplayLanding'];
+            infoDivs.forEach(id => {
+                const ui = document.getElementById(id);
+                if (ui) {
+                    ui.innerHTML = `
+                        <div style="text-align: right; margin-right: 10px;">
+                            <div style="font-weight: bold;">${user.full_name || user.username}</div>
+                        </div>
+                        <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; border: 1px solid rgba(255,255,255,0.4); text-transform: uppercase;">${user.role}</span>
+                        <i class="fas fa-user-circle" style="font-size: 2rem; margin-left: 10px;"></i>
+                    `;
+                }
+            });
 
             if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
                 // Show Landing, Hide CRM
-                document.getElementById('superuserLanding').style.display = 'block';
+                document.getElementById('superuserLanding').style.display = 'flex';
                 document.getElementById('crmInterface').style.display = 'none';
                 // Ensure button is visible if they enter
                 const btn = document.getElementById('btnCreateStudy');
