@@ -425,11 +425,29 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(dat
 
 
 @app.get("/users")
-def list_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    users = db.query(models.User).all()
+    query = db.query(models.User)
+    
+    if exclude_roles:
+        # Split by comma and strip
+        roles_to_exclude = [r.strip().lower() for r in exclude_roles.split(',')]
+        # In SQL, we use NOT IN. But SQLAlchemy filter might need care with casing if DB is case sensitive.
+        # Assuming lowercase stored or case-insensitive collation. 
+        # Safer to fetch all and filter in python if list is small, OR use nice IN clause.
+        # Users list is small (<1000 usually). filtering in python is fine and allows complex logic (like fuzzy match).
+        # But let's try SQL method for standard logic.
+        query = query.filter(models.User.role.not_in(roles_to_exclude))
+        
+    users = query.all()
+    
+    # Double check filter in python for casing safety if SQL collation is strict
+    if exclude_roles:
+        roles_to_exclude = [r.strip().lower() for r in exclude_roles.split(',')]
+        users = [u for u in users if (u.role or '').strip().lower() not in roles_to_exclude]
+
     return [{
         "username": u.username, 
         "role": u.role, 
