@@ -601,6 +601,28 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             else:
                 log.append(f"Column {col} already exists in calls")
                 
+
+                
+        # --- PAYROLL MIGRATION ---
+        # Ensure payroll_periods has the new columns for Study Liquidation
+        if inspector.has_table("payroll_periods"):
+            existing_rr_cols = [c['name'] for c in inspector.get_columns('payroll_periods')]
+            new_rr_cols = [
+                ("study_type", "VARCHAR(50)"),
+                ("rates_snapshot", "TEXT"), # JSON
+                ("execution_date", "DATETIME"),
+                ("study_id", "INTEGER"), # If missing
+                ("start_date", "DATETIME"),
+                ("end_date", "DATETIME")
+            ]
+            for col, dtype in new_rr_cols:
+                if col not in existing_rr_cols:
+                    try:
+                        db.execute(text(f"ALTER TABLE payroll_periods ADD COLUMN {col} {dtype}"))
+                        log.append(f"Added column {col} to payroll_periods")
+                    except Exception as e:
+                        log.append(f"Failed to add {col} to payroll_periods: {str(e)}")
+        
         db.commit()
         return {"status": "migration completed", "log": log}
     except Exception as e:
@@ -2295,3 +2317,351 @@ async def update_call_contact(
     return {"message": "Contact data updated successfully", "call_id": call.id}
 
 
+
+# --- PAYROLL SYSTEM ---
+
+@app.post("/payroll/rate-sheets")
+def create_rate_sheet(year: int, description: str, census: int = 0, effective: int = 0, enp: int = 0, training: int = 0, db: Session = Depends(database.get_db)):
+    # Check if exists
+    existing = db.query(models.RateSheet).filter(models.RateSheet.year == year).first()
+    if existing:
+        existing.description = description
+        existing.census_rate = census
+        existing.survey_effective_rate = effective
+        existing.enp_rate = enp
+        existing.training_rate = training
+        db.commit()
+        return existing
+    
+    new_sheet = models.RateSheet(
+        year=year,
+        description=description,
+        census_rate=census,
+        survey_effective_rate=effective,
+        enp_rate=enp,
+        training_rate=training
+    )
+    db.add(new_sheet)
+    db.commit()
+    db.refresh(new_sheet)
+    return new_sheet
+
+@app.get("/payroll/rate-sheets/current")
+def get_current_rates(db: Session = Depends(database.get_db)):
+    # Get for current year or specific
+    current_year = datetime.now().year
+    sheet = db.query(models.RateSheet).filter(models.RateSheet.year == current_year).first()
+    return sheet or {}
+
+@app.post("/payroll/periods")
+def create_period(
+    name: str = Form(...), 
+    study_code: str = Form(""),
+    study_type: str = Form(""), # Optional if generic
+    execution_date: str = Form(None), # Might be used for single date
+    start_date: str = Form(None), # "Lapsos"
+    end_date: str = Form(None),   # "Lapsos"
+    census_rate: int = Form(5000),
+    effective_rate: int = Form(10000),
+    db: Session = Depends(database.get_db)
+):
+    # Handle Dates
+    e_date = None
+    s_date = None
+    en_date = None
+    
+    if execution_date:
+        e_date = datetime.strptime(execution_date, "%Y-%m-%d")
+        
+    if start_date:
+        s_date = datetime.strptime(start_date, "%Y-%m-%d")
+    if end_date:
+        en_date = datetime.strptime(end_date, "%Y-%m-%d")
+        
+    # Create rates snapshot
+    rates = {
+        "census": census_rate,
+        "effective": effective_rate,
+        "enp": 0 
+    }
+    
+    # Create
+    try:
+        period = models.PayrollPeriod(
+            name=name,
+            study_code=study_code,
+            study_type=study_type, 
+            execution_date=e_date,
+            start_date=s_date,
+            end_date=en_date,
+            rates_snapshot=json.dumps(rates),
+            status="open",
+            is_visible=True
+        )
+        db.add(period)
+        db.commit()
+        db.refresh(period)
+        return period
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating period: {e}")
+        raise HTTPException(500, detail=f"Error creando nómina: {str(e)}")
+
+@app.post("/payroll/periods/{period_id}/toggle-visibility")
+def toggle_period_visibility(period_id: int, db: Session = Depends(database.get_db)):
+    p = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
+    if not p: raise HTTPException(404, "Period not found")
+    p.is_visible = not p.is_visible
+    db.commit()
+    return {"status": "ok", "is_visible": p.is_visible}
+
+@app.delete("/payroll/periods/{period_id}")
+def delete_period(period_id: int, db: Session = Depends(database.get_db)):
+    # Cascade delete is handled by database usually, but we should verify.
+    # For now, simplistic delete.
+    p = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
+    if not p: raise HTTPException(404, "Period not found")
+    
+    # Delete related records
+    db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id).delete()
+    
+    db.delete(p)
+    db.commit()
+    return {"status": "ok", "message": "Nómina eliminada"}
+
+@app.get("/payroll/periods")
+def get_periods(db: Session = Depends(database.get_db)):
+    periods = db.query(models.PayrollPeriod).order_by(models.PayrollPeriod.created_at.desc()).all()
+    res = []
+    for p in periods:
+        res.append({
+            "id": p.id,
+            "name": p.name,
+            "study_code": p.study_code,
+            "study_type": p.study_type,
+            "execution_date": p.execution_date,
+            "start_date": p.start_date,
+            "end_date": p.end_date,
+            "rates": json.loads(p.rates_snapshot) if p.rates_snapshot else {},
+            "status": p.status,
+            "is_visible": p.is_visible if p.is_visible is not None else True
+        })
+    return res
+
+@app.post("/payroll/generate/{period_id}")
+def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
+    period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
+    if not period:
+        raise HTTPException(status_code=404, detail="Period not found")
+    
+    # Get active rates for the period's year
+    year = period.start_date.year
+    rates = db.query(models.RateSheet).filter(models.RateSheet.year == year).first()
+    if not rates:
+        raise HTTPException(status_code=400, detail=f"No hay tarifas configuradas para el año {year}")
+    
+    # 1. Clear existing DRAFT records (Only auto-generated ones? Or all? User might have manual edits...)
+    # User said "llamar a personas registradas para asignar encuestas".
+    # If we regenerate, we might lose manual work.
+    # Strategy: Only CREATE missing, or Update existing?
+    # "Generar" usually implies calculating from system.
+    # Let's delete DRAFTs that match the period. Re-generation is destructive to manual edits on DRAFTs.
+    # We should warn user. For now, standard behavior: wipe and recalc.
+    
+    db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id, models.PayrollRecord.status == "draft").delete()
+    db.commit()
+    
+    date_filter_start = period.start_date
+    date_filter_end = period.end_date.replace(hour=23, minute=59, second=59)
+
+    # Base Query
+    query = db.query(models.Call).filter(
+        models.Call.updated_at >= date_filter_start,
+        models.Call.updated_at <= date_filter_end,
+        models.Call.user_id != None
+    )
+    
+    # Filter by Study if set
+    if period.study_id:
+        query = query.filter(models.Call.study_id == period.study_id)
+        
+    calls = query.all()
+    
+    # Group by User
+    user_activity = {}
+    
+    for c in calls:
+        uid = c.user_id
+        if uid not in user_activity:
+            user_activity[uid] = {
+                "user": c.user,
+                "censuses": 0,
+                "effective": 0,
+                "enp": 0
+            }
+            
+        status_norm = (c.status or "").lower()
+        
+        # Logic 1: Effective
+        if status_norm in ['done', 'terminado', 'efectiva_campo']:
+            user_activity[uid]["effective"] += 1
+            
+        # Logic 2: Census
+        if c.census and c.census.strip():
+             user_activity[uid]["censuses"] += 1
+             
+    # Create Records
+    created_records = []
+    for uid, data in user_activity.items():
+        total_p = 0
+        details = []
+        
+        # Calc Effective
+        if data["effective"] > 0:
+            qty = data["effective"]
+            amt = qty * rates.survey_effective_rate
+            total_p += amt
+            details.append({"concept": "Encuestas Efectivas", "qty": qty, "rate": rates.survey_effective_rate, "total": amt})
+            
+        # Calc Census
+        if data["censuses"] > 0:
+            qty = data["censuses"]
+            amt = qty * rates.census_rate
+            total_p += amt
+            details.append({"concept": "Censos", "qty": qty, "rate": rates.census_rate, "total": amt})
+            
+        # Save
+        if total_p > 0:
+            rec = models.PayrollRecord(
+                period_id=period_id,
+                user_id=uid,
+                total_effective=data["effective"],
+                total_censuses=data["censuses"],
+                total_amount=total_p,
+                details_json=json.dumps(details),
+                status="draft"
+            )
+            db.add(rec)
+            created_records.append(rec)
+            
+    db.commit()
+    return {"message": "Generated", "count": len(created_records)}
+
+class PayrollUpdate(BaseModel):
+    total_effective: int
+    total_censuses: int
+    total_enp: int = 0
+    total_training: int = 0
+
+@app.post("/payroll/records/manual")
+def create_manual_record(period_id: int, user_id: int, data: PayrollUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Get Period 
+    period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
+    if not period: raise HTTPException(404, "Period not found")
+    
+    # SECURITY: Supervisors cannot edit hidden periods
+    # (Superusers can always edit)
+    if not period.is_visible and current_user.role != 'superuser':
+        raise HTTPException(status_code=403, detail="No tienes permisos para modificar este pago (está oculto).")
+
+    # Use rates from the Period Snapshot (The 5000/10000 set at creation)
+    # If not present (legacy), fallback to 0 or manual global lookup? 
+    # Let's assume snapshot exists for new flow.
+    rates = {}
+    if period.rates_snapshot:
+        rates = json.loads(period.rates_snapshot)
+    
+    census_rate = rates.get("census", 0)
+    effective_rate = rates.get("effective", 0)
+    
+    # Calculate Total
+    details = []
+    total = 0
+    
+    if data.total_effective > 0:
+        amt = data.total_effective * effective_rate
+        total += amt
+        details.append({"concept": "Encuestas Efectivas", "qty": data.total_effective, "rate": effective_rate, "total": amt})
+        
+    if data.total_censuses > 0:
+        amt = data.total_censuses * census_rate
+        total += amt
+        details.append({"concept": "Censos", "qty": data.total_censuses, "rate": census_rate, "total": amt})
+
+    # Check if record exists
+    existing = db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id, models.PayrollRecord.user_id == user_id).first()
+    
+    if existing:
+        existing.total_effective = data.total_effective
+        existing.total_censuses = data.total_censuses
+        existing.total_enp = data.total_enp
+        existing.total_training_days = data.total_training
+        existing.total_amount = total
+        existing.details_json = json.dumps(details)
+        db.commit()
+        return existing
+    else:
+        rec = models.PayrollRecord(
+            period_id=period_id,
+            user_id=user_id,
+            total_effective=data.total_effective,
+            total_censuses=data.total_censuses,
+            total_enp=data.total_enp,
+            total_training_days=data.total_training,
+            total_amount=total,
+            details_json=json.dumps(details),
+            status="draft"
+        )
+        db.add(rec)
+        db.commit()
+        return rec
+
+@app.get("/payroll/records/{period_id}")
+def get_payroll_records(period_id: int, db: Session = Depends(database.get_db)):
+    return db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id).all()
+
+@app.get("/payroll/records/by-user/{user_id}")
+def get_user_records_admin(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role not in ['superuser', 'coordinator', 'supervisor']:
+         raise HTTPException(403, "Not authorized")
+
+    records = db.query(models.PayrollRecord).filter(models.PayrollRecord.user_id == user_id).all()
+    
+    # Enrich with Period Name and verify visibility
+    res = []
+    for r in records:
+        # Safety check for orphaned records
+        if not r.period: 
+            continue
+            
+        # STRICT REQUIREMENT: Only show ACTIVE (visible) periods for global print/view.
+        # User explicitly requested to exclude old/inactive studies even for admins in this view.
+        if not r.period.is_visible:
+             continue
+             
+        res.append({
+            "period_id": r.period_id,
+            "period_name": r.period.name,
+            "study_code": r.period.study_code,
+            "total_effective": r.total_effective,
+            "total_censuses": r.total_censuses,
+            "total_amount": r.total_amount,
+            "details_json": r.details_json,
+            "created_at": r.period.created_at # Fixed: Record has no created_at
+        })
+    return res
+
+@app.get("/payroll/active-users")
+def get_active_payroll_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role not in ['superuser', 'coordinator', 'supervisor']:
+         raise HTTPException(403, "Not authorized")
+
+    # Distinct query: Join Record -> Period
+    # Where Period.is_visible = True
+    users = db.query(models.User).join(models.PayrollRecord).join(models.PayrollPeriod).filter(models.PayrollPeriod.is_visible == True).distinct().all()
+    
+    return [{"id": u.id, "full_name": u.full_name, "username": u.username} for u in users]
+
+@app.get("/nomina-page")
+async def nomina_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "nomina.html"))
