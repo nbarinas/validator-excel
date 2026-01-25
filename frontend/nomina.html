@@ -437,7 +437,8 @@
                 // FILTER: Do not show 'auxiliar' role or 'superuser' in the payroll addition list
                 // Unless the user specifically asks for them, usually they are system accounts.
                 // Keeping 'agent' and 'supervisor' (if they receive payments).
-                if (u.role === 'auxiliar' || u.role === 'superuser') return;
+                const r = (u.role || '').toLowerCase().trim();
+                if (r === 'auxiliar' || r === 'superuser') return;
 
                 // Add to manual dropdown (initial state)
                 let opt = document.createElement('option');
