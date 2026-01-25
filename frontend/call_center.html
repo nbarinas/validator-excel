@@ -16,7 +16,8 @@
             padding: 2rem;
             width: 95vw;
             height: 95vh;
-            margin: 0;
+            margin: 2.5vh auto;
+            /* Center vertically and horizontally */
             background: var(--card-bg, rgba(255, 255, 255, 0.95));
             border-radius: 20px;
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -95,13 +96,17 @@
         }
 
         /* COMPACT MODE OVERRIDES */
+        html,
         body {
             font-size: 0.9rem;
-            /* Reset Global Centering */
             display: block !important;
-            overflow-x: auto !important;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden !important;
+            /* Strictly prevent horizontal scrollbar */
             padding: 0 !important;
             margin: 0 !important;
+            background: var(--bg-color);
         }
 
         .crm-container {
@@ -687,157 +692,155 @@
                     </div>
                 </div>
 
-            </div>
-
-            <!-- NEW DOG DATA SECTION (Sibate) -->
-            <div class="form-section" id="dogSection"
-                style="background: #fff7ed; padding: 1rem; border-radius: 8px; border: 1px solid #ffedd5; display: none;">
-                <h4 style="color: #9a3412; margin-top: 0;">Datos del Perro <span
-                        style="font-size:0.8rem; color:#c2410c; font-weight:normal;">(Sibate)</span></h4>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
-                    <div class="form-group">
-                        <label>Nombre del Perro</label>
-                        <input type="text" id="dogName" readonly style="background: #fff7ed;">
-                    </div>
-                    <div class="form-group">
-                        <label>Tipo de Usuario</label>
-                        <input type="text" id="dogUserType" readonly style="background: #fff7ed;">
-                    </div>
-                    <div class="form-group" style="grid-column: span 2;">
-                        <label>Textura Popó</label>
-                        <input type="text" id="stoolTexture" readonly style="background: #fff7ed;">
-                    </div>
-                    <div class="form-group" style="grid-column: span 4;">
-                        <label>Estado de Salud</label>
-                        <input type="text" id="healthStatus" readonly style="background: #fff7ed;">
-                    </div>
-                </div>
-            </div>
-
-            <!-- NEW CENSUS DATA SECTION -->
-            <div class="form-section" id="censusSection"
-                style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
-                    <div class="form-group">
-                        <label>Censo / ID</label>
-                        <input type="text" id="censusId" readonly style="background: #e2e8f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>NSE</label>
-                        <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Edad</label>
-                        <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Rango Edad</label>
-                        <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Barrio</label>
-                        <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Dirección</label>
-                        <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Vivienda</label>
-                        <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
-                    </div>
-                    <div class="form-group">
-                        <label>Hijos</label>
-                        <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
-                    </div>
-                    <!-- More fields if needed -->
-                </div>
-            </div>
-
-
-
-            <div class="form-section">
-                <h4>Contactabilidad</h4>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label>Número de Celular</label>
-                        <input type="text" id="phoneNumber">
-                    </div>
-                    <div class="form-group">
-                        <label>Celular Corregido / Nuevo</label>
-                        <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
-                    </div>
-                    <div class="form-group">
-                        <label>CC Persona</label>
-                        <input type="text" id="personCC">
-                    </div>
-                    <div class="form-group">
-                        <label>WhatsApp</label>
-                        <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
+                <!-- NEW DOG DATA SECTION (Sibate) -->
+                <div class="form-section" id="dogSection"
+                    style="background: #fff7ed; padding: 1rem; border-radius: 8px; border: 1px solid #ffedd5; display: none;">
+                    <h4 style="color: #9a3412; margin-top: 0;">Datos del Perro <span
+                            style="font-size:0.8rem; color:#c2410c; font-weight:normal;">(Sibate)</span></h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                        <div class="form-group">
+                            <label>Nombre del Perro</label>
+                            <input type="text" id="dogName" readonly style="background: #fff7ed;">
+                        </div>
+                        <div class="form-group">
+                            <label>Tipo de Usuario</label>
+                            <input type="text" id="dogUserType" readonly style="background: #fff7ed;">
+                        </div>
+                        <div class="form-group" style="grid-column: span 2;">
+                            <label>Textura Popó</label>
+                            <input type="text" id="stoolTexture" readonly style="background: #fff7ed;">
+                        </div>
+                        <div class="form-group" style="grid-column: span 4;">
+                            <label>Estado de Salud</label>
+                            <input type="text" id="healthStatus" readonly style="background: #fff7ed;">
+                        </div>
                     </div>
                 </div>
-                <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
-                    Contacto</button>
-            </div>
-            <!-- Observations -->
-            <div class="form-section" id="obsSection" style="display: none;">
-                <h3>Observaciones (Progresivo)</h3>
-                <div class="obs-list" id="obsFeed">
-                    <!-- Javascript will populate -->
-                </div>
-                <textarea id="newObs" rows="3" placeholder="Escriba el resultado de la llamada..."
-                    style="width: 100%; border-color: #ddd;"></textarea>
-                <button class="btn-submit" onclick="addObservation()">Agregar Observación</button>
-            </div>
 
-            <!-- Scheduling -->
-            <div class="form-section" id="scheduleSection" style="display: none;">
-                <h3>Programar Alerta</h3>
-                <div class="form-group">
-                    <label>Hora Programada</label>
-                    <input type="datetime-local" id="scheduleTime">
-                </div>
-                <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
-                    Llamada</button>
-            </div>
-
-            <!-- ADMIN: Assign Agent -->
-            <div class="form-section" id="adminControls"
-                style="display: none; border-top: 2px solid #6366f1; background: #eef2ff; padding: 1rem; border-radius: 8px;">
-                <h3 style="color: #6366f1;">Administración</h3>
-                <p>Agente Asignado: <span id="currentAgentName" style="font-weight: bold;">-</span></p>
-                <div class="form-group">
-                    <label>Asignar a:</label>
-                    <select id="agentSelect" class="form-input"></select>
-                    <button onclick="assignAgent()"
-                        style="margin-top: 0.5rem; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar</button>
-                </div>
-            </div>
-
-            <!-- Actions Footer -->
-            <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
-
-                <!-- NEW DYNAMIC ACTION BUTTONS -->
-                <div id="actionButtons"
-                    style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
-                    <!-- Populated by JS -->
+                <!-- NEW CENSUS DATA SECTION -->
+                <div class="form-section" id="censusSection"
+                    style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                    <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                        <div class="form-group">
+                            <label>Censo / ID</label>
+                            <input type="text" id="censusId" readonly style="background: #e2e8f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>NSE</label>
+                            <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Edad</label>
+                            <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Rango Edad</label>
+                            <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Barrio</label>
+                            <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección</label>
+                            <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Vivienda</label>
+                            <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
+                        </div>
+                        <div class="form-group">
+                            <label>Hijos</label>
+                            <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
+                        </div>
+                        <!-- More fields if needed -->
+                    </div>
                 </div>
 
-                <div style="display: flex; justify-content: space-between;">
-                    <button onclick="showGridView()"
-                        style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
-                        Cancelar / Volver</button>
 
-                    <button id="btnCloseCall" onclick="finishCall()"
-                        style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
-                        Close</button>
+
+                <div class="form-section">
+                    <h4>Contactabilidad</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Número de Celular</label>
+                            <input type="text" id="phoneNumber">
+                        </div>
+                        <div class="form-group">
+                            <label>Celular Corregido / Nuevo</label>
+                            <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
+                        </div>
+                        <div class="form-group">
+                            <label>CC Persona</label>
+                            <input type="text" id="personCC">
+                        </div>
+                        <div class="form-group">
+                            <label>WhatsApp</label>
+                            <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
+                        </div>
+                    </div>
+                    <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
+                        Contacto</button>
+                </div>
+                <!-- Observations -->
+                <div class="form-section" id="obsSection" style="display: none;">
+                    <h3>Observaciones (Progresivo)</h3>
+                    <div class="obs-list" id="obsFeed">
+                        <!-- Javascript will populate -->
+                    </div>
+                    <textarea id="newObs" rows="3" placeholder="Escriba el resultado de la llamada..."
+                        style="width: 100%; border-color: #ddd;"></textarea>
+                    <button class="btn-submit" onclick="addObservation()">Agregar Observación</button>
+                </div>
+
+                <!-- Scheduling -->
+                <div class="form-section" id="scheduleSection" style="display: none;">
+                    <h3>Programar Alerta</h3>
+                    <div class="form-group">
+                        <label>Hora Programada</label>
+                        <input type="datetime-local" id="scheduleTime">
+                    </div>
+                    <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
+                        Llamada</button>
+                </div>
+
+                <!-- ADMIN: Assign Agent -->
+                <div class="form-section" id="adminControls"
+                    style="display: none; border-top: 2px solid #6366f1; background: #eef2ff; padding: 1rem; border-radius: 8px;">
+                    <h3 style="color: #6366f1;">Administración</h3>
+                    <p>Agente Asignado: <span id="currentAgentName" style="font-weight: bold;">-</span></p>
+                    <div class="form-group">
+                        <label>Asignar a:</label>
+                        <select id="agentSelect" class="form-input"></select>
+                        <button onclick="assignAgent()"
+                            style="margin-top: 0.5rem; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar</button>
+                    </div>
+                </div>
+
+                <!-- Actions Footer -->
+                <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
+
+                    <!-- NEW DYNAMIC ACTION BUTTONS -->
+                    <div id="actionButtons"
+                        style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
+                        <!-- Populated by JS -->
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between;">
+                        <button onclick="showGridView()"
+                            style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
+                            Cancelar / Volver</button>
+
+                        <button id="btnCloseCall" onclick="finishCall()"
+                            style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
+                            Close</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     </div>
-
     </div>
     </div>
 
