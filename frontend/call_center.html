@@ -14,8 +14,8 @@
             grid-template-columns: 300px 1fr;
             gap: 2rem;
             padding: 2rem;
-            max-width: 1400px;
-            margin: 0 auto;
+            width: 100%;
+            margin: 0;
             height: calc(100vh - 4rem);
         }
 
@@ -90,7 +90,11 @@
         /* COMPACT MODE OVERRIDES */
         body {
             font-size: 0.9rem;
-            /* Slightly smaller base */
+            /* Reset Global Centering */
+            display: block !important;
+            overflow-x: auto !important;
+            padding: 0 !important;
+            margin: 0 !important;
         }
 
         .crm-container {
@@ -267,53 +271,52 @@
 
 <body>
     <!-- Layout Wrapper -->
-    <div style="max-width: 1400px; margin: 0 auto; padding: 1rem 2rem;">
+    <div style="width: 100%; padding: 1rem 2rem;">
         <!-- Top Nav -->
         <!-- Top Nav -->
         <!-- Top Nav (Consolidated Header) -->
-        <div
-            style="position: relative; display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; min-height: 40px; background: rgba(255, 255, 255, 0.05); padding: 0.5rem 1rem; border-radius: 8px;">
-            <!-- Left: Back Button -->
-            <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold; z-index: 10;">&larr; Volver al
-                Dashboard</a>
-
-            <!-- Center: Title and Landing Online Bar -->
-            <div
-                style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: absolute; left: 0; width: 100%; pointer-events: none;">
-                <h1 style="margin: 0; font-size: 1.25rem; color: white; pointer-events: auto;">Call Center CRM</h1>
-
-                <!-- Online Users Bar (Landing Page Version) -->
-                <!-- Only visible in Landing Mode -->
-                <div id="onlineHeaderBar_Landing" class="online-header-bar"
-                    style="display: none; justify-content: center; margin-top: 5px; white-space: nowrap; background: transparent; border:none; width: auto; pointer-events: auto;">
-                    <!-- Users injected here -->
-                </div>
-            </div>
-
-            <!-- Right: User Info -->
-            <div id="userInfoDisplay"
-                style="color: white; font-size: 1rem; display: flex; align-items: center; z-index: 10;"></div>
-        </div>
+        <!-- Top Nav (Consolidated Header) Removed - Moved to Main Content -->
 
         <!-- Standalone H1 Removed -->
 
         <!-- System Title -->
         <!-- SUPERUSER LANDING (Hidden by default) -->
-        <div id="superuserLanding" style="display: none; text-align: center; margin-top: 5rem;">
-            <h2 style="color: white; margin-bottom: 2rem;">Panel de Coordinación</h2>
-            <div style="display: flex; gap: 2rem; justify-content: center;">
+        <div id="superuserLanding" style="display: none; flex-direction: column; height: 100vh; padding: 1rem;">
+
+            <!-- Landing Header -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding: 0.5rem 1rem; color: white;">
+                <!-- Left: Back -->
+                <div style="flex: 1;">
+                    <a href="/"
+                        style="text-decoration: none; color: #818cf8; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+                <!-- Center: Title -->
+                <div style="flex: 1; text-align: center;">
+                    <h1 style="margin: 0; font-size: 1.8rem; color: white;">Panel de Coordinación</h1>
+                </div>
+                <!-- Right: User -->
+                <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                    <div id="userInfoDisplayLanding"
+                        style="color: white; font-size: 1rem; display: flex; align-items: center; gap: 10px;"></div>
+                </div>
+            </div>
+
+            <div style="flex: 1; display: flex; gap: 2rem; justify-content: center; align-items: center;">
                 <button onclick="showUploadModal()"
-                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #6366f1; color: white; cursor: pointer; width: 300px;">
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #6366f1; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-file-upload" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Cargar Base (Excel)
                 </button>
                 <button onclick="showManageStudies()"
-                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #f59e0b; color: white; cursor: pointer; width: 300px;">
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #f59e0b; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-database" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Base de Datos
                 </button>
                 <button onclick="enterCRM()"
-                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #22c55e; color: white; cursor: pointer; width: 300px;">
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #22c55e; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-desktop" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Ver Estudios en Curso
                 </button>
@@ -422,9 +425,9 @@
         </div>
     </div>
 
-    <div class="crm-container" id="crmInterface" style="padding: 0; margin: 0; height: calc(100vh - 150px);">
+    <div class="crm-container" id="crmInterface" style="padding: 0; margin: 0; height: 100vh;">
         <!-- SIDEBAR: Selection & Search -->
-        <div class="sidebar">
+        <div class="sidebar" style="height: 100%; border-radius: 0;">
             <div class="form-group">
                 <label>Estudio Activo</label>
                 <select id="studySelect" class="form-input">
@@ -455,7 +458,31 @@
         </div>
 
         <!-- MAIN CONTENT: Grid & Detail -->
-        <div class="main-content">
+        <div class="main-content" style="position: relative;">
+
+            <!-- Context Header (Moved from Top) -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee;">
+                <!-- Left: Back Button -->
+                <div style="flex: 1; display: flex; justify-content: flex-start;">
+                    <a href="/"
+                        style="text-decoration: none; color: #1a73e8; font-weight: bold; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+
+                <!-- Center: Title -->
+                <div
+                    style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                    <h1 style="margin: 0; font-size: 1.5rem; color: #1e293b; text-align: center;">Call Center CRM</h1>
+                </div>
+
+                <!-- Right: User Info -->
+                <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                    <div id="userInfoDisplay"
+                        style="color: #334155; font-size: 1rem; display: flex; align-items: center; gap: 10px;"></div>
+                </div>
+            </div>
 
             <!-- Online Users Bar (CRM Version - Top of Panel) -->
             <div id="onlineHeaderBar_CRM" class="online-header-bar" style="display: none;">
