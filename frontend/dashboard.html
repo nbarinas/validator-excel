@@ -15,12 +15,8 @@
 
         /* Reset body padding if any, relying on style.css body flex center */
 
-        .dashboard-container {
-            width: 100%;
-            max-width: 1200px;
-            padding: 2rem;
-            /* Container itself is centered by body flex, but let's ensure inner content is nice */
-        }
+        /* Reset body padding if any, relying on style.css body flex center */
+        /* .dashboard-container styles removed to defer to .floating-container */
 
         .header {
             display: flex;
@@ -161,16 +157,32 @@
             background: #ef4444;
             box-shadow: 0 0 8px #ef4444;
         }
+
+        /* Fix layout for scrolling and prevent clipping */
+        body {
+            display: block !important;
+            height: auto !important;
+            overflow: auto !important;
+            padding: 2rem 0 !important;
+            /* Add some vertical padding */
+        }
+
+        .floating-container {
+            margin: 0 auto;
+            /* Center horizontally */
+        }
     </style>
 </head>
 
 <body>
-    <div class="dashboard-container">
+    <div class="dashboard-container floating-container"
+        style="background: transparent; border: none; box-shadow: none;">
         <header class="header">
             <h1>AZ Marketing Portal</h1>
             <div id="userInfoDisplay"
                 style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-right: auto; margin-left: 2rem; display: flex; align-items: center;">
                 <!-- User Info Here -->
+                <span style="opacity: 0.5;">Cargando...</span>
             </div>
             <div style="display: flex; gap: 1rem;">
                 <button class="btn-logout" style="background: var(--primary-color, #6366f1); border-color:transparent;"
