@@ -187,3 +187,74 @@ class BizageStudy(Base):
     paid_at = Column(DateTime(timezone=True), nullable=True)
     paid_by = Column(String(50), nullable=True)
     invoice_number = Column(String(50), nullable=True) # Numero de factura
+
+class RateSheet(Base):
+    __tablename__ = "rate_sheets"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    year = Column(Integer, unique=True, index=True) # 2025, 2026
+    description = Column(String(100))
+    is_active = Column(Boolean, default=True)
+    
+    # Storing rates as separate columns for clarity, or JSON. 
+    # Validacion / Normal Rates
+    census_rate = Column(Integer, default=0)
+    survey_effective_rate = Column(Integer, default=0)
+    enp_rate = Column(Integer, default=0) # Encuesta No Participa / Rechazo
+    training_rate = Column(Integer, default=0) # Dia de entrenamiento
+    
+    # Bizage / In Home specific base rates if needed
+    # But usually per-study rates might differ. 
+    # For now, let's assume these are global base rates or defaults.
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class PayrollPeriod(Base):
+    __tablename__ = "payroll_periods"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100)) # e.g. "Primera Quincena Enero 2026"
+    study_id = Column(Integer, ForeignKey("studies.id"), nullable=True) # Optional link
+    study_type = Column(String(50), nullable=True) # ascensor, in_home, tdc
+    study_code = Column(String(50), nullable=True) # New Code
+    execution_date = Column(DateTime, nullable=True)
+    rates_snapshot = Column(String(500), nullable=True) # JSON
+    
+    start_date = Column(DateTime, nullable=True) 
+    end_date = Column(DateTime, nullable=True)
+    is_visible = Column(Boolean, default=True) # Visibility toggle
+    status = Column(String(20), default="open")
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    records = relationship("PayrollRecord", back_populates="period")
+    study = relationship("Study") # Relationship
+
+class PayrollRecord(Base):
+    __tablename__ = "payroll_records"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    period_id = Column(Integer, ForeignKey("payroll_periods.id"))
+    user_id = Column(Integer, ForeignKey("users.id"))
+    
+    # Counts
+    days_worked = Column(Integer, default=0)
+    total_censuses = Column(Integer, default=0)
+    total_effective = Column(Integer, default=0)
+    total_enp = Column(Integer, default=0)
+    total_training_days = Column(Integer, default=0)
+    
+    # Money
+    total_amount = Column(Integer, default=0) # Sum of all calculated
+    adjustments = Column(Integer, default=0) # Manual +/-
+    
+    # JSON breakdown for the detailed table in PDF
+    # Structure: [ { "study_name": "Studio 1", "dates": "...", "concept": "Encuesta", "qty": 10, "rate": 1000, "total": 10000 }, ... ]
+    details_json = Column(Text, nullable=True) 
+    
+    status = Column(String(20), default="draft") # draft, approved
+    
+    period = relationship("PayrollPeriod", back_populates="records")
+    user = relationship("User", back_populates="payroll_records")
+
+# Backref alias for User
+User.payroll_records = relationship("PayrollRecord", back_populates="user")
