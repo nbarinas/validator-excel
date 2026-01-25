@@ -210,6 +210,22 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
         ("paid_by", "VARCHAR(50)"),
         ("invoice_number", "VARCHAR(50)")
     ]
+
+    # Payroll Period Columns
+    columns_payroll_periods = [
+        ("study_code", "VARCHAR(50)"),
+        ("is_visible", "BOOLEAN DEFAULT TRUE"),
+        ("rates_snapshot", "VARCHAR(500)"),
+        ("study_type", "VARCHAR(50)")
+    ]
+
+    # Payroll Record Columns
+    columns_payroll_records = [
+        ("details_json", "TEXT"), # MySQL TEXT
+        ("total_censuses", "INTEGER DEFAULT 0"),
+        ("total_effective", "INTEGER DEFAULT 0"),
+        ("total_amount", "INTEGER DEFAULT 0")
+    ]
     
     results = []
     
@@ -223,7 +239,6 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             results.append(f"Skipped {col_name} in users")
 
     # Migrate Bizage Studies
-    # First, ensure table exists (it should via create_all, but columns might be missing if created early)
     for col_name, col_type in columns_studies:
         try:
             sql = text(f"ALTER TABLE bizage_studies ADD COLUMN {col_name} {col_type}")
@@ -231,6 +246,24 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             results.append(f"Added {col_name} to bizage_studies")
         except Exception as e:
             results.append(f"Skipped {col_name} in bizage_studies")
+
+    # Migrate Payroll Periods
+    for col_name, col_type in columns_payroll_periods:
+        try:
+            sql = text(f"ALTER TABLE payroll_periods ADD COLUMN {col_name} {col_type}")
+            db.execute(sql)
+            results.append(f"Added {col_name} to payroll_periods")
+        except Exception as e:
+             results.append(f"Skipped {col_name} in payroll_periods")
+             
+    # Migrate Payroll Records
+    for col_name, col_type in columns_payroll_records:
+        try:
+            sql = text(f"ALTER TABLE payroll_records ADD COLUMN {col_name} {col_type}")
+            db.execute(sql)
+            results.append(f"Added {col_name} to payroll_records")
+        except Exception as e:
+             results.append(f"Skipped {col_name} in payroll_records")
 
     try:
         db.commit()
