@@ -419,7 +419,8 @@
         }
 
         async function loadUsersForDropdown() {
-            const uRes = await fetch('/users', { headers: { 'Authorization': 'Bearer ' + token } });
+            // FILTER DEEP: Request excluded roles from backend directly
+            const uRes = await fetch('/users?exclude_roles=auxiliar,superuser', { headers: { 'Authorization': 'Bearer ' + token } });
             const uList = await uRes.json();
             window.allUsersMap = {};
             const sel = document.getElementById('manualUser');
