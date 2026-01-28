@@ -65,6 +65,7 @@ class Call(Base):
     user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     phone_number = Column(String(20), index=True)
+    code = Column(String(50), nullable=True) # Codigo del registro (Excel)
     person_name = Column(String(100), nullable=True)
     city = Column(String(100), nullable=True)
     status = Column(String(20), default="pending") # pending, managed, closed
@@ -99,6 +100,23 @@ class Call(Base):
     # Survey and Bonus tracking (when managed)
     survey_id = Column(String(100), nullable=True) # Alphanumeric survey identifier
     bonus_status = Column(String(20), nullable=True) # 'enviado' or 'no enviado'
+    
+    # Second Pickup & Product Info
+    second_collection_date = Column(String(50), nullable=True) # Fecha 2 recogida
+    second_collection_time = Column(String(50), nullable=True) # Hora 2 recogida
+    shampoo_quantity = Column(String(50), nullable=True) # Cantidad Shampoo
+    
+    # Hair Study Specifics
+    shampoo_brand = Column(String(100), nullable=True) # Marca Shampoo
+    shampoo_variety = Column(String(100), nullable=True) # Variedad Shampoo
+    conditioner_brand = Column(String(100), nullable=True) # Marca Acondicionador
+    conditioner_variety = Column(String(100), nullable=True) # Variedad Acondicionador
+    treatment_brand = Column(String(100), nullable=True) # Marca Tratamiento
+    treatment_variety = Column(String(100), nullable=True) # Variedad Tratamiento
+    wash_frequency = Column(String(100), nullable=True) # Frecuencia Lavado
+    hair_type = Column(String(50), nullable=True) # Tipo Cabello
+    hair_shape = Column(String(50), nullable=True) # Forma Cabello
+    hair_length = Column(String(50), nullable=True) # Largo Cabello
     
     # New Requested Fields
     realization_date = Column(DateTime(timezone=True), nullable=True) # Fecha de Realización (Auto on action)
