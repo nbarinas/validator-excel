@@ -807,7 +807,7 @@ function renderCallGrid(calls) {
                 ? `<br><span style="color:#059669; font-size:0.75rem; font-weight:bold;">➡ ${call.corrected_phone}</span>`
                 : ''}
             </td>
-            <td style="font-size: 0.8rem; color: #555;">${call.collection_date || (call.created_at ? new Date(call.created_at).toLocaleDateString() : '-')}</td>
+            <td style="font-size: 0.8rem; color: #555;">${call.collection_date || '-'}</td>
             
             <!-- NEW COLUMN: Realization Date (Correct Position) -->
             <td style="font-size: 0.8rem;">${call.realization_date ? new Date(call.realization_date).toLocaleString() : '-'}</td>
@@ -991,6 +991,30 @@ function openCallDetail(call) {
     document.getElementById('censusHousing').value = call.housing_description || '';
     document.getElementById('censusChildren').value = call.children_age || '';
 
+    // POPULATE HEADER (ID/CODE)
+    const idDisp = document.getElementById('callIdDisplay');
+    if (idDisp) idDisp.textContent = call.id;
+    // Removed Code Badge Logic
+
+    // Update personBrand to show CODE
+    document.getElementById('personBrand').value = call.code || '';
+
+    // POPULATE HAIR STUDY FIELDS
+    const setTxt = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = val || '-';
+    };
+    setTxt('hairShampooBrand', call.shampoo_brand);
+    setTxt('hairShampooVar', call.shampoo_variety);
+    setTxt('hairCondBrand', call.conditioner_brand);
+    setTxt('hairCondVar', call.conditioner_variety);
+    setTxt('hairTreatBrand', call.treatment_brand);
+    setTxt('hairTreatVar', call.treatment_variety);
+    setTxt('hairFreq', call.wash_frequency);
+    setTxt('hairType', call.hair_type);
+    setTxt('hairShape', call.hair_shape);
+    setTxt('hairLength', call.hair_length);
+
     // POPULATE DOG DATA SECTION
     const dogSection = document.getElementById('dogSection');
     if (call.dog_name) {
@@ -1006,6 +1030,11 @@ function openCallDetail(call) {
     // WhatsApp field
     const whatsappField = document.getElementById('whatsappNumber');
     if (whatsappField) whatsappField.value = call.whatsapp || '';
+
+    // NEW FIELDS POPULATION
+    document.getElementById('secondDate').value = call.second_collection_date || '';
+    document.getElementById('secondTime').value = call.second_collection_time || '';
+    document.getElementById('shampooQty').value = call.shampoo_quantity || '';
 
     // Status Badge
     const badge = document.getElementById('callStatusBadge');
@@ -1314,7 +1343,11 @@ async function saveCallHeader() {
             corrected_phone: corrected,
             person_cc: cc,
             whatsapp: whatsapp,
-            extra_phone: extraPhone
+            extra_phone: extraPhone,
+            // New Fields
+            second_collection_date: document.getElementById('secondDate').value,
+            second_collection_time: document.getElementById('secondTime').value,
+            shampoo_quantity: document.getElementById('shampooQty').value
         };
 
         try {
@@ -1342,6 +1375,42 @@ async function saveCallHeader() {
     }
 
     alert("Datos de cabecera guardados (Simulado)");
+}
+
+async function saveSecondPickup() {
+    if (!currentCallId) return;
+
+    // We reuse the same endpoint but specifically for these fields
+    const body = {
+        // We must include required fields if the backend enforces them. 
+        // Based on saveCallHeader, it sends phone, etc.
+        // To be safe, we grab them too.
+        phone_number: document.getElementById('phoneNumber').value,
+        corrected_phone: document.getElementById('correctedPhone').value,
+        person_cc: document.getElementById('personCC').value,
+        whatsapp: document.getElementById('whatsappNumber').value,
+        extra_phone: document.getElementById('extraPhone').value,
+
+        // Target Fields
+        second_collection_date: document.getElementById('secondDate').value,
+        second_collection_time: document.getElementById('secondTime').value,
+        shampoo_quantity: document.getElementById('shampooQty').value
+    };
+
+    try {
+        const res = await fetch(`/calls/${currentCallId}/contact`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(body)
+        });
+
+        if (res.ok) {
+            alert("Información de Segunda Recogida Guardada");
+        } else {
+            const err = await res.json();
+            alert("Error: " + (err.detail || "Error al actualizar"));
+        }
+    } catch (e) { console.error(e); alert("Error de conexión"); }
 }
 
 async function loadObservations() {
@@ -1444,7 +1513,11 @@ function exportToExcel() {
         "Censo": row.census || '',
         "NSE": row.nse || '',
         "Edad": row.age || '',
+        "Edad": row.age || '',
         "Barrio": row.neighborhood || '',
+        "Fecha 2 Recogida": row.second_collection_date || '',
+        "Hora 2 Recogida": row.second_collection_time || '',
+        "Shampoo": row.shampoo_quantity || '',
         "Observacion": row.observation_text || ''
     }));
 

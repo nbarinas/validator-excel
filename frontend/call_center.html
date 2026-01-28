@@ -659,9 +659,19 @@
                 </button>
 
                 <div class="header-nav">
-                    <h3 id="callDetailTitle"
-                        style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;">
-                        Detalle de Llamada</h3>
+                    <div>
+                        <h3 id="callDetailTitle"
+                            style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; margin:0;">
+                            Detalle de Llamada</h3>
+
+                        <!-- Code & ID -->
+                        <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #64748b; text-align: center;">
+                            <span <span
+                                style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">ID:
+                                <span id="callIdDisplay">-</span></span>
+                        </div>
+                    </div>
+
                     <span id="callStatusBadge" class="alert-badge">Programada</span>
                 </div>
 
@@ -674,6 +684,56 @@
                         <label>Ciudad</label>
                         <input type="text" id="personCity" readonly style="background: #f9fafb;">
                     </div>
+
+                    <!-- NEW: HAIR STUDY DATA (Read Only / Reference) -->
+                    <div class="form-group"
+                        style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #ccc;">
+                        <label style="color:#d946ef; font-weight:bold; display:block; margin-bottom:10px;">Datos de
+                            Estudio Capilar</label>
+                        <!-- Grid layout adjusted for longer labels: 2 columns -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
+
+                            <!-- Shampoo -->
+                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                                <span style="font-weight:600; color:#374151;">Marca Shampoo:</span>
+                                <span id="hairShampooBrand" style="color:#111;">-</span>
+                            </div>
+                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                                <span style="font-weight:600; color:#374151;">Variedad Shampoo:</span>
+                                <span id="hairShampooVar" style="color:#111;">-</span>
+                            </div>
+
+                            <!-- Acondicionador -->
+                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                                <span style="font-weight:600; color:#374151;">Marca Acondicionador:</span>
+                                <span id="hairCondBrand" style="color:#111;">-</span>
+                            </div>
+                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                                <span style="font-weight:600; color:#374151;">Variedad Acondicionador:</span>
+                                <span id="hairCondVar" style="color:#111;">-</span>
+                            </div>
+
+                            <!-- Tratamiento -->
+                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                                <span style="font-weight:600; color:#374151;">Marca Tratamiento:</span>
+                                <span id="hairTreatBrand" style="color:#111;">-</span>
+                            </div>
+                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                                <span style="font-weight:600; color:#374151;">Variedad Tratamiento:</span>
+                                <span id="hairTreatVar" style="color:#111;">-</span>
+                            </div>
+
+                            <!-- Otros -->
+                            <div><span style="font-weight:600;">Frecuencia Lavado:</span> <span id="hairFreq">-</span>
+                            </div>
+                            <div><span style="font-weight:600;">Tipo Cabello:</span> <span id="hairType">-</span></div>
+                            <div><span style="font-weight:600;">Forma Cabello:</span> <span id="hairShape">-</span>
+                            </div>
+                            <div><span style="font-weight:600;">Largo Cabello:</span> <span id="hairLength">-</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label>Código del Producto</label>
                         <input type="text" id="personBrand" readonly style="background: #f9fafb;">
@@ -783,6 +843,32 @@
                     <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
                         Contacto</button>
                 </div>
+
+                <!-- NEW SECTION: Second Collection & Shampoo -->
+                <div class="form-section"
+                    style="background: #f0fdf4; padding: 1rem; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 1rem;">
+                    <h4
+                        style="color: #166534; margin-top: 0; display: flex; justify-content: space-between; align-items: center;">
+                        Segunda Recogida y Producto
+                        <button class="btn-submit" onclick="saveSecondPickup()"
+                            style="background: #166534; font-size: 0.8rem; padding: 4px 12px; width: auto; margin: 0;">Guardar</button>
+                    </h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                        <div class="form-group">
+                            <label>Fecha 2da Recogida</label>
+                            <input type="date" id="secondDate">
+                        </div>
+                        <div class="form-group">
+                            <label>Hora 2da Recogida</label>
+                            <input type="text" id="secondTime" placeholder="Ej: 2:00 PM">
+                        </div>
+                        <div class="form-group">
+                            <label>Cantidad de Shampoo</label>
+                            <input type="text" id="shampooQty" placeholder="Ej: 2 Botellas">
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Observations -->
                 <div class="form-section" id="obsSection" style="display: none;">
                     <h3>Observaciones (Progresivo)</h3>

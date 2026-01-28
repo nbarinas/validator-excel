@@ -639,7 +639,20 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("dog_name", "VARCHAR(100)"),
             ("dog_user_type", "VARCHAR(50)"),
             ("stool_texture", "VARCHAR(200)"),
-            ("health_status", "VARCHAR(200)")
+            ("health_status", "VARCHAR(200)"),
+            ("second_collection_date", "VARCHAR(50)"),
+            ("second_collection_time", "VARCHAR(50)"),
+            ("shampoo_quantity", "VARCHAR(50)"),
+            ("shampoo_brand", "VARCHAR(100)"),
+            ("shampoo_variety", "VARCHAR(100)"),
+            ("conditioner_brand", "VARCHAR(100)"),
+            ("conditioner_variety", "VARCHAR(100)"),
+            ("treatment_brand", "VARCHAR(100)"),
+            ("treatment_variety", "VARCHAR(100)"),
+            ("wash_frequency", "VARCHAR(100)"),
+            ("hair_type", "VARCHAR(50)"),
+            ("hair_shape", "VARCHAR(50)"),
+            ("hair_length", "VARCHAR(50)")
         ]
 
         for col, dtype in new_call_cols_2:
@@ -919,6 +932,23 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
         c_dict['dog_user_type'] = c.dog_user_type
         c_dict['stool_texture'] = c.stool_texture
         c_dict['health_status'] = c.health_status
+        c_dict['second_collection_date'] = c.second_collection_date
+        c_dict['second_collection_time'] = c.second_collection_time
+        c_dict['second_collection_time'] = c.second_collection_time
+        c_dict['shampoo_quantity'] = c.shampoo_quantity
+
+        # Hair Fields
+        c_dict['shampoo_brand'] = c.shampoo_brand
+        c_dict['shampoo_variety'] = c.shampoo_variety
+        c_dict['conditioner_brand'] = c.conditioner_brand
+        c_dict['conditioner_variety'] = c.conditioner_variety
+        c_dict['treatment_brand'] = c.treatment_brand
+        c_dict['treatment_variety'] = c.treatment_variety
+        c_dict['wash_frequency'] = c.wash_frequency
+        c_dict['hair_type'] = c.hair_type
+        c_dict['hair_shape'] = c.hair_shape
+        c_dict['hair_length'] = c.hair_length
+        c_dict['code'] = c.code # Ensure Code is sent
         
         # Previous Agent Name
         c_dict['previous_agent_name'] = (c.previous_user.full_name if c.previous_user.full_name else c.previous_user.username) if c.previous_user else None
@@ -1131,9 +1161,10 @@ async def upload_calls(
         # Normalize headers
         cols = {str(c).strip().lower(): c for c in df.columns}
         
-        mapping = {
+        cols_mapping = {
             "phone_number": ["telefono", "teléfono", "celular", "numero", "movil"],
             "city": ["ciudad", "city"],
+            "code": ["codigo", "código", "cod", "id"], # Explicit mapping for Code
             "initial_observation": ["observaciones", "observacion", "observación", "obs"],
             "appointment_time": ["hora de llamada", "hora", "cita"],
             "product_brand": ["marca de producto", "marca"],
@@ -1152,14 +1183,36 @@ async def upload_calls(
             "respondent": ["encuestado", "respondent", "persona entrevistada"],
             "supervisor": ["supervisor", "sup"],
             "implantation_date": ["fecha implantacion", "fecha implantación", "fecha imp"],
-            "collection_date": ["fecha recoleccion", "fecha recolección", "fecha recogida", "fecha rec"],
-            "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora rec"],
+            "collection_date": ["fecha recoleccion", "fecha recolección", "fecha recogida", "fecha de recogida", "fecha rec"], # Added 'fecha de recogida'
+            "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec"], # Added 'hora de recogida'
             "census": ["censo", "id", "identifier"],
             # Dog Food Study
             "dog_name": ["nombre del perro", "dog name", "mascota"],
             "dog_user_type": ["tipo de usuario", "tipo usuario", "user type"],
             "stool_texture": ["textura popo del perro", "textura", "textura heces"],
-            "health_status": ["estado de salud", "salud", "condicion"]
+            "health_status": ["estado de salud", "salud", "condicion"],
+            
+            # New Request
+            "second_collection_date": ["fecha 2 recogida", "fecha segunda recogida", "2 recogida", "segunda recogida"],
+            "second_collection_time": ["hora 2 recogida", "hora segunda recogida", "hora 2"],
+            "shampoo_quantity": ["cantidad shampoo", "shampoo", "cantidad", "cant"],
+
+            # Hair Study
+            "shampoo_brand": ["marca de shampoo", "marca shampoo"],
+            "shampoo_variety": ["variedad shampoo", "variedad"], 
+            
+            "treatment_brand": ["marca tratamiento"],
+            "treatment_variety": ["variedad tratamiento"], 
+
+            "conditioner_brand": ["marca acondicionador"],
+            "conditioner_variety": ["variedad acondicionador", "variedad tratamiento.1"], # Prioritize correct name
+
+            "wash_frequency": ["frecuencia de lavado"],
+            "hair_type": ["tipo de cabello"],
+            "hair_shape": ["forma de cabello"],
+            "hair_length": ["largo de cabello", "plargo de cabello", "largo"], # Matches typo in Excel
+            
+            # Legacy/Unused removed
         }
 
         calls_to_add = []
@@ -1169,11 +1222,25 @@ async def upload_calls(
         
         for _, row in df.iterrows():
             # Helper to get value
+            # Helper to get value
             def get_val(key):
-                for alias in mapping[key]:
-                    if alias in cols:
-                        val = row[cols[alias]]
-                        return str(val).strip() if pd.notna(val) else None
+                nonlocal row
+                
+                # Helper to find key case-insensitive in row
+                def get_row_val_ci(target_key):
+                    for rk in row.keys():
+                        if str(rk).strip().lower() == target_key.lower():
+                            val = row[rk]
+                            return str(val).strip() if pd.notna(val) else None
+                    return None
+
+                # Standard Logic with CI check for aliases
+                possible = cols_mapping.get(key, [])
+                for k in possible:
+                    # Direct check (CI)
+                    res = get_row_val_ci(k)
+                    if res is not None: return res
+                    
                 return None
                 
             phone = get_val("phone_number")
@@ -1242,7 +1309,28 @@ async def upload_calls(
                 dog_user_type=get_val("dog_user_type")[:50] if get_val("dog_user_type") else None,
                 stool_texture=get_val("stool_texture")[:200] if get_val("stool_texture") else None,
                 health_status=get_val("health_status")[:200] if get_val("health_status") else None,
+
+                # New Fields
+                second_collection_date=get_val("second_collection_date")[:50] if get_val("second_collection_date") else None,
+                second_collection_time=get_val("second_collection_time")[:50] if get_val("second_collection_time") else None,
+                shampoo_quantity=get_val("shampoo_quantity")[:50] if get_val("shampoo_quantity") else None,
                 
+                # Hair
+                shampoo_brand=get_val("shampoo_brand")[:100] if get_val("shampoo_brand") else None,
+                shampoo_variety=get_val("shampoo_variety")[:100] if get_val("shampoo_variety") else None, 
+                conditioner_brand=get_val("conditioner_brand")[:100] if get_val("conditioner_brand") else None,
+                conditioner_variety=get_val("conditioner_variety")[:100] if get_val("conditioner_variety") else None,
+                
+                treatment_brand=get_val("treatment_brand")[:100] if get_val("treatment_brand") else None,
+                treatment_variety=get_val("treatment_variety")[:100] if get_val("treatment_variety") else None,
+                
+                wash_frequency=get_val("wash_frequency")[:100] if get_val("wash_frequency") else None,
+                hair_type=get_val("hair_type")[:50] if get_val("hair_type") else None,
+                hair_shape=get_val("hair_shape")[:50] if get_val("hair_shape") else None,
+                hair_length=get_val("hair_length")[:50] if get_val("hair_length") else None,
+                
+                code=get_val("code")[:50] if get_val("code") else None,
+
                 status="pending"
             )
             calls_to_add.append(call_obj)
@@ -2338,6 +2426,9 @@ class CallContactUpdate(BaseModel):
     person_cc: Optional[str] = None
     whatsapp: Optional[str] = None
     extra_phone: Optional[str] = None
+    second_collection_date: Optional[str] = None
+    second_collection_time: Optional[str] = None
+    shampoo_quantity: Optional[str] = None
 
 @app.put("/calls/{call_id}/contact")
 async def update_call_contact(
@@ -2360,6 +2451,12 @@ async def update_call_contact(
         call.whatsapp = update.whatsapp
     if update.extra_phone is not None:
         call.extra_phone = update.extra_phone
+    if update.second_collection_date is not None:
+        call.second_collection_date = update.second_collection_date
+    if update.second_collection_time is not None:
+        call.second_collection_time = update.second_collection_time
+    if update.shampoo_quantity is not None:
+        call.shampoo_quantity = update.shampoo_quantity
         
     call.updated_at = datetime.now()
     db.commit()
