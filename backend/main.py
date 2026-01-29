@@ -652,7 +652,9 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("wash_frequency", "VARCHAR(100)"),
             ("hair_type", "VARCHAR(50)"),
             ("hair_shape", "VARCHAR(50)"),
-            ("hair_length", "VARCHAR(50)")
+            ("hair_length", "VARCHAR(50)"),
+            ("purchase_frequency", "VARCHAR(100)"),
+            ("implantation_pollster", "VARCHAR(100)")
         ]
 
         for col, dtype in new_call_cols_2:

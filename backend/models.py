@@ -131,6 +131,10 @@ class Call(Base):
     stool_texture = Column(String(200), nullable=True)
     health_status = Column(String(200), nullable=True)
 
+    # New Requested Columns
+    purchase_frequency = Column(String(100), nullable=True) # Frecuencia de Compra
+    implantation_pollster = Column(String(100), nullable=True) # Encuestador Implante
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 

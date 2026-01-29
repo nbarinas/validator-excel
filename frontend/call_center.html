@@ -637,6 +637,12 @@
                             <!-- Removed NSE, Edad, Barrio -->
                             <th>Hora Original</th>
 
+                            <!-- New Requested Columns -->
+                            <th>Frecuencia Compra</th>
+                            <th>Encuestador Imp.</th>
+                            <th>Supervisor</th>
+                            <th>Fecha Implante</th>
+
                             <!-- New Temp Columns - Visibility handled by JS? No, just render them, hide if needed in JS. -->
                             <th class="col-temp-armando" style="display:none; background:#ffedd5;">Temp Armando</th>
                             <th class="col-temp-auxiliar" style="display:none; background:#dbeafe;">Temp Auxiliar
@@ -726,10 +732,38 @@
                             <!-- Otros -->
                             <div><span style="font-weight:600;">Frecuencia Lavado:</span> <span id="hairFreq">-</span>
                             </div>
+                            <div><span style="font-weight:600;">Frecuencia Compra:</span> <span
+                                    id="hairPurchaseFreq">-</span>
+                            </div>
                             <div><span style="font-weight:600;">Tipo Cabello:</span> <span id="hairType">-</span></div>
                             <div><span style="font-weight:600;">Forma Cabello:</span> <span id="hairShape">-</span>
                             </div>
                             <div><span style="font-weight:600;">Largo Cabello:</span> <span id="hairLength">-</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NEW: IMPLANTATION DATA (Encuestador, Supervisor, Fecha) -->
+                    <div class="form-group"
+                        style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #94a3b8;">
+                        <label style="color:#475569; font-weight:bold; display:block; margin-bottom:10px;">Datos de
+                            Implante</label>
+                        <div
+                            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.8rem;">Fecha Implante</label>
+                                <input type="text" id="implantationDate" readonly
+                                    style="background: #f1f5f9; width:100%;">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.8rem;">Encuestador</label>
+                                <input type="text" id="implantationPollster" readonly
+                                    style="background: #f1f5f9; width:100%;">
+                            </div>
+                            <div class="form-group" style="margin:0;">
+                                <label style="font-size:0.8rem;">Supervisor</label>
+                                <input type="text" id="implantationSupervisor" readonly
+                                    style="background: #f1f5f9; width:100%;">
                             </div>
                         </div>
                     </div>
