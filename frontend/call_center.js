@@ -829,6 +829,12 @@ function renderCallGrid(calls) {
             <td>${call.census || '-'}</td>
             <td>${call.collection_time || call.initial_observation || '-'}</td> <!-- This serves as Hora Original now -->
             
+            <!-- New Requested Columns -->
+            <td>${call.purchase_frequency || '-'}</td>
+            <td>${call.implantation_pollster || '-'}</td>
+            <td>${call.supervisor || '-'}</td>
+            <td>${call.implantation_date || '-'}</td>
+            
             <!-- Temp Armando -->
             <td class="col-temp-armando" style="display: ${currentUserRole === 'superuser' ? 'table-cell' : 'none'};">
                 ${currentUserRole === 'superuser'
@@ -1011,9 +1017,19 @@ function openCallDetail(call) {
     setTxt('hairTreatBrand', call.treatment_brand);
     setTxt('hairTreatVar', call.treatment_variety);
     setTxt('hairFreq', call.wash_frequency);
+    setTxt('hairPurchaseFreq', call.purchase_frequency); // New
     setTxt('hairType', call.hair_type);
     setTxt('hairShape', call.hair_shape);
     setTxt('hairLength', call.hair_length);
+
+    // POPULATE IMPLANTATION DATA
+    const setVal = (id, val) => {
+        const el = document.getElementById(id);
+        if (el) el.value = val || '';
+    };
+    setVal('implantationDate', call.implantation_date);
+    setVal('implantationPollster', call.implantation_pollster);
+    setVal('implantationSupervisor', call.supervisor);
 
     // POPULATE DOG DATA SECTION
     const dogSection = document.getElementById('dogSection');
