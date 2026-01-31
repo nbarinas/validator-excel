@@ -63,6 +63,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Ensure button is visible if they enter
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = 'inline-block';
+
+                // Show Closed Studies Button ONLY for Superuser
+                if (currentUserRole === 'superuser') {
+                    const btnClosed = document.getElementById('btnClosedStudies');
+                    if (btnClosed) btnClosed.style.display = 'inline-block'; // or block/flex depending on css
+                }
             } else {
                 // Normal User
                 // Hide Create Study Button
@@ -109,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Superuser Functions
-function enterCRM() {
+function enterCRM(showClosed = false) {
     document.getElementById('superuserLanding').style.display = 'none';
     document.getElementById('crmInterface').style.display = 'grid'; // Restore grid
 
@@ -119,8 +125,28 @@ function enterCRM() {
     if (landingBar) landingBar.style.display = 'none';
     if (crmBar) crmBar.style.display = 'flex';
 
-    loadStudies();
-    loadStudyData(null); // Load global calls when entering
+    if (showClosed) {
+        // Change title to indicate closed studies
+        const titleEl = document.querySelector('#crmInterface h1');
+        if (titleEl) titleEl.textContent = 'Call Center CRM - Estudios Cerrados';
+    } else {
+        const titleEl = document.querySelector('#crmInterface h1');
+        if (titleEl) titleEl.textContent = 'Call Center CRM';
+    }
+
+    loadStudies(showClosed);
+
+    // Logic for loading data:
+    // If Normal CRM (Open): Load global pending calls immediately.
+    // If Closed Studies: Do NOT load global (as that would load open calls). Wait for user to select a closed study.
+
+    if (showClosed) {
+        renderCallGrid([]);
+        document.getElementById('callCounter').textContent = '(Seleccione un estudio cerrado)';
+    } else {
+        loadStudyData(null); // Load global calls
+    }
+
     loadAgents(); // Load users for assignment
 
     // Toggle Temp Columns visibility based on role
@@ -331,23 +357,42 @@ async function deleteStudy(id) {
     } catch (e) { console.error(e); }
 }
 
-async function loadStudies() {
-    const res = await fetch('/studies', { headers });
-    const studies = await res.json();
+async function loadStudies(showClosed = false) {
+    // If showClosed is true, we fetch ALL (including inactive) and filter for inactive.
+    // If showClosed is false, we fetch active only (default endpoint behavior).
+    let url = showClosed ? '/studies?include_inactive=true' : '/studies';
+
+    const res = await fetch(url, { headers });
+    let studies = await res.json();
+
+    if (showClosed) {
+        studies = studies.filter(s => !s.is_active);
+    }
+
     const sel = document.getElementById('studySelect');
     sel.innerHTML = '<option value="">Seleccione Estudio...</option>';
     studies.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s.id;
         opt.textContent = `${s.code} - ${s.name}`;
+        if (showClosed) {
+            opt.style.color = 'red'; // Visual cue
+        }
         sel.appendChild(opt);
     });
 
-    sel.addEventListener('change', () => {
+    // Remove old listeners to avoid duplicates if possible, or just replacing innerHTML clears options but listeners on select element persis.
+    // Since we add listener to 'sel' which is the SELECT element, adding it again and again is bad if we don't handle it.
+    // However, the previous code added listener INSIDE loadStudies (line 346). This adds a NEW listener every time enters CRM.
+    // This is a bug in original code (multiple listeners accumulating).
+    // Better practice: Assign onchange property or use named function.
+    // For now I will use onchange property to overwrite previous.
+
+    sel.onchange = () => {
         if (sel.value) {
             loadStudyData(sel.value);
         }
-    });
+    };
 }
 
 // Add Enter key listener for column search
@@ -362,7 +407,22 @@ async function loadStudies() {
     }
 });
 
-['colFilterCity', 'colFilterStudy', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
+// Sort State
+let currentSort = { column: null, direction: 'asc' }; // 'asc' means oldest first (9am then 2pm)
+
+function toggleSort(column) {
+    if (currentSort.column === column) {
+        // Toggle direction
+        currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.direction = 'asc';
+    }
+    // Re-render (sorting happens in render or before render? Better to sort the filtered list)
+    applyColumnFilters();
+}
+
+['colFilterStudy', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', function () {
@@ -374,7 +434,7 @@ async function loadStudies() {
 function applyColumnFilters() {
     const phoneTerm = document.getElementById('colFilterPhone').value.toLowerCase().trim();
     const nameTerm = document.getElementById('colFilterName').value.toLowerCase().trim();
-    const cityTerm = document.getElementById('colFilterCity').value.toLowerCase().trim();
+    // const cityTerm = document.getElementById('colFilterCity').value.toLowerCase().trim(); // Removed single select
     const censusTerm = document.getElementById('colFilterCensus') ? document.getElementById('colFilterCensus').value.toLowerCase().trim() : '';
     const dateStart = document.getElementById('colFilterDateStart') ? document.getElementById('colFilterDateStart').value : '';
     const dateEnd = document.getElementById('colFilterDateEnd') ? document.getElementById('colFilterDateEnd').value : '';
@@ -395,12 +455,19 @@ function applyColumnFilters() {
     const selectedAgents = getMultiSelectValues('colFilterAgentContainer');
     const selectedStatuses = getMultiSelectValues('colFilterStatusContainer');
     const selectedPrevAgents = getMultiSelectValues('colFilterPreviousAgentContainer');
+    const selectedCities = getMultiSelectValues('colFilterCityContainer'); // New Multi-Select
 
     // Helper Checks
     const checkPhone = (c) => !phoneTerm || (c.phone_number || '').toString().toLowerCase().includes(phoneTerm);
     const checkName = (c) => !nameTerm || (c.person_name || '').toString().toLowerCase().includes(nameTerm);
     const checkCensus = (c) => !censusTerm || (c.census || '').toString().toLowerCase().includes(censusTerm);
-    const checkCity = (c) => !cityTerm || (c.city || '').toString().toLowerCase() === cityTerm;
+
+    const checkCity = (c) => {
+        if (selectedCities.length === 0) return true;
+        const val = (c.city || '').trim().toLowerCase();
+        // Compare with lowercase selected values
+        return selectedCities.includes(val);
+    };
 
     const checkDate = (c) => {
         if (!dateStart && !dateEnd) return true;
@@ -502,6 +569,33 @@ function applyColumnFilters() {
         checkPhone(c) && checkName(c) && checkCity(c) && checkCensus(c) &&
         checkStudy(c) && checkAgent(c) && checkPrevAgent(c) && checkStatus(c) && checkDate(c) && checkRealizationDate(c)
     );
+
+    // 2. Sort Logic
+    if (currentSort.column) {
+        filteredCalls.sort((a, b) => {
+            let valA = a[currentSort.column];
+            let valB = b[currentSort.column];
+
+            // Handle Nulls: always last regardless of direction? 
+            // User request: "9 am, 2 pm and then unassigned" -> Values first (Asc), Unassigned last.
+            // If direction Desc: Unassigned last? Or first? Usually unassigned last is preferred.
+
+            if (!valA && valB) return 1; // A is null, put at end
+            if (valA && !valB) return -1; // B is null, A comes first
+            if (!valA && !valB) return 0;
+
+            if (currentSort.column === 'appointment_time') {
+                // Date comparison
+                valA = new Date(valA);
+                valB = new Date(valB);
+            }
+
+            if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
+            if (valA > valB) return currentSort.direction === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }
+
     renderCallGrid(filteredCalls);
 
 
@@ -511,13 +605,13 @@ function applyColumnFilters() {
 }
 
 function resetFilters() {
-    ['colFilterPhone', 'colFilterName', 'colFilterCity', 'colFilterStudy', 'colFilterCensus', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
+    ['colFilterPhone', 'colFilterName', 'colFilterStudy', 'colFilterCensus', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
 
     // Reset Multi-Selects
-    ['colFilterAgentContainer', 'colFilterStatusContainer', 'colFilterPreviousAgentContainer'].forEach(id => {
+    ['colFilterAgentContainer', 'colFilterStatusContainer', 'colFilterPreviousAgentContainer', 'colFilterCityContainer'].forEach(id => {
         const c = document.getElementById(id);
         if (c) {
             c.querySelectorAll('input').forEach(chk => chk.checked = false);
@@ -733,8 +827,10 @@ async function loadStudyData(studyId) {
             };
         });
 
-        // Populate City Dropdown
-        populateSelectFilter('colFilterCity', allCalls.map(c => (c.city || '').trim()).filter(x => x));
+        // Populate City Dropdown (Dynamic Multi-Select)
+        const possibleCities = allCalls.map(c => (c.city || '').trim());
+        const uniqueCities = [...new Set(possibleCities)].filter(x => x).sort();
+        createMultiSelect('colFilterCityContainer', uniqueCities, applyColumnFilters);
 
         // Populate Study Dropdown
         populateSelectFilter('colFilterStudy', allCalls.map(c => (c.study_name || '').trim()).filter(x => x));
@@ -1590,7 +1686,7 @@ async function openAssignAux(studyId, studyName) {
                 <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:5px; border-radius:4px; border:1px solid #eee;">
                     <input type="checkbox" class="aux-check" value="${aux.id}" ${isChecked}>
                     <div>
-                        <span style="font-weight:bold; display:block;">${aux.full_name || aux.username}</span>
+                        <span style="font-weight:bold; display:block; color: #1e293b;">${aux.full_name || aux.username}</span>
                         <span style="font-size:0.8rem; color:#666;">${aux.username}</span>
                     </div>
                 </label>
