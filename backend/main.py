@@ -803,18 +803,29 @@ def create_study(study: StudyCreate, db: Session = Depends(database.get_db), cur
 def get_studies(include_inactive: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     query = db.query(models.Study)
     
-    # By default, only show active studies (unless admin asks for all)
-    if not include_inactive:
-        query = query.filter(models.Study.is_active == True)
-    elif current_user.role != "superuser" and current_user.role != "coordinator":
-        # Non-admins can't see inactive even if they ask
+    # SIMPLIFIED LOGIC requested by user:
+    # If Superuser/Coordinator -> Return ALL (Active + Inactive) always.
+    # If Regular User -> Return ONLY Active.
+    if current_user.role.lower() in ["superuser", "coordinator"]:
+        pass # No filter, return everything
+    else:
         query = query.filter(models.Study.is_active == True)
     
     # AUXILIAR Filter: Only see assigned studies
     if current_user.role == "auxiliar":
         query = query.join(models.study_assignments).filter(models.study_assignments.c.user_id == current_user.id)
         
-    return query.all()
+    studies = query.all()
+    # Explicitly return dict to ensure is_active is available on frontend
+    return [{
+        "id": s.id,
+        "code": s.code,
+        "name": s.name,
+        "is_active": s.is_active,
+        "status": s.status,
+        "study_type": s.study_type,
+        "stage": s.stage
+    } for s in studies]
 
 class AssistantAssignment(BaseModel):
     user_ids: List[int]
@@ -877,7 +888,7 @@ def create_call(call: CallCreate, db: Session = Depends(database.get_db), curren
     return db_call
 
 @app.get("/calls")
-def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     # Join with Study to get status and name
     query = db.query(models.Call).join(models.Study)
     
@@ -889,8 +900,16 @@ def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get
              query = query.filter(models.Call.user_id == current_user.id) # Only assigned
     else:
         # GLOBAL VIEW
-        query = query.filter(models.Study.status == "open")
-        query = query.filter(models.Study.is_active == True) # Ensure we don't show calls from deleted/inactive studies
+        
+        # Determine if we want active or inactive studies
+        # Default to True (Active) for backward compatibility if not specified
+        target_active = True if study_is_active is None else study_is_active
+        
+        query = query.filter(models.Study.is_active == target_active)
+        
+        # Only require "open" status if we are looking for ACTIVE studies
+        if target_active:
+             query = query.filter(models.Study.status == "open")
         
         if current_user.role != "superuser" and current_user.role != "auxiliar" and current_user.role != "coordinator":
             query = query.filter(models.Call.status.in_(["pending", "scheduled"]))
