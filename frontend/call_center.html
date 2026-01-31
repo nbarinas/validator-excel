@@ -332,6 +332,11 @@
                     <i class="fas fa-desktop" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Ver Estudios en Curso
                 </button>
+                <button id="btnClosedStudies" onclick="enterCRM(true)"
+                    style="display:none; padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #64748b; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-archive" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Estudios ya cerrados
+                </button>
             </div>
         </div>
 
@@ -615,11 +620,18 @@
                             </th>
                             <th>
                                 Ciudad
-                                <select id="colFilterCity"
-                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                    <option value="">Todas</option>
-                                </select>
-                            <th>Agenda/Alerta</th>
+                                <div id="colFilterCityContainer" class="multiselect-container" style="margin-top: 2px;">
+                                    <button class="multiselect-btn">Todas</button>
+                                </div>
+                            </th>
+                            <th>
+                                Agenda/Alerta
+                                <button onclick="toggleSort('appointment_time')"
+                                    style="background:none; border:none; cursor:pointer; color:#64748b;"
+                                    title="Ordenar por Hora">
+                                    <i class="fas fa-sort"></i>
+                                </button>
+                            </th>
                             <!-- Old Observaciones Pos -->
                             <th>
                                 Estado

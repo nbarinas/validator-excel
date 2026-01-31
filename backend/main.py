@@ -1279,10 +1279,18 @@ async def upload_calls(
                      if parsed_obs:
                          appt_dt = datetime.fromisoformat(parsed_obs)
 
+            # Normalize City
+            city_raw = get_val("city")
+            city_norm = None
+            if city_raw:
+                import unicodedata
+                city_norm = str(city_raw).strip().upper()
+                city_norm = "".join(c for c in unicodedata.normalize("NFD", city_norm) if unicodedata.category(c) != "Mn")
+
             call_obj = models.Call(
                 study_id=sid,
                 phone_number=phone[:20], # Truncate to fit VARCHAR(20)
-                city=get_val("city")[:100] if get_val("city") else None,
+                city=city_norm[:100] if city_norm else None,
                 initial_observation=get_val("initial_observation")[:500] if get_val("initial_observation") else None,
                 appointment_time=appt_dt,
                 product_brand=get_val("product_brand")[:100] if get_val("product_brand") else None,
