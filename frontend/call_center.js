@@ -10,6 +10,7 @@ const headers = {
 // State
 let currentCallId = null;
 let currentUserRole = null;
+let isClosedView = false; // Track if we are in Closed Studies mode
 
 const statusMap = {
     'pending': 'Pendiente',
@@ -125,6 +126,8 @@ function enterCRM(showClosed = false) {
     if (landingBar) landingBar.style.display = 'none';
     if (crmBar) crmBar.style.display = 'flex';
 
+    isClosedView = showClosed; // Set global state
+
     if (showClosed) {
         // Change title to indicate closed studies
         const titleEl = document.querySelector('#crmInterface h1');
@@ -137,10 +140,9 @@ function enterCRM(showClosed = false) {
     loadStudies(showClosed);
 
     // Logic for loading data:
-    // If Normal CRM (Open): Load global pending calls immediately.
-    // If Closed Studies: Do NOT load global (as that would load open calls). Wait for user to select a closed study.
-
     if (showClosed) {
+        // IMPORTANT: Clear global data cache so filters don't show old data
+        allCalls = [];
         renderCallGrid([]);
         document.getElementById('callCounter').textContent = '(Seleccione un estudio cerrado)';
     } else {
@@ -358,19 +360,27 @@ async function deleteStudy(id) {
 }
 
 async function loadStudies(showClosed = false) {
-    // If showClosed is true, we fetch ALL (including inactive) and filter for inactive.
-    // If showClosed is false, we fetch active only (default endpoint behavior).
-    let url = showClosed ? '/studies?include_inactive=true' : '/studies';
+    // SIMPLIFIED LOGIC: Always fetch all studies, filter in frontend
+    let url = '/studies';
 
     const res = await fetch(url, { headers });
     let studies = await res.json();
 
     if (showClosed) {
-        studies = studies.filter(s => !s.is_active);
+        // Filter for inactive (false, 0, null)
+        studies = studies.filter(s => s.is_active === false || s.is_active === 0 || s.is_active === null);
+    } else {
+        // Filter for ACTIVE (true)
+        studies = studies.filter(s => s.is_active === true || s.is_active === 1);
     }
 
+
+
     const sel = document.getElementById('studySelect');
-    sel.innerHTML = '<option value="">Seleccione Estudio...</option>';
+    // Change default option text based on mode
+    const defaultText = showClosed ? 'Todos (Estudios Cerrados)...' : 'Seleccione Estudio...';
+    sel.innerHTML = `<option value="">${defaultText}</option>`;
+
     studies.forEach(s => {
         const opt = document.createElement('option');
         opt.value = s.id;
@@ -381,18 +391,16 @@ async function loadStudies(showClosed = false) {
         sel.appendChild(opt);
     });
 
-    // Remove old listeners to avoid duplicates if possible, or just replacing innerHTML clears options but listeners on select element persis.
-    // Since we add listener to 'sel' which is the SELECT element, adding it again and again is bad if we don't handle it.
-    // However, the previous code added listener INSIDE loadStudies (line 346). This adds a NEW listener every time enters CRM.
-    // This is a bug in original code (multiple listeners accumulating).
-    // Better practice: Assign onchange property or use named function.
-    // For now I will use onchange property to overwrite previous.
-
     sel.onchange = () => {
-        if (sel.value) {
-            loadStudyData(sel.value);
-        }
+        // Allow loading null (global) if value is empty
+        loadStudyData(sel.value || null);
     };
+
+    // Auto-load all closed studies by default
+    if (showClosed) {
+        sel.value = ""; // Select "Todos"
+        loadStudyData(null);
+    }
 }
 
 // Add Enter key listener for column search
@@ -807,7 +815,21 @@ async function loadStudyData(studyId) {
     // Fetch calls
     try {
         let url = '/calls';
-        if (studyId) url += `?study_id=${studyId}`;
+        const params = new URLSearchParams();
+        if (studyId) {
+            params.append('study_id', studyId);
+        } else {
+            // Global Load: Check if we are in Closed View
+            // Use local variable isClosedView (not window property)
+            if (isClosedView) {
+                params.append('study_is_active', 'false');
+            } else {
+                params.append('study_is_active', 'true');
+            }
+        }
+
+        const queryString = params.toString();
+        if (queryString) url += `?${queryString}`;
 
         const res = await fetch(url, { headers });
         const calls = await res.json();
