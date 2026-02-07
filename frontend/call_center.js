@@ -498,13 +498,13 @@ function applyColumnFilters() {
             dateStr = dateString.substring(0, 10);
         }
         // 2. DD/MM/YYYY
-        else if (dateString.match(/^\d{2}\/\d{2}\/\d{4}/)) {
+        else if (dateString.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
             const parts = dateString.split('/');
             // parts[0] = DD, parts[1] = MM, parts[2] = YYYY
             dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
         // 3. DD-MM-YYYY
-        else if (dateString.match(/^\d{2}-\d{2}-\d{4}/)) {
+        else if (dateString.match(/^\d{1,2}-\d{1,2}-\d{4}/)) {
             const parts = dateString.split('-');
             dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
@@ -524,7 +524,20 @@ function applyColumnFilters() {
 
         let dateStr = '';
         const dateString = rawDate.toString().trim();
-        if (dateString.match(/^\d{4}-\d{2}-\d{2}/)) dateStr = dateString.substring(0, 10);
+        // 1. ISO-like YYYY-MM-DD
+        if (dateString.match(/^\d{4}-\d{2}-\d{2}/)) {
+            dateStr = dateString.substring(0, 10);
+        }
+        // 2. DD/MM/YYYY
+        else if (dateString.match(/^\d{1,2}\/\d{1,2}\/\d{4}/)) {
+            const parts = dateString.split('/');
+            dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        // 3. DD-MM-YYYY
+        else if (dateString.match(/^\d{1,2}-\d{1,2}-\d{4}/)) {
+            const parts = dateString.split('-');
+            dateStr = `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
 
         if (!dateStr) return false;
 
