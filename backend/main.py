@@ -873,6 +873,134 @@ def toggle_study_status(study_id: int, db: Session = Depends(database.get_db), c
     status_str = "active" if study.is_active else "inactive"
     return {"status": "updated", "new_state": status_str, "is_active": study.is_active}
 
+@app.post("/studies/{study_id}/duplicate-r2")
+def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser" and current_user.role != "coordinator":
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    source_study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not source_study:
+        raise HTTPException(status_code=404, detail="Source study not found")
+
+    # 1. Generate New Name & Code
+    # Logic: Look for "R1", replace with "R2". If no "R" pattern, append "R2"
+    # Or just increment if R<N> found.
+    
+    new_name = source_study.name
+    import re
+    match = re.search(r'(R)(\d+)', new_name)
+    
+    new_stage = source_study.stage # Default to same if no logic
+    
+    if match:
+        prefix = match.group(1) # R
+        number = int(match.group(2))
+        new_number = number + 1
+        new_name = re.sub(r'R\d+', f'R{new_number}', new_name)
+        new_stage = f"R{new_number}"
+    else:
+        new_name = f"{new_name} - R2"
+        new_stage = "R2"
+        
+    start_code = source_study.code.split('_')[0] if '_' in source_study.code else source_study.code
+    import random
+    new_code = f"{start_code}_{random.randint(100,999)}"
+
+    # 2. Create the New Study
+    new_study = models.Study(
+        code=new_code,
+        name=new_name,
+        study_type=source_study.study_type,
+        stage=new_stage,
+        is_active=True, 
+        status="open"
+    )
+    db.add(new_study)
+    db.commit() # Commit to get ID
+    
+    # 3. Filter Calls (Managed/Effective Only)
+    # The user strictly said: "solo pasarian las Efectivas (antes gestionadas) pendientes, caidas y demas no pasarian"
+    # We include: 'managed' (Efectiva), 'efectiva_campo' (Efectiva Presencial), 'done' (Terminado - usually implies done)
+    # Exclude: pending, scheduled, caidas (all types)
+    
+    target_statuses = ['managed', 'efectiva_campo', 'done']
+    
+    source_calls = db.query(models.Call).filter(
+        models.Call.study_id == study_id,
+        models.Call.status.in_(target_statuses)
+    ).all()
+    
+    count = 0
+    new_calls = []
+    
+    # 4. Duplicate Calls
+    for c in source_calls:
+        # Create new call instance copying relevant data
+        new_call = models.Call(
+            study_id=new_study.id,
+            status='pending', # Reset to Pending
+            
+            # Contact Info
+            phone_number=c.phone_number,
+            corrected_phone=c.corrected_phone,
+            extra_phone=c.extra_phone,
+            whatsapp=c.whatsapp,
+            
+            # Person Info
+            person_name=c.person_name,
+            person_cc=c.person_cc,
+            city=c.city,
+            neighborhood=c.neighborhood,
+            address=c.address,
+            
+            # Census / Demographics (Keep these so they don't have to re-enter)
+            census=c.census,
+            nse=c.nse,
+            age=c.age,
+            age_range=c.age_range,
+            children_age=c.children_age,
+            housing_description=c.housing_description,
+            
+            # Products / Study Data (Presumably they keep the same product?)
+            product_brand=c.product_brand,
+            
+            # Hair Data
+            shampoo_quantity=c.shampoo_quantity, # Keep quantity they had?
+            shampoo_brand=c.shampoo_brand,
+            shampoo_variety=c.shampoo_variety,
+            conditioner_brand=c.conditioner_brand,
+            conditioner_variety=c.conditioner_variety,
+            treatment_brand=c.treatment_brand,
+            treatment_variety=c.treatment_variety,
+            wash_frequency=c.wash_frequency,
+            hair_type=c.hair_type,
+            hair_shape=c.hair_shape,
+            hair_length=c.hair_length,
+            purchase_frequency=c.purchase_frequency,
+            
+            # Dog Data
+            dog_name=c.dog_name,
+            dog_user_type=c.dog_user_type
+            
+            # Notes? Maybe keep initial observation but clear others?
+            # call.initial_observation = c.initial_observation 
+            # (Or maybe clear it if it was specific to R1 appointment?)
+            # Let's keep initial_observation as reference.
+        )
+        new_calls.append(new_call)
+        count += 1
+        
+    if new_calls:
+        db.bulk_save_objects(new_calls)
+        db.commit()
+        
+    return {
+        "status": "success", 
+        "new_study_id": new_study.id, 
+        "new_study_name": new_study.name,
+        "count": count
+    }
+
 class CallCreate(BaseModel):
     study_id: int
     phone_number: str

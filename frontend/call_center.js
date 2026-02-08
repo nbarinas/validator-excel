@@ -18,19 +18,19 @@ const statusMap = {
     'scheduled': 'Agendado',
     'done': 'Terminado',
     'closed': 'Cerrado',
-    // New caída options
-    'caida_desempeno': 'Caída por Desempeño',
-    'caida_logistica': 'Caída Logística',
-    'caida_desempeno_campo': 'Caída Desempeño Campo',
-    'caida_logistico_campo': 'Caída Logístico Campo',
+    // New caída options - RENAMED LABELS
+    'caida_desempeno': 'Desempeño',
+    'caida_logistica': 'Logístico',
+    'caida_desempeno_campo': 'Caída Desempeño Campo', // Keep? User said "Caída Desempeño" -> "Desempeño"
+    'caida_logistico_campo': 'Caída Logístico',
     // Legacy caídas mapping
     'caidas': 'Caída',
     'caida': 'Caída',
     // En campo statuses
     'en_campo': 'En Campo',
     'en campo': 'En Campo',
-    'efectiva_campo': 'Efectiva en Campo',
-    'managed': 'Gestionado'
+    'efectiva_campo': 'Efectiva Presencial', // Renamed from Efectiva en Campo
+    'managed': 'Efectiva' // Renamed from Gestionado
 };
 
 const translateStatus = (s) => statusMap[s] || s;
@@ -302,6 +302,9 @@ async function loadManageStudiesTable() {
                          <button onclick="toggleStudyStatus(${s.id})" style="cursor:pointer; background: ${s.is_active ? '#ef4444' : '#22c55e'}; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
                             ${s.is_active ? 'Desactivar' : 'Activar'}
                          </button>
+                         <button onclick="duplicateStudyR2(${s.id}, '${s.name}')" style="cursor:pointer; background: #8b5cf6; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Crear Siguiente Etapa (R+)">
+                            <i class="fas fa-copy"></i> Sig. Etapa (R+)
+                         </button>
                          <button onclick="openAssignAux(${s.id}, '${s.name}')" style="cursor:pointer; background: #6366f1; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
                             <i class="fas fa-users-cog"></i> Asignar
                          </button>
@@ -357,6 +360,30 @@ async function deleteStudy(id) {
             alert("Error al eliminar el estudio.");
         }
     } catch (e) { console.error(e); }
+}
+
+async function duplicateStudyR2(id, currentName) {
+    if (!confirm(`¿Generar siguiente visita (R+) para "${currentName}"?\nSe duplicarán SOLO las llamadas EFECTIVAS.`)) return;
+
+    try {
+        const res = await fetch(`/studies/${id}/duplicate-r2`, {
+            method: 'POST',
+            headers
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            alert(`Estudio duplicado exitosamente: ${data.new_study_name}\n${data.count} registros copiados.`);
+            loadManageStudiesTable();
+            loadStudies();
+        } else {
+            const err = await res.json();
+            alert("Error: " + (err.detail || "Error al duplicar"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión");
+    }
 }
 
 async function loadStudies(showClosed = false) {
@@ -607,8 +634,16 @@ function applyColumnFilters() {
 
             if (currentSort.column === 'appointment_time') {
                 // Date comparison
-                valA = new Date(valA);
-                valB = new Date(valB);
+                valA = valA ? new Date(valA) : null;
+                valB = valB ? new Date(valB) : null;
+            } else if (currentSort.column === 'shampoo_quantity') {
+                // Numeric comparison if possible, else string
+                const numA = parseFloat(valA);
+                const numB = parseFloat(valB);
+                if (!isNaN(numA) && !isNaN(numB)) {
+                    valA = numA;
+                    valB = numB;
+                }
             }
 
             if (valA < valB) return currentSort.direction === 'asc' ? -1 : 1;
@@ -961,6 +996,7 @@ function renderCallGrid(calls) {
             <td>${call.collection_time || call.initial_observation || '-'}</td> <!-- This serves as Hora Original now -->
             
             <!-- New Requested Columns -->
+            <td>${call.shampoo_quantity || '-'}</td>
             <td>${call.purchase_frequency || '-'}</td>
             <td>${call.implantation_pollster || '-'}</td>
             <td>${call.supervisor || '-'}</td>
@@ -1238,27 +1274,27 @@ function openCallDetail(call) {
     if (currentUserRole === 'superuser') {
         createBtn("Revertir a Pendiente", "#64748b", "pending"); // Grey for neutral/back
         createBtn("En Campo", "#3b82f6", "en_campo"); // Blue
-        createBtn("Efectiva en Campo", "#22c55e", "efectiva_campo"); // Green
-        createBtn("Caída Desempeño", "#ef4444", "caida_desempeno"); // Red
-        createBtn("Caída Logística", "#ef4444", "caida_logistica"); // Red
+        createBtn("Efectiva Presencial", "#22c55e", "efectiva_campo"); // Green - RENAMED
+        createBtn("Desempeño", "#ef4444", "caida_desempeno"); // Red - RENAMED
+        createBtn("Logístico", "#ef4444", "caida_logistica"); // Red - RENAMED
         createBtn("Caída Desempeño Campo", "#ef4444", "caida_desempeno_campo"); // Red
-        createBtn("Caída Logístico Campo", "#ef4444", "caida_logistico_campo"); // Red
-        createBtn("Gestionado", "#22c55e", "managed"); // Green
+        createBtn("Caída Logístico", "#ef4444", "caida_logistico_campo"); // Red - RENAMED
+        createBtn("Efectiva", "#22c55e", "managed"); // Green - RENAMED
         createBtn("Agendado", "#3b82f6", "scheduled"); // Blue
     }
     // AUXILIAR: En Campo and Efectiva options
     else if (currentUserRole === 'auxiliar') {
         createBtn("En Campo", "#3b82f6", "en_campo"); // Blue
-        createBtn("Efectiva en Campo", "#22c55e", "efectiva_campo"); // Green
+        createBtn("Efectiva Presencial", "#22c55e", "efectiva_campo"); // Green - RENAMED
         createBtn("Caída Desempeño Campo", "#ef4444", "caida_desempeno_campo"); // Red
-        createBtn("Caída Logístico Campo", "#ef4444", "caida_logistico_campo"); // Red
+        createBtn("Caída Logístico", "#ef4444", "caida_logistico_campo"); // Red - RENAMED
     }
     // AGENT: Standard Flow with new caída options
     else {
-        createBtn("Gestionado", "#22c55e", "managed"); // Green
+        createBtn("Efectiva", "#22c55e", "managed"); // Green - RENAMED
         createBtn("Agendado", "#3b82f6", "scheduled"); // Blue
-        createBtn("Caída Desempeño", "#ef4444", "caida_desempeno"); // Red
-        createBtn("Caída Logística", "#ef4444", "caida_logistica"); // Red
+        createBtn("Desempeño", "#ef4444", "caida_desempeno"); // Red - RENAMED
+        createBtn("Logístico", "#ef4444", "caida_logistica"); // Red - RENAMED
     }
 
     showDetailView();
