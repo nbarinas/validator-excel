@@ -983,8 +983,8 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             dog_user_type=c.dog_user_type,
             
             # Dog Data
-            dog_name=c.dog_name,
-            dog_user_type=c.dog_user_type,
+            # dog_name=c.dog_name, # Already included above
+            # dog_user_type=c.dog_user_type, # Already included above
             
             # Map Second Collection Date -> Collection Date/Time (Hora Original)
             # User Request: "que esas tome la fecha origianl como la de second_collection_date"
