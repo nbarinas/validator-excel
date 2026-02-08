@@ -982,11 +982,15 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             dog_name=c.dog_name,
             dog_user_type=c.dog_user_type,
             
-            # Map Realization Date -> Collection Date/Time (Hora Original)
-            # User Request: "que tome la fecha de realizacion de la anterior"
-            collection_date=c.realization_date.strftime('%Y-%m-%d') if c.realization_date else None,
-            collection_time=c.realization_date.strftime('%H:%M') if c.realization_date else None,
-            initial_observation=f"R+ generado desde {c.study.name}. Fecha Realización anterior: {c.realization_date.strftime('%Y-%m-%d %H:%M') if c.realization_date else 'N/A'}"
+            # Dog Data
+            dog_name=c.dog_name,
+            dog_user_type=c.dog_user_type,
+            
+            # Map Second Collection Date -> Collection Date/Time (Hora Original)
+            # User Request: "que esas tome la fecha origianl como la de second_collection_date"
+            collection_date=c.second_collection_date, # Assuming it's already a string "DD/MM/YYYY" or similar
+            collection_time=c.second_collection_time, # Map time too if available
+            initial_observation=f"R+ generado desde {c.study.name}. Fecha 2 Recogida anterior: {c.second_collection_date or 'N/A'}"
         )
         new_calls.append(new_call)
         count += 1
