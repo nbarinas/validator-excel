@@ -1277,6 +1277,7 @@ function openCallDetail(call) {
         createBtn("Efectiva Presencial", "#22c55e", "efectiva_campo"); // Green - RENAMED
         createBtn("Desempeño", "#ef4444", "caida_desempeno"); // Red - RENAMED
         createBtn("Logístico", "#ef4444", "caida_logistica"); // Red - RENAMED
+        createBtn("Caída", "#ef4444", "caida"); // Red - New Generic Caída
         createBtn("Caída Desempeño Campo", "#ef4444", "caida_desempeno_campo"); // Red
         createBtn("Caída Logístico", "#ef4444", "caida_logistico_campo"); // Red - RENAMED
         createBtn("Efectiva", "#22c55e", "managed"); // Green - RENAMED
@@ -1295,6 +1296,7 @@ function openCallDetail(call) {
         createBtn("Agendado", "#3b82f6", "scheduled"); // Blue
         createBtn("Desempeño", "#ef4444", "caida_desempeno"); // Red - RENAMED
         createBtn("Logístico", "#ef4444", "caida_logistica"); // Red - RENAMED
+        createBtn("Caída", "#ef4444", "caida"); // Red - New Generic Caída
     }
 
     showDetailView();
