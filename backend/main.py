@@ -980,12 +980,13 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             
             # Dog Data
             dog_name=c.dog_name,
-            dog_user_type=c.dog_user_type
+            dog_user_type=c.dog_user_type,
             
-            # Notes? Maybe keep initial observation but clear others?
-            # call.initial_observation = c.initial_observation 
-            # (Or maybe clear it if it was specific to R1 appointment?)
-            # Let's keep initial_observation as reference.
+            # Map Realization Date -> Collection Date/Time (Hora Original)
+            # User Request: "que tome la fecha de realizacion de la anterior"
+            collection_date=c.realization_date.strftime('%Y-%m-%d') if c.realization_date else None,
+            collection_time=c.realization_date.strftime('%H:%M') if c.realization_date else None,
+            initial_observation=f"R+ generado desde {c.study.name}. Fecha Realización anterior: {c.realization_date.strftime('%Y-%m-%d %H:%M') if c.realization_date else 'N/A'}"
         )
         new_calls.append(new_call)
         count += 1
