@@ -1,0 +1,85 @@
+3028691708	1015	21/1/2026	Mes y medio	Augusto Jara 
+3115224537	1016	21/1/2026	1 vez al mes	Maira
+3024656351	1017	21/1/2026	15 dias	Armando
+3173823576	1018	21/1/2026	1 vez al mes	Maira
+3133517940	1019	21/1/2026	Mes y medio	Augusto Jara 
+3150616600	1020	21/1/2026	1 vez al mes	Armando
+3203027291	1021	21/1/2026	Cada 2 meses	Armando
+3206440751	1022	21/1/2026	1 vez al mes, cuando se le acaba compra sobres	Maira
+3057375054	1023	21/1/2026	Cada 3 meses	Armando
+3005130882	1024	21/1/2026	1 vez al mes	Armando
+3134906897	1025	21/1/2026	Cada semana	Maira
+3223654832	1026	21/1/2026	1 vez al mes, le dura 15 dias, despues compra sachet	Maira
+3195052766	1027	21/1/2026	1 vez al mes	Augusto Jara 
+3195845704	1028	21/1/2026	cada 20 dias	Maira
+3133141483	1029	21/1/2026	1 vez al mes	Armando
+3173348882	1030	21/1/2026	Mes y medio	Armando
+3124361525	1031	21/1/2026	1 vez al mes	Armando
+3004956214	1032	21/1/2026	1 vez al mes	Armando
+3008208768	1033	21/1/2026	1 vez al mes	Armando
+3213682319	1034	21/1/2026	mes o mes y medio	Maira
+3212375748	1035	21/1/2026	Mes y medio o 2 meses	Armando
+3115293234	1036	21/1/2026	Cada 2 meses	Armando
+3142036459	1037	21/1/2026	Cada 20 dias	Maira
+3144811070	1038	21/1/2026	Mes y medio o 2 meses	Valeska Moya
+3106349365	1039	21/1/2026	Cada 2 meses	Valeska Moya
+3217121987	1040	21/1/2026	1 vez al mes	Valeska Moya
+3124522288	1041	21/1/2026	1 vez al mes	Valeska Moya
+3183083448	1042	21/1/2026	Cada 2 meses	Adriana Garzon
+3134124137	1043	21/1/2026	Cada mes	Adriana Garzon
+3213123908	1044	21/1/2026	Cada mes	Adriana Garzon
+3195655193	1045	21/1/2026	Cada mes	Adriana Garzon
+3243922609	1046	21/1/2026	Mes y medio 	Dagoberto Lopez
+3174230401	1047	21/1/2026	Mes y medio o 2 meses	Adriana Garzon
+3103272532	1048	21/1/2026	Cada mes o mes y medio	Dagoberto Lopez
+3142062086	1049	21/1/2026	Cada 15 Dias	Jairo Rodriguez
+3505875645	1050	21/1/2026	Cada 15 Dias	Jairo Rodriguez
+3216704976	1051	21/1/2026	Cada Mes	Jairo Rodriguez
+3186435428	1052	21/1/2026	Cada Mes	Marisol Daza
+3107810482	1053	21/1/2026	Cada Mes	Natalia Cepeda
+3194713993	1054	21/1/2026	Cada Mes	Marisol Daza
+3108666541	1055	21/1/2026	Cada Mes	Natalia Cepeda
+3188829959	1056	21/1/2026	Cada Mes	Natalia Cepeda
+3017684457	1057	21/1/2026	Cada Mes	Esteban Cruz
+3502355702	1058	22/1/2026	Cada 15 dias	Maira
+3205612380	1059	22/1/2026	Cada mes	Maria Teresa Rueda
+3217565455	1060	22/1/2026	Cada 2 meses	Maria Teresa Rueda
+3194318888	1061	22/1/2026	Cada mes y medio	Maria Teresa Rueda
+3203935130	1062	22/1/2026	Cada 2 meses	Maria Teresa Rueda
+3232905383	1063	22/1/2026	Cada 15 dias	Maria Teresa Rueda
+3196263906	1064	22/1/2026	Cada mes y medio	Maria Teresa Rueda
+3112835593	1065	22/1/2026	Cada 2 meses	Martha Albarracin
+3504879232	1066	22/1/2026	Cada mes	Maria Teresa Rueda
+3215629343	1067	22/1/2026	Cada 20 dias	Maria Teresa Rueda
+3125150647	1068	22/1/2026	Cada 3 meses	Maria Teresa Rueda
+3108863471	1069	22/1/2026	Cada mes	Martha Albarracin
+3002221519	1070	22/1/2026	Cada mes	Martha Albarracin
+3215772459	1071	22/1/2026	Cada 2 Meses	Martha Albarracin
+3174668864	1072	22/1/2026	Cada 15 Dias	Martha Albarracin
+3125502146	1073	22/1/2026	Cada 2 Meses	Martha Albarracin
+3208136891	1074	22/1/2026	Cada mes y medio	Maria Teresa Rueda
+3205682128	1075	22/1/2026	Cada mes y medio	Maria Teresa Rueda
+3116208536	1076	22/1/2026	Cada 3 Meses	Martha Albarracin
+3212225191	1077	22/1/2026	Cada 2 meses	Maria Teresa Rueda
+3175736039	1078	22/1/2026	Cada Mes	Martha Albarracin
+3224645185	1079	22/1/2026	Cada Mes	Martha Albarracin
+3108059529	1080	22/1/2026	Cada 3 Meses	Martha Albarracin
+3205384085	1081	22/1/2026	Cada mes y medio	Martha Albarracin
+3175028997	1082	22/1/2026	Cada 3 meses	Martha Albarracin
+3203376820	1083	22/1/2026	Cada mes	Adriana Garzon
+3143699020	1085	22/1/2026	Cada mes y medio	Maria Teresa Rueda
+3105891994	1086	23/1/2026	Cada 15 dias	Maria Teresa Rueda
+3052326077	1087	23/1/2026	Cada mes	Maria Teresa Rueda
+3222287694	1088	23/1/2026	Cada mes	Maria Teresa Rueda
+3022638048	1089	23/1/2026	Cada mes y medio	Maria Teresa Rueda
+3138474748	1090	23/1/2026	Cada mes y medio	Maria Teresa Rueda
+3222497537	1091	23/1/2026	Cada mes	Maria Teresa Rueda
+3116245552	1092	23/1/2026	Cada mes	Maria Teresa Rueda
+3137992143	1093	23/1/2026	4 meses	Maria Teresa Rueda
+3168279780	1094	24/1/2026	Cada 3 meses	Martha Albarracin
+3104674242	1095	24/1/2026	Cada 2 meses	Martha Albarracin
+3125593393	1096	24/1/2026	Todos los dias	Martha Albarracin
+3132057289	1097	24/1/2026	Cada Mes	Martha Albarracin
+3203618093	1098	24/1/2026	Cada Mes	Martha Albarracin
+3124224322	1099	23/1/2026	Cada 2 meses	Maria Teresa Rueda
+3204595229	1100	24/1/2026	6 meses	Dagoberto Lopez

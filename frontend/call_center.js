@@ -951,12 +951,37 @@ function renderCallGrid(calls) {
         return;
     }
 
+
+    // Color Palette for Studies (Blue, Green, Purple, etc.)
+    const studyColors = [
+        'rgba(219, 234, 254, 0.4)', // Blue
+        'rgba(220, 252, 231, 0.4)', // Green
+        'rgba(243, 232, 255, 0.4)', // Purple
+        'rgba(254, 243, 199, 0.4)', // Amber
+        'rgba(255, 228, 230, 0.4)', // Rose
+        'rgba(224, 242, 254, 0.4)'  // Light Blue
+    ];
+
     calls.forEach(call => {
         const tr = document.createElement('tr');
         tr.style.cursor = 'pointer';
-        tr.style.borderBottom = '1px solid #eee';
-        tr.onmouseover = () => tr.style.background = '#f8f9fa';
-        tr.onmouseout = () => tr.style.background = 'white';
+        tr.style.borderBottom = '1px solid #dae1e7'; // Slightly darker border for contrast
+
+        // DETERMINE ROW COLOR BASED ON STUDY ID
+        // unique color per study using modulus
+        const colorIndex = (call.study_id || 0) % studyColors.length;
+        const rowColor = studyColors[colorIndex];
+
+        tr.style.background = rowColor;
+
+        // Hover Effect using JS (since we use inline styles for base color)
+        tr.onmouseover = () => {
+            // Darken slightly by overlaying a semi-transparent black
+            tr.style.background = `linear-gradient(rgba(0,0,0,0.05), rgba(0,0,0,0.05)), ${rowColor}`;
+        };
+        tr.onmouseout = () => {
+            tr.style.background = rowColor;
+        };
 
         // Format appointment time if exists
         let alertTime = '-';
@@ -990,7 +1015,7 @@ function renderCallGrid(calls) {
             <td>${alertTime}</td>
             <!-- Old Obs Cell Removed -->
             
-            <td><span style="background:${call.status === 'pending' ? '#fee2e2' : '#dcfce7'}; padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
+            <td><span style="background:${call.status === 'pending' ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.6)'}; border: 1px solid rgba(0,0,0,0.1); padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
             
             <td>${call.census || '-'}</td>
             <td>${call.collection_time || call.initial_observation || '-'}</td> <!-- This serves as Hora Original now -->
@@ -1005,14 +1030,14 @@ function renderCallGrid(calls) {
             <!-- Temp Armando -->
             <td class="col-temp-armando" style="display: ${currentUserRole === 'superuser' ? 'table-cell' : 'none'};">
                 ${currentUserRole === 'superuser'
-                ? `<input type="text" value="${call.temp_armando || ''}" onclick="event.stopPropagation()" onchange="updateTempInfo(${call.id}, 'temp_armando', this.value)" style="width:100%; border:1px solid #ddd;">`
+                ? `<input type="text" value="${call.temp_armando || ''}" onclick="event.stopPropagation()" onchange="updateTempInfo(${call.id}, 'temp_armando', this.value)" style="width:100%; border:1px solid #ddd; background:rgba(255,255,255,0.7);">`
                 : ''}
             </td>
             
             <!-- Temp Auxiliar -->
             <td class="col-temp-auxiliar" style="display: ${currentUserRole === 'superuser' || currentUserRole === 'auxiliar' ? 'table-cell' : 'none'};">
                 ${(currentUserRole === 'superuser' || currentUserRole === 'auxiliar')
-                ? `<input type="text" value="${call.temp_auxiliar || ''}" onclick="event.stopPropagation()" onchange="updateTempInfo(${call.id}, 'temp_auxiliar', this.value)" style="width:100%; border:1px solid #ddd;">`
+                ? `<input type="text" value="${call.temp_auxiliar || ''}" onclick="event.stopPropagation()" onchange="updateTempInfo(${call.id}, 'temp_auxiliar', this.value)" style="width:100%; border:1px solid #ddd; background:rgba(255,255,255,0.7);">`
                 : ''}
             </td>
  
