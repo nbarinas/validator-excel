@@ -25,7 +25,9 @@ def migrate():
             ("dog_name", "VARCHAR(100)"),
             ("dog_user_type", "VARCHAR(50)"),
             ("stool_texture", "VARCHAR(200)"),
-            ("health_status", "VARCHAR(200)")
+            ("health_status", "VARCHAR(200)"),
+            ("dog_breed", "VARCHAR(100)"),
+            ("dog_size", "VARCHAR(50)")
         ]
 
         for col, dtype in new_cols:

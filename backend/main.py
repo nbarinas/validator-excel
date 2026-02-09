@@ -654,7 +654,9 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("hair_shape", "VARCHAR(50)"),
             ("hair_length", "VARCHAR(50)"),
             ("purchase_frequency", "VARCHAR(100)"),
-            ("implantation_pollster", "VARCHAR(100)")
+            ("implantation_pollster", "VARCHAR(100)"),
+            ("dog_breed", "VARCHAR(100)"),
+            ("dog_size", "VARCHAR(50)")
         ]
 
         for col, dtype in new_call_cols_2:
@@ -1083,6 +1085,9 @@ def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = 
         c_dict['temp_armando'] = c.temp_armando
         c_dict['temp_auxiliar'] = c.temp_auxiliar
         c_dict['dog_name'] = c.dog_name
+        c_dict['dog_name'] = c.dog_name
+        c_dict['dog_breed'] = c.dog_breed
+        c_dict['dog_size'] = c.dog_size
         c_dict['dog_user_type'] = c.dog_user_type
         c_dict['stool_texture'] = c.stool_texture
         c_dict['health_status'] = c.health_status
@@ -1341,10 +1346,12 @@ async def upload_calls(
             "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec"], # Added 'hora de recogida'
             "census": ["censo", "id", "identifier"],
             # Dog Food Study
-            "dog_name": ["nombre del perro", "dog name", "mascota"],
-            "dog_user_type": ["tipo de usuario", "tipo usuario", "user type"],
-            "stool_texture": ["textura popo del perro", "textura", "textura heces"],
-            "health_status": ["estado de salud", "salud", "condicion"],
+            "dog_name": ["nombre del perro", "dog name", "mascota", "nombre de la mascota"],
+            "dog_breed": ["raza", "breed"],
+            "dog_size": ["tamaño", "tamano", "size"],
+            "dog_user_type": ["tipo de usuario", "tipo usuario", "user type", "tipo de mezclador"],
+            "stool_texture": ["textura popo del perro", "textura", "textura heces", "¿la textura del popó de su perro es?", "¿la textura del popó de su perro es?\n"],
+            "health_status": ["estado de salud", "salud", "condicion", "su perro ha tenido problemas digestivos?", "su perro ha tenido problemas digestivos?\n(si la respuesta es si pregunte)\n¿qué problemas digestivos a tenido? (respuesta espontanea)\n vomito\n diarrea\n otro"],
             
             # New Request
             "second_collection_date": ["fecha 2 recogida", "fecha segunda recogida", "2 recogida", "segunda recogida"],
@@ -1468,6 +1475,8 @@ async def upload_calls(
                 
                 # Dog Study Fields
                 dog_name=get_val("dog_name")[:100] if get_val("dog_name") else None,
+                dog_breed=get_val("dog_breed")[:100] if get_val("dog_breed") else None,
+                dog_size=get_val("dog_size")[:50] if get_val("dog_size") else None,
                 dog_user_type=get_val("dog_user_type")[:50] if get_val("dog_user_type") else None,
                 stool_texture=get_val("stool_texture")[:200] if get_val("stool_texture") else None,
                 health_status=get_val("health_status")[:200] if get_val("health_status") else None,
