@@ -1018,6 +1018,11 @@ function renderCallGrid(calls) {
             <td><span style="background:${call.status === 'pending' ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.6)'}; border: 1px solid rgba(0,0,0,0.1); padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
             
             <td>${call.census || '-'}</td>
+            
+            <!-- Dog Columns -->
+            <td>${call.dog_breed || '-'}</td>
+            <td>${call.dog_size || '-'}</td>
+
             <td>${call.collection_time || call.initial_observation || '-'}</td> <!-- This serves as Hora Original now -->
             
             <!-- New Requested Columns -->
@@ -1228,6 +1233,8 @@ function openCallDetail(call) {
     if (call.dog_name) {
         dogSection.style.display = 'block';
         document.getElementById('dogName').value = call.dog_name || '';
+        document.getElementById('dogBreed').value = call.dog_breed || '';
+        document.getElementById('dogSize').value = call.dog_size || '';
         document.getElementById('dogUserType').value = call.dog_user_type || '';
         document.getElementById('stoolTexture').value = call.stool_texture || '';
         document.getElementById('healthStatus').value = call.health_status || '';

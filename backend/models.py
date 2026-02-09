@@ -128,6 +128,8 @@ class Call(Base):
     # Dog Food Study Fields
     dog_name = Column(String(100), nullable=True)
     dog_user_type = Column(String(50), nullable=True) # Mezclador, etc.
+    dog_breed = Column(String(100), nullable=True) # Raza
+    dog_size = Column(String(50), nullable=True) # Tamaño
     stool_texture = Column(String(200), nullable=True)
     health_status = Column(String(200), nullable=True)
 
