@@ -632,7 +632,7 @@ function applyColumnFilters() {
             if (valA && !valB) return -1; // B is null, A comes first
             if (!valA && !valB) return 0;
 
-            if (currentSort.column === 'appointment_time') {
+            if (currentSort.column === 'appointment_time' || currentSort.column === 'second_collection_date') {
                 // Date comparison
                 valA = valA ? new Date(valA) : null;
                 valB = valB ? new Date(valB) : null;
@@ -1002,6 +1002,9 @@ function renderCallGrid(calls) {
             
             <!-- NEW COLUMN: Realization Date (Correct Position) -->
             <td style="font-size: 0.8rem;">${call.realization_date ? new Date(call.realization_date).toLocaleString() : '-'}</td>
+
+            <!-- NEW COLUMN: Second Collection Date -->
+            <td style="font-size: 0.8rem;">${call.second_collection_date || '-'}</td>
 
             <td>
                 <span style="font-size:0.8rem; color:#666; font-weight:bold;">${call.study_name || '-'}</span>
