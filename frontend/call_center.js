@@ -457,7 +457,8 @@ function toggleSort(column) {
     applyColumnFilters();
 }
 
-['colFilterStudy', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
+
+['colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) {
         el.addEventListener('change', function () {
@@ -477,7 +478,7 @@ function applyColumnFilters() {
     const realEnd = document.getElementById('colFilterRealizationEnd') ? document.getElementById('colFilterRealizationEnd').value : '';
 
     // New Filters
-    const studyTerm = document.getElementById('colFilterStudy').value.toLowerCase().trim();
+    // const studyTerm = document.getElementById('colFilterStudy').value.toLowerCase().trim(); // Removed single select
     // Agents & Status are now multi-selects handled by checking checkboxes in their containers
 
     // Helper to get checked values from a container
@@ -491,6 +492,8 @@ function applyColumnFilters() {
     const selectedStatuses = getMultiSelectValues('colFilterStatusContainer');
     const selectedPrevAgents = getMultiSelectValues('colFilterPreviousAgentContainer');
     const selectedCities = getMultiSelectValues('colFilterCityContainer'); // New Multi-Select
+    const selectedStudies = getMultiSelectValues('colFilterStudyContainer'); // New Multi-Select
+    const selectedShampoos = getMultiSelectValues('colFilterShampooContainer'); // New Multi-Select
 
     // Helper Checks
     const checkPhone = (c) => !phoneTerm || (c.phone_number || '').toString().toLowerCase().includes(phoneTerm);
@@ -575,7 +578,17 @@ function applyColumnFilters() {
     };
 
     // Selects
-    const checkStudy = (c) => !studyTerm || (c.study_name || '').toString().toLowerCase() === studyTerm;
+    const checkStudy = (c) => {
+        if (selectedStudies.length === 0) return true;
+        const val = (c.study_name || '').toString().toLowerCase().trim();
+        return selectedStudies.includes(val);
+    };
+
+    const checkShampoo = (c) => {
+        if (selectedShampoos.length === 0) return true;
+        const val = (c.shampoo_quantity || '').toString().toLowerCase().trim();
+        return selectedShampoos.includes(val);
+    };
 
     const checkAgent = (c) => {
         if (selectedAgents.length === 0) return true; // If none checked, it implies ALL or nothing filtered? "Todos" logic. 
@@ -615,7 +628,7 @@ function applyColumnFilters() {
     // 1. Filter Grid (Intersection of ALL)
     filteredCalls = allCalls.filter(c =>
         checkPhone(c) && checkName(c) && checkCity(c) && checkCensus(c) &&
-        checkStudy(c) && checkAgent(c) && checkPrevAgent(c) && checkStatus(c) && checkDate(c) && checkRealizationDate(c)
+        checkStudy(c) && checkAgent(c) && checkPrevAgent(c) && checkStatus(c) && checkDate(c) && checkRealizationDate(c) && checkShampoo(c)
     );
 
     // 2. Sort Logic
@@ -661,13 +674,13 @@ function applyColumnFilters() {
 }
 
 function resetFilters() {
-    ['colFilterPhone', 'colFilterName', 'colFilterStudy', 'colFilterCensus', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
+    ['colFilterPhone', 'colFilterName', 'colFilterCensus', 'colFilterDateStart', 'colFilterDateEnd', 'colFilterRealizationStart', 'colFilterRealizationEnd'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
     });
 
     // Reset Multi-Selects
-    ['colFilterAgentContainer', 'colFilterStatusContainer', 'colFilterPreviousAgentContainer', 'colFilterCityContainer'].forEach(id => {
+    ['colFilterAgentContainer', 'colFilterStatusContainer', 'colFilterPreviousAgentContainer', 'colFilterCityContainer', 'colFilterStudyContainer', 'colFilterShampooContainer'].forEach(id => {
         const c = document.getElementById(id);
         if (c) {
             c.querySelectorAll('input').forEach(chk => chk.checked = false);
@@ -902,8 +915,10 @@ async function loadStudyData(studyId) {
         const uniqueCities = [...new Set(possibleCities)].filter(x => x).sort();
         createMultiSelect('colFilterCityContainer', uniqueCities, applyColumnFilters);
 
-        // Populate Study Dropdown
-        populateSelectFilter('colFilterStudy', allCalls.map(c => (c.study_name || '').trim()).filter(x => x));
+        // Populate Study Dropdown (Dynamic Multi-Select)
+        const possibleStudies = allCalls.map(c => (c.study_name || '').trim());
+        const uniqueStudies = [...new Set(possibleStudies)].filter(x => x).sort();
+        createMultiSelect('colFilterStudyContainer', uniqueStudies, applyColumnFilters);
 
         // Populate Status Dropdown (Dynamic Multi-Select)
         const uniqueStatuses = [...new Set(allCalls.map(c => translateStatus(c.status || 'pending').trim()))].sort();
@@ -920,6 +935,11 @@ async function loadStudyData(studyId) {
         const possiblePrevAgents = allCalls.map(c => c.previous_agent_name || '-');
         const uniquePrevAgents = [...new Set(possiblePrevAgents)].sort();
         createMultiSelect('colFilterPreviousAgentContainer', uniquePrevAgents, applyColumnFilters);
+
+        // Populate Shampoo Dropdown (Dynamic Multi-Select)
+        const possibleShampoos = allCalls.map(c => (c.shampoo_quantity || '').trim());
+        const uniqueShampoos = [...new Set(possibleShampoos)].filter(x => x).sort();
+        createMultiSelect('colFilterShampooContainer', uniqueShampoos, applyColumnFilters);
 
 
         // Helper to restore selections? 
@@ -1022,18 +1042,19 @@ function renderCallGrid(calls) {
             
             <td>${call.census || '-'}</td>
             
-            <!-- Dog Columns -->
-            <td>${call.dog_breed || '-'}</td>
-            <td>${call.dog_size || '-'}</td>
+            <!-- Dog Columns Removed -->
+            <!-- <td>${call.dog_breed || '-'}</td> -->
+            <!-- <td>${call.dog_size || '-'}</td> -->
 
             <td>${call.collection_time || call.initial_observation || '-'}</td> <!-- This serves as Hora Original now -->
             
             <!-- New Requested Columns -->
             <td>${call.shampoo_quantity || '-'}</td>
-            <td>${call.purchase_frequency || '-'}</td>
-            <td>${call.implantation_pollster || '-'}</td>
-            <td>${call.supervisor || '-'}</td>
-            <td>${call.implantation_date || '-'}</td>
+            <!-- Removed Columns: Purchase Freq, Pollster, Supervisor, Implantation Date -->
+            <!-- <td>${call.purchase_frequency || '-'}</td> -->
+            <!-- <td>${call.implantation_pollster || '-'}</td> -->
+            <!-- <td>${call.supervisor || '-'}</td> -->
+            <!-- <td>${call.implantation_date || '-'}</td> -->
             
             <!-- Temp Armando -->
             <td class="col-temp-armando" style="display: ${currentUserRole === 'superuser' ? 'table-cell' : 'none'};">
