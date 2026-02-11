@@ -593,415 +593,401 @@
                             <th>
                                 Fecha Próxima Recogida
                                 <div style="display: flex; gap: 2px; flex-direction: column;">
-                                    <button onclick="toggleSort('second_collection_date')"
-                                        style="background:none; border:none; cursor:pointer; color:#64748b; align-self: center;"
-                                        title="Ordenar por Fecha Próxima Recogida">
-                                        <i class="fas fa-sort"></i>
-                                    </button>
+                                    <!-- Sort removed -->
                                 </div>
-                            </th>
-                            <th>
-                                Estudio
-                                <select id="colFilterStudy" class="col-filter"
-                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                                    <option value="">Todos</option>
-                                </select>
-                            </th>
-                            <th>
-                                Agente
-                                <div id="colFilterAgentContainer" class="multiselect-container"
-                                    style="margin-top: 2px;">
-                                    <!-- JS will inject here -->
-                                    <button class="multiselect-btn">Todos</button>
-                                </div>
-                            </th>
-                            <th>
-                                Agente Anterior
-                                <div id="colFilterPreviousAgentContainer" class="multiselect-container"
-                                    style="margin-top: 2px;">
-                                    <!-- JS will inject here -->
-                                    <button class="multiselect-btn">Todos</button>
-                                </div>
-                            </th>
-                            <th>
-                                Nombre
-                                <input type="text" id="colFilterName" placeholder="Buscar..."
-                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
-                            </th>
-                            <th>
-                                Ciudad
-                                <div id="colFilterCityContainer" class="multiselect-container" style="margin-top: 2px;">
-                                    <button class="multiselect-btn">Todas</button>
-                                </div>
-                            </th>
-                            <th>
-                                Agenda/Alerta
-                                <button onclick="toggleSort('appointment_time')"
-                                    style="background:none; border:none; cursor:pointer; color:#64748b;"
-                                    title="Ordenar por Hora">
-                                    <i class="fas fa-sort"></i>
-                                </button>
-                            </th>
-                            <!-- Old Observaciones Pos -->
-                            <th>
-                                Estado
-                                <div id="colFilterStatusContainer" class="multiselect-container"
-                                    style="margin-top: 2px;">
-                                    <!-- JS will inject here -->
-                                    <button class="multiselect-btn">Todos</button>
-                                </div>
-                            </th>
-                            <th>
-                                Censo
-                                <input type="text" id="colFilterCensus" placeholder="Buscar..."
-                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px; box-sizing: border-box;">
-                            </th>
+            </div>
+            </th>
+            <th>
+                Estudio
+                <div id="colFilterStudyContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Agente
+                <div id="colFilterAgentContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <!-- JS will inject here -->
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Agente Anterior
+                <div id="colFilterPreviousAgentContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <!-- JS will inject here -->
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Nombre
+                <input type="text" id="colFilterName" placeholder="Buscar..."
+                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+            </th>
+            <th>
+                Ciudad
+                <div id="colFilterCityContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <button class="multiselect-btn">Todas</button>
+                </div>
+            </th>
+            <th>
+                Agenda/Alerta
+                <!-- Sort removed -->
+            </th>
+            <!-- Old Observaciones Pos -->
+            <th>
+                Estado
+                <div id="colFilterStatusContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <!-- JS will inject here -->
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Censo
+                <input type="text" id="colFilterCensus" placeholder="Buscar..."
+                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px; box-sizing: border-box;">
+            </th>
 
-                            <!-- Dog Columns -->
-                            <th>Raza</th>
-                            <th>Tamaño</th>
 
-                            <!-- Removed NSE, Edad, Barrio -->
-                            <th>Hora Original</th>
 
-                            <!-- New Requested Columns -->
-                            <th>
-                                Cantidad Shampoo
-                                <button onclick="toggleSort('shampoo_quantity')"
-                                    style="background:none; border:none; cursor:pointer; color:#64748b;"
-                                    title="Ordenar">
-                                    <i class="fas fa-sort"></i>
-                                </button>
-                            </th> <!-- Added Sort -->
-                            <th>Frecuencia Compra</th>
-                            <th>Encuestador Imp.</th>
-                            <th>Supervisor</th>
-                            <th>Fecha Implante</th>
+            <!-- Removed NSE, Edad, Barrio -->
+            <th>Hora Original</th>
 
-                            <!-- New Temp Columns - Visibility handled by JS? No, just render them, hide if needed in JS. -->
-                            <th class="col-temp-armando" style="display:none; background:#ffedd5;">Temp Armando</th>
-                            <th class="col-temp-auxiliar" style="display:none; background:#dbeafe;">Temp Auxiliar
-                            </th>
+            <!-- New Requested Columns -->
+            <th>
+                Cantidad Shampoo
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <button onclick="toggleSort('shampoo_quantity')"
+                        style="background:none; border:none; cursor:pointer; color:#64748b;" title="Ordenar">
+                        <i class="fas fa-sort"></i>
+                    </button>
+                </div>
+                <div id="colFilterShampooContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th> <!-- Added Sort -->
 
-                            <th>Observaciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="callsGridBody">
-                        <!-- Populated by JS -->
-                    </tbody>
-                </table>
+
+            <!-- New Temp Columns - Visibility handled by JS? No, just render them, hide if needed in JS. -->
+            <th class="col-temp-armando" style="display:none; background:#ffedd5;">Temp Armando</th>
+            <th class="col-temp-auxiliar" style="display:none; background:#dbeafe;">Temp Auxiliar
+            </th>
+
+            <th>Observaciones</th>
+            </tr>
+            </thead>
+            <tbody id="callsGridBody">
+                <!-- Populated by JS -->
+            </tbody>
+            </table>
+        </div>
+
+        <!-- DETAIL VIEW: Single Call -->
+        <div id="callDetailView" style="display: none;">
+            <button onclick="showGridView()"
+                style="margin-bottom: 1rem; background: transparent; color: #1a73e8; border: none; cursor: pointer; font-weight: bold;">
+                <i class="fas fa-arrow-left"></i> Volver a la Lista
+            </button>
+
+            <div class="header-nav">
+                <div>
+                    <h3 id="callDetailTitle"
+                        style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; margin:0;">
+                        Detalle de Llamada</h3>
+
+                    <!-- Code & ID -->
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #64748b; text-align: center;">
+                        <span <span
+                            style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">ID:
+                            <span id="callIdDisplay">-</span></span>
+                    </div>
+                </div>
+
+                <span id="callStatusBadge" class="alert-badge">Programada</span>
             </div>
 
-            <!-- DETAIL VIEW: Single Call -->
-            <div id="callDetailView" style="display: none;">
-                <button onclick="showGridView()"
-                    style="margin-bottom: 1rem; background: transparent; color: #1a73e8; border: none; cursor: pointer; font-weight: bold;">
-                    <i class="fas fa-arrow-left"></i> Volver a la Lista
-                </button>
-
-                <div class="header-nav">
-                    <div>
-                        <h3 id="callDetailTitle"
-                            style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; margin:0;">
-                            Detalle de Llamada</h3>
-
-                        <!-- Code & ID -->
-                        <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #64748b; text-align: center;">
-                            <span <span
-                                style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">ID:
-                                <span id="callIdDisplay">-</span></span>
-                        </div>
-                    </div>
-
-                    <span id="callStatusBadge" class="alert-badge">Programada</span>
+            <div class="form-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Nombre Persona</label>
+                    <input type="text" id="personName" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Ciudad</label>
+                    <input type="text" id="personCity" readonly style="background: #f9fafb;">
                 </div>
 
-                <div class="form-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group">
-                        <label>Nombre Persona</label>
-                        <input type="text" id="personName" readonly style="background: #f9fafb;">
-                    </div>
-                    <div class="form-group">
-                        <label>Ciudad</label>
-                        <input type="text" id="personCity" readonly style="background: #f9fafb;">
-                    </div>
+                <!-- NEW: HAIR STUDY DATA (Read Only / Reference) -->
+                <div class="form-group"
+                    style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #ccc;">
+                    <label style="color:#d946ef; font-weight:bold; display:block; margin-bottom:10px;">Datos de
+                        Estudio Capilar</label>
+                    <!-- Grid layout adjusted for longer labels: 2 columns -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
 
-                    <!-- NEW: HAIR STUDY DATA (Read Only / Reference) -->
-                    <div class="form-group"
-                        style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #ccc;">
-                        <label style="color:#d946ef; font-weight:bold; display:block; margin-bottom:10px;">Datos de
-                            Estudio Capilar</label>
-                        <!-- Grid layout adjusted for longer labels: 2 columns -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
+                        <!-- Shampoo -->
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Marca Shampoo:</span>
+                            <span id="hairShampooBrand" style="color:#111;">-</span>
+                        </div>
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Variedad Shampoo:</span>
+                            <span id="hairShampooVar" style="color:#111;">-</span>
+                        </div>
 
-                            <!-- Shampoo -->
-                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                                <span style="font-weight:600; color:#374151;">Marca Shampoo:</span>
-                                <span id="hairShampooBrand" style="color:#111;">-</span>
-                            </div>
-                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                                <span style="font-weight:600; color:#374151;">Variedad Shampoo:</span>
-                                <span id="hairShampooVar" style="color:#111;">-</span>
-                            </div>
+                        <!-- Acondicionador -->
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Marca Acondicionador:</span>
+                            <span id="hairCondBrand" style="color:#111;">-</span>
+                        </div>
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Variedad Acondicionador:</span>
+                            <span id="hairCondVar" style="color:#111;">-</span>
+                        </div>
 
-                            <!-- Acondicionador -->
-                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                                <span style="font-weight:600; color:#374151;">Marca Acondicionador:</span>
-                                <span id="hairCondBrand" style="color:#111;">-</span>
-                            </div>
-                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                                <span style="font-weight:600; color:#374151;">Variedad Acondicionador:</span>
-                                <span id="hairCondVar" style="color:#111;">-</span>
-                            </div>
+                        <!-- Tratamiento -->
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Marca Tratamiento:</span>
+                            <span id="hairTreatBrand" style="color:#111;">-</span>
+                        </div>
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Variedad Tratamiento:</span>
+                            <span id="hairTreatVar" style="color:#111;">-</span>
+                        </div>
 
-                            <!-- Tratamiento -->
-                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                                <span style="font-weight:600; color:#374151;">Marca Tratamiento:</span>
-                                <span id="hairTreatBrand" style="color:#111;">-</span>
-                            </div>
-                            <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
-                                <span style="font-weight:600; color:#374151;">Variedad Tratamiento:</span>
-                                <span id="hairTreatVar" style="color:#111;">-</span>
-                            </div>
-
-                            <!-- Otros -->
-                            <div><span style="font-weight:600;">Frecuencia Lavado:</span> <span id="hairFreq">-</span>
-                            </div>
-                            <div><span style="font-weight:600;">Frecuencia Compra:</span> <span
-                                    id="hairPurchaseFreq">-</span>
-                            </div>
-                            <div><span style="font-weight:600;">Tipo Cabello:</span> <span id="hairType">-</span></div>
-                            <div><span style="font-weight:600;">Forma Cabello:</span> <span id="hairShape">-</span>
-                            </div>
-                            <div><span style="font-weight:600;">Largo Cabello:</span> <span id="hairLength">-</span>
-                            </div>
+                        <!-- Otros -->
+                        <div><span style="font-weight:600;">Frecuencia Lavado:</span> <span id="hairFreq">-</span>
+                        </div>
+                        <div><span style="font-weight:600;">Frecuencia Compra:</span> <span
+                                id="hairPurchaseFreq">-</span>
+                        </div>
+                        <div><span style="font-weight:600;">Tipo Cabello:</span> <span id="hairType">-</span></div>
+                        <div><span style="font-weight:600;">Forma Cabello:</span> <span id="hairShape">-</span>
+                        </div>
+                        <div><span style="font-weight:600;">Largo Cabello:</span> <span id="hairLength">-</span>
                         </div>
                     </div>
+                </div>
 
-                    <!-- NEW: IMPLANTATION DATA (Encuestador, Supervisor, Fecha) -->
-                    <div class="form-group"
-                        style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #94a3b8;">
-                        <label style="color:#475569; font-weight:bold; display:block; margin-bottom:10px;">Datos de
-                            Implante</label>
-                        <div
-                            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
-                            <div class="form-group" style="margin:0;">
-                                <label style="font-size:0.8rem;">Fecha Implante</label>
-                                <input type="text" id="implantationDate" readonly
-                                    style="background: #f1f5f9; width:100%;">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label style="font-size:0.8rem;">Encuestador</label>
-                                <input type="text" id="implantationPollster" readonly
-                                    style="background: #f1f5f9; width:100%;">
-                            </div>
-                            <div class="form-group" style="margin:0;">
-                                <label style="font-size:0.8rem;">Supervisor</label>
-                                <input type="text" id="implantationSupervisor" readonly
-                                    style="background: #f1f5f9; width:100%;">
-                            </div>
+                <!-- NEW: IMPLANTATION DATA (Encuestador, Supervisor, Fecha) -->
+                <div class="form-group"
+                    style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #94a3b8;">
+                    <label style="color:#475569; font-weight:bold; display:block; margin-bottom:10px;">Datos de
+                        Implante</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Fecha Implante</label>
+                            <input type="text" id="implantationDate" readonly style="background: #f1f5f9; width:100%;">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Encuestador</label>
+                            <input type="text" id="implantationPollster" readonly
+                                style="background: #f1f5f9; width:100%;">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Supervisor</label>
+                            <input type="text" id="implantationSupervisor" readonly
+                                style="background: #f1f5f9; width:100%;">
                         </div>
                     </div>
+                </div>
 
+                <div class="form-group">
+                    <label>Código del Producto</label>
+                    <input type="text" id="personBrand" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Observación Inicial</label>
+                    <input type="text" id="initialObs" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Hora Cita (Original)</label>
+                    <input type="text" id="apptTime" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Info Extra</label>
+                    <input type="text" id="extraPhone" placeholder="Otro dato...">
+                </div>
+            </div>
+
+            <!-- NEW DOG DATA SECTION (Sibate) -->
+            <div class="form-section" id="dogSection"
+                style="background: #fff7ed; padding: 1rem; border-radius: 8px; border: 1px solid #ffedd5; display: none;">
+                <h4 style="color: #9a3412; margin-top: 0;">Datos del Perro <span
+                        style="font-size:0.8rem; color:#c2410c; font-weight:normal;">(Sibate)</span></h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
                     <div class="form-group">
-                        <label>Código del Producto</label>
-                        <input type="text" id="personBrand" readonly style="background: #f9fafb;">
+                        <label>Nombre del Perro</label>
+                        <input type="text" id="dogName" readonly style="background: #fff7ed;">
                     </div>
                     <div class="form-group">
-                        <label>Observación Inicial</label>
-                        <input type="text" id="initialObs" readonly style="background: #f9fafb;">
+                        <label>Raza</label>
+                        <input type="text" id="dogBreed" readonly style="background: #fff7ed;">
                     </div>
                     <div class="form-group">
-                        <label>Hora Cita (Original)</label>
-                        <input type="text" id="apptTime" readonly style="background: #f9fafb;">
+                        <label>Tamaño</label>
+                        <input type="text" id="dogSize" readonly style="background: #fff7ed;">
                     </div>
                     <div class="form-group">
-                        <label>Info Extra</label>
-                        <input type="text" id="extraPhone" placeholder="Otro dato...">
+                        <label>Tipo de Usuario</label>
+                        <input type="text" id="dogUserType" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Textura Popó</label>
+                        <input type="text" id="stoolTexture" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Estado de Salud</label>
+                        <input type="text" id="healthStatus" readonly style="background: #fff7ed;">
                     </div>
                 </div>
+            </div>
 
-                <!-- NEW DOG DATA SECTION (Sibate) -->
-                <div class="form-section" id="dogSection"
-                    style="background: #fff7ed; padding: 1rem; border-radius: 8px; border: 1px solid #ffedd5; display: none;">
-                    <h4 style="color: #9a3412; margin-top: 0;">Datos del Perro <span
-                            style="font-size:0.8rem; color:#c2410c; font-weight:normal;">(Sibate)</span></h4>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
-                        <div class="form-group">
-                            <label>Nombre del Perro</label>
-                            <input type="text" id="dogName" readonly style="background: #fff7ed;">
-                        </div>
-                        <div class="form-group">
-                            <label>Raza</label>
-                            <input type="text" id="dogBreed" readonly style="background: #fff7ed;">
-                        </div>
-                        <div class="form-group">
-                            <label>Tamaño</label>
-                            <input type="text" id="dogSize" readonly style="background: #fff7ed;">
-                        </div>
-                        <div class="form-group">
-                            <label>Tipo de Usuario</label>
-                            <input type="text" id="dogUserType" readonly style="background: #fff7ed;">
-                        </div>
-                        <div class="form-group" style="grid-column: span 2;">
-                            <label>Textura Popó</label>
-                            <input type="text" id="stoolTexture" readonly style="background: #fff7ed;">
-                        </div>
-                        <div class="form-group" style="grid-column: span 2;">
-                            <label>Estado de Salud</label>
-                            <input type="text" id="healthStatus" readonly style="background: #fff7ed;">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- NEW CENSUS DATA SECTION -->
-                <div class="form-section" id="censusSection"
-                    style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
-                    <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
-                        <div class="form-group">
-                            <label>Censo / ID</label>
-                            <input type="text" id="censusId" readonly style="background: #e2e8f0;">
-                        </div>
-                        <div class="form-group">
-                            <label>NSE</label>
-                            <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
-                        </div>
-                        <div class="form-group">
-                            <label>Edad</label>
-                            <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
-                        </div>
-                        <div class="form-group">
-                            <label>Rango Edad</label>
-                            <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
-                        </div>
-                        <div class="form-group">
-                            <label>Barrio</label>
-                            <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
-                        </div>
-                        <div class="form-group">
-                            <label>Dirección</label>
-                            <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
-                        </div>
-                        <div class="form-group">
-                            <label>Vivienda</label>
-                            <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
-                        </div>
-                        <div class="form-group">
-                            <label>Hijos</label>
-                            <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
-                        </div>
-                        <!-- More fields if needed -->
-                    </div>
-                </div>
-
-
-
-                <div class="form-section">
-                    <h4>Contactabilidad</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label>Número de Celular</label>
-                            <input type="text" id="phoneNumber">
-                        </div>
-                        <div class="form-group">
-                            <label>Celular Corregido / Nuevo</label>
-                            <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
-                        </div>
-                        <div class="form-group">
-                            <label>CC Persona</label>
-                            <input type="text" id="personCC">
-                        </div>
-                        <div class="form-group">
-                            <label>WhatsApp</label>
-                            <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
-                        </div>
-                    </div>
-                    <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
-                        Contacto</button>
-                </div>
-
-                <!-- NEW SECTION: Second Collection & Shampoo -->
-                <div class="form-section"
-                    style="background: #f0fdf4; padding: 1rem; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 1rem;">
-                    <h4
-                        style="color: #166534; margin-top: 0; display: flex; justify-content: space-between; align-items: center;">
-                        Segunda Recogida y Producto
-                        <button class="btn-submit" onclick="saveSecondPickup()"
-                            style="background: #166534; font-size: 0.8rem; padding: 4px 12px; width: auto; margin: 0;">Guardar</button>
-                    </h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
-                        <div class="form-group">
-                            <label>Fecha 2da Recogida</label>
-                            <input type="date" id="secondDate">
-                        </div>
-                        <div class="form-group">
-                            <label>Hora 2da Recogida</label>
-                            <input type="text" id="secondTime" placeholder="Ej: 2:00 PM">
-                        </div>
-                        <div class="form-group">
-                            <label>Cantidad de Shampoo</label>
-                            <input type="text" id="shampooQty" placeholder="Ej: 2 Botellas">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Observations -->
-                <div class="form-section" id="obsSection" style="display: none;">
-                    <h3>Observaciones (Progresivo)</h3>
-                    <div class="obs-list" id="obsFeed">
-                        <!-- Javascript will populate -->
-                    </div>
-                    <textarea id="newObs" rows="3" placeholder="Escriba el resultado de la llamada..."
-                        style="width: 100%; border-color: #ddd;"></textarea>
-                    <button class="btn-submit" onclick="addObservation()">Agregar Observación</button>
-                </div>
-
-                <!-- Scheduling -->
-                <div class="form-section" id="scheduleSection" style="display: none;">
-                    <h3>Programar Alerta</h3>
+            <!-- NEW CENSUS DATA SECTION -->
+            <div class="form-section" id="censusSection"
+                style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
                     <div class="form-group">
-                        <label>Hora Programada</label>
-                        <input type="datetime-local" id="scheduleTime">
+                        <label>Censo / ID</label>
+                        <input type="text" id="censusId" readonly style="background: #e2e8f0;">
                     </div>
-                    <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
-                        Llamada</button>
-                </div>
-
-                <!-- ADMIN: Assign Agent -->
-                <div class="form-section" id="adminControls"
-                    style="display: none; border-top: 2px solid #6366f1; background: #eef2ff; padding: 1rem; border-radius: 8px;">
-                    <h3 style="color: #6366f1;">Administración</h3>
-                    <p>Agente Asignado: <span id="currentAgentName" style="font-weight: bold;">-</span></p>
                     <div class="form-group">
-                        <label>Asignar a:</label>
-                        <select id="agentSelect" class="form-input"></select>
-                        <button onclick="assignAgent()"
-                            style="margin-top: 0.5rem; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar</button>
+                        <label>NSE</label>
+                        <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Edad</label>
+                        <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Rango Edad</label>
+                        <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Barrio</label>
+                        <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Vivienda</label>
+                        <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Hijos</label>
+                        <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
+                    </div>
+                    <!-- More fields if needed -->
+                </div>
+            </div>
+
+
+
+            <div class="form-section">
+                <h4>Contactabilidad</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Número de Celular</label>
+                        <input type="text" id="phoneNumber">
+                    </div>
+                    <div class="form-group">
+                        <label>Celular Corregido / Nuevo</label>
+                        <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
+                    </div>
+                    <div class="form-group">
+                        <label>CC Persona</label>
+                        <input type="text" id="personCC">
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp</label>
+                        <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
                     </div>
                 </div>
+                <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
+                    Contacto</button>
+            </div>
 
-                <!-- Actions Footer -->
-                <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
-
-                    <!-- NEW DYNAMIC ACTION BUTTONS -->
-                    <div id="actionButtons"
-                        style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
-                        <!-- Populated by JS -->
+            <!-- NEW SECTION: Second Collection & Shampoo -->
+            <div class="form-section"
+                style="background: #f0fdf4; padding: 1rem; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 1rem;">
+                <h4
+                    style="color: #166534; margin-top: 0; display: flex; justify-content: space-between; align-items: center;">
+                    Segunda Recogida y Producto
+                    <button class="btn-submit" onclick="saveSecondPickup()"
+                        style="background: #166534; font-size: 0.8rem; padding: 4px 12px; width: auto; margin: 0;">Guardar</button>
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Fecha 2da Recogida</label>
+                        <input type="date" id="secondDate">
                     </div>
-
-                    <div style="display: flex; justify-content: space-between;">
-                        <button onclick="showGridView()"
-                            style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
-                            Cancelar / Volver</button>
-
-                        <button id="btnCloseCall" onclick="finishCall()"
-                            style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
-                            Close</button>
+                    <div class="form-group">
+                        <label>Hora 2da Recogida</label>
+                        <input type="text" id="secondTime" placeholder="Ej: 2:00 PM">
                     </div>
+                    <div class="form-group">
+                        <label>Cantidad de Shampoo</label>
+                        <input type="text" id="shampooQty" placeholder="Ej: 2 Botellas">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observations -->
+            <div class="form-section" id="obsSection" style="display: none;">
+                <h3>Observaciones (Progresivo)</h3>
+                <div class="obs-list" id="obsFeed">
+                    <!-- Javascript will populate -->
+                </div>
+                <textarea id="newObs" rows="3" placeholder="Escriba el resultado de la llamada..."
+                    style="width: 100%; border-color: #ddd;"></textarea>
+                <button class="btn-submit" onclick="addObservation()">Agregar Observación</button>
+            </div>
+
+            <!-- Scheduling -->
+            <div class="form-section" id="scheduleSection" style="display: none;">
+                <h3>Programar Alerta</h3>
+                <div class="form-group">
+                    <label>Hora Programada</label>
+                    <input type="datetime-local" id="scheduleTime">
+                </div>
+                <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
+                    Llamada</button>
+            </div>
+
+            <!-- ADMIN: Assign Agent -->
+            <div class="form-section" id="adminControls"
+                style="display: none; border-top: 2px solid #6366f1; background: #eef2ff; padding: 1rem; border-radius: 8px;">
+                <h3 style="color: #6366f1;">Administración</h3>
+                <p>Agente Asignado: <span id="currentAgentName" style="font-weight: bold;">-</span></p>
+                <div class="form-group">
+                    <label>Asignar a:</label>
+                    <select id="agentSelect" class="form-input"></select>
+                    <button onclick="assignAgent()"
+                        style="margin-top: 0.5rem; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar</button>
+                </div>
+            </div>
+
+            <!-- Actions Footer -->
+            <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
+
+                <!-- NEW DYNAMIC ACTION BUTTONS -->
+                <div id="actionButtons"
+                    style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div style="display: flex; justify-content: space-between;">
+                    <button onclick="showGridView()"
+                        style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
+                        Cancelar / Volver</button>
+
+                    <button id="btnCloseCall" onclick="finishCall()"
+                        style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
+                        Close</button>
                 </div>
             </div>
         </div>
+    </div>
     </div>
     </div>
     </div>
