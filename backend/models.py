@@ -31,6 +31,7 @@ class User(Base):
     observations = relationship("Observation", back_populates="user")
     schedules = relationship("Schedule", back_populates="user")
     assigned_studies = relationship("Study", secondary="study_assignments", back_populates="assistants")
+    assigned_payrolls = relationship("PayrollPeriod", secondary="payroll_assignments", back_populates="supervisors")
 
 from sqlalchemy import Table
 
@@ -233,6 +234,12 @@ class RateSheet(Base):
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+# Association Table for Payroll <-> User (Supervisor)
+payroll_assignments = Table('payroll_assignments', Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id')),
+    Column('payroll_period_id', Integer, ForeignKey('payroll_periods.id'))
+)
+
 class PayrollPeriod(Base):
     __tablename__ = "payroll_periods"
     
@@ -253,6 +260,7 @@ class PayrollPeriod(Base):
     records = relationship("PayrollRecord", back_populates="period")
     concepts = relationship("PayrollConcept", back_populates="period", cascade="all, delete-orphan")
     study = relationship("Study") # Relationship
+    supervisors = relationship("User", secondary=payroll_assignments, back_populates="assigned_payrolls")
 
 class PayrollConcept(Base):
     __tablename__ = "payroll_concepts"
@@ -305,8 +313,10 @@ class PayrollRecordItem(Base):
     concept_id = Column(Integer, ForeignKey("payroll_concepts.id"))
     
     quantity = Column(Integer, default=0)
+    rate = Column(Integer, default=0)
     total = Column(Integer, default=0)
-    
+    date = Column(DateTime, nullable=True) # New field for specific item date
+
     record = relationship("PayrollRecord", back_populates="items")
     concept = relationship("PayrollConcept", back_populates="record_items")
 
