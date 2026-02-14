@@ -127,7 +127,7 @@
 
             <!-- TOP ACTIONS: Global Print -->
             <div style="margin-bottom: 2rem; display: flex; justify-content: flex-end;">
-                <button onclick="openGlobalPrintModal()"
+                <button onclick="openGlobalAccountModal()"
                     style="background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">
                     <i class="fas fa-print"></i> Consultar Pagos / Imprimir Cuenta Global
                 </button>
@@ -173,23 +173,61 @@
                     </div>
                 </div>
 
-                <div
-                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; align-items: end; margin-top:10px;">
-                    <div class="form-group">
-                        <label>Tarifa Censo ($)</label>
-                        <input type="number" id="pRateCensus" value="5000">
-                    </div>
-                    <div class="form-group">
-                        <label>Tarifa Encuesta Efectiva ($)</label>
-                        <input type="number" id="pRateEffective" value="10000">
+                <!-- CONCEPTS SECTION -->
+                <div style="margin-top: 20px;">
+                    <label style="display:block; margin-bottom:10px;">Conceptos de Pago (Items)</label>
+
+                    <div id="conceptsContainer">
+                        <!-- Dynamic Rows -->
                     </div>
 
-                    <button class="btn-submit" onclick="createLiquidacion()"
-                        style="margin-bottom: 0px; height: 42px; grid-column: span 2;">
+                    <div style="display:flex; gap:10px; margin-top:10px;">
+                        <button onclick="addConceptRow()"
+                            style="background:rgba(255,255,255,0.1); color:white; border:1px dashed #aaa; padding:8px; border-radius:6px; cursor:pointer; flex:1;">
+                            <i class="fas fa-plus"></i> Agregar Item
+                        </button>
+                    </div>
+                </div>
+
+                <div style="margin-top:20px; display:flex; justify-content:flex-end;">
+                    <button class="btn-submit" onclick="createLiquidacion()" style="margin-bottom: 0px; height: 42px;">
                         <i class="fas fa-save"></i> Crear Nómina
                     </button>
                 </div>
             </div>
+
+            <!-- Autocomplete Styles -->
+            <style>
+                .autocomplete-items {
+                    position: absolute;
+                    border: 1px solid #d4d4d4;
+                    border-bottom: none;
+                    border-top: none;
+                    z-index: 99;
+                    top: 100%;
+                    left: 0;
+                    right: 0;
+                    background-color: #1e293b;
+                    max-height: 150px;
+                    overflow-y: auto;
+                }
+
+                .autocomplete-items div {
+                    padding: 10px;
+                    cursor: pointer;
+                    background-color: #1e293b;
+                    border-bottom: 1px solid #d4d4d4;
+                    color: white;
+                }
+
+                .autocomplete-items div:hover {
+                    background-color: #334155;
+                }
+
+                .autocomplete-active {
+                    background-color: #3b82f6 !important;
+                }
+            </style>
 
             <!-- LIST CARD -->
             <div class="card" id="listCard">
@@ -610,27 +648,202 @@
             window.print();
         }
 
+        let conceptSuggestions = [];
+
+        async function fetchSuggestions() {
+            try {
+                const res = await fetch('/payroll/concepts/suggestions', { headers: { 'Authorization': 'Bearer ' + token } });
+                if (res.ok) {
+                    conceptSuggestions = await res.json();
+                }
+            } catch (e) { console.error("Error fetching suggestions", e); }
+        }
+
+        // Call immediately
+        fetchSuggestions();
+
         function updateDefaultRates() {
             const type = document.getElementById('pType').value;
-            if (type === 'ascensor') {
-                document.getElementById('pRateCensus').value = 5000;
-                document.getElementById('pRateEffective').value = 10000;
-            } else if (type === 'in_home') {
-                document.getElementById('pRateCensus').value = 5000;
-                document.getElementById('pRateEffective').value = 10000;
+            const container = document.getElementById('conceptsContainer');
+            container.innerHTML = ''; // Clear
+
+            if (type === 'ascensor' || type === 'in_home') {
+                addConceptRow('Censos', 5000);
+                addConceptRow('Encuestas Efectivas', 10000);
+            } else if (type === 'tdc') {
+                addConceptRow('Visita TDC', 15000);
+            } else {
+                // Default empty row
+                addConceptRow('', 0);
             }
         }
 
+        function addConceptRow(name = '', rate = 0) {
+            const container = document.getElementById('conceptsContainer');
+            const rowId = 'row-' + Date.now() + Math.random().toString(36).substr(2, 9);
+
+            const div = document.createElement('div');
+            div.id = rowId;
+            div.style.display = 'grid';
+            div.style.gridTemplateColumns = '2fr 1fr auto';
+            div.style.gap = '10px';
+            div.style.marginBottom = '10px';
+            div.style.alignItems = 'center';
+
+            div.innerHTML = `
+                <div style="position:relative;">
+                    <input type="text" class="concept-name" placeholder="Nombre Concepto (Ej: Censo)" value="${name}" autocomplete="off">
+                </div>
+                <div>
+                    <input type="number" class="concept-rate" placeholder="Valor Unitario" value="${rate}">
+                </div>
+                <button onclick="removeConceptRow('${rowId}')" style="background:#ef4444; color:white; border:none; width:30px; height:30px; border-radius:4px; cursor:pointer;" title="Eliminar">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            container.appendChild(div);
+
+            // Activate Autocomplete on the new input
+            const input = div.querySelector('.concept-name');
+            const rateInput = div.querySelector('.concept-rate');
+            enableAutocomplete(input, rateInput);
+        }
+
+        function removeConceptRow(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function enableAutocomplete(inp, rateInp) {
+            let currentFocus;
+
+            inp.addEventListener("input", function (e) {
+                let a, b, i, val = this.value;
+                closeAllLists();
+                if (!val) { return false; }
+                currentFocus = -1;
+
+                a = document.createElement("DIV");
+                a.setAttribute("id", this.id + "autocomplete-list");
+                a.setAttribute("class", "autocomplete-items");
+                this.parentNode.appendChild(a);
+
+                let matches = 0;
+                for (i = 0; i < conceptSuggestions.length; i++) {
+                    let item = conceptSuggestions[i];
+                    // Simple check: Includes (case insensitive)
+                    if (item.name.toUpperCase().includes(val.toUpperCase())) {
+                        if (matches > 5) break; // Limit suggestions
+
+                        b = document.createElement("DIV");
+                        // Highlight match
+                        let regex = new RegExp(val, "gi");
+                        b.innerHTML = item.name.replace(regex, (match) => `<strong>${match}</strong>`);
+                        b.innerHTML += `<span style='float:right; color:#94a3b8; font-size:0.8em;'>$${item.rate}</span>`;
+                        b.innerHTML += `<input type='hidden' value='${item.name}'>`;
+                        b.innerHTML += `<input type='hidden' data-rate='${item.rate}'>`;
+
+                        b.addEventListener("click", function (e) {
+                            inp.value = this.getElementsByTagName("input")[0].value;
+                            const r = this.getElementsByTagName("input")[1].getAttribute('data-rate');
+                            if (r && rateInp) rateInp.value = r;
+                            closeAllLists();
+                        });
+                        a.appendChild(b);
+                        matches++;
+                    }
+                }
+            });
+
+            inp.addEventListener("keydown", function (e) {
+                let x = document.getElementById(this.id + "autocomplete-list");
+                if (x) x = x.getElementsByTagName("div");
+                if (e.keyCode == 40) { // Down
+                    currentFocus++;
+                    addActive(x);
+                } else if (e.keyCode == 38) { // Up
+                    currentFocus--;
+                    addActive(x);
+                } else if (e.keyCode == 13) { // Enter
+                    e.preventDefault();
+                    if (currentFocus > -1) {
+                        if (x) x[currentFocus].click();
+                    }
+                }
+            });
+
+            function addActive(x) {
+                if (!x) return false;
+                removeActive(x);
+                if (currentFocus >= x.length) currentFocus = 0;
+                if (currentFocus < 0) currentFocus = (x.length - 1);
+                x[currentFocus].classList.add("autocomplete-active");
+            }
+
+            function removeActive(x) {
+                for (var i = 0; i < x.length; i++) {
+                    x[i].classList.remove("autocomplete-active");
+                }
+            }
+
+            function closeAllLists(elmnt) {
+                var x = document.getElementsByClassName("autocomplete-items");
+                for (var i = 0; i < x.length; i++) {
+                    if (elmnt != x[i] && elmnt != inp) {
+                        x[i].parentNode.removeChild(x[i]);
+                    }
+                }
+            }
+
+            document.addEventListener("click", function (e) {
+                closeAllLists(e.target);
+            });
+        }
+
         async function createLiquidacion() {
-            const name = document.getElementById('pName').value;
-            const code = document.getElementById('pCode').value;
+            const name = document.getElementById('pName').value.trim();
+            const code = document.getElementById('pCode').value.trim();
             const type = document.getElementById('pType').value;
             const start = document.getElementById('pStartDate').value;
             const end = document.getElementById('pEndDate').value;
-            const rCensus = document.getElementById('pRateCensus').value;
-            const rEffective = document.getElementById('pRateEffective').value;
 
-            if (!name || !start || !end) return alert("Por favor complete nombre y fechas.");
+            // Gather Concepts
+            const concepts = [];
+            const rows = document.getElementById('conceptsContainer').children;
+            for (let i = 0; i < rows.length; i++) {
+                const row = rows[i];
+                const cName = row.querySelector('.concept-name').value.trim();
+                const cRate = row.querySelector('.concept-rate').value;
+                if (cName && cRate) {
+                    concepts.push({ name: cName, rate: parseInt(cRate) });
+                }
+            }
+
+            // Strict Validation
+            const errors = [];
+            if (!name) errors.push("El Nombre es obligatorio.");
+            if (!code) errors.push("El Código es obligatorio.");
+            if (!start) errors.push("La Fecha Início es obligatoria.");
+            if (!end) errors.push("La Fecha Fin es obligatoria.");
+            if (concepts.length === 0) errors.push("Debe agregar al menos un Concepto de Pago.");
+
+            if (errors.length > 0) {
+                alert("Por favor corrija los siguientes errores:\n\n- " + errors.join("\n- "));
+                return;
+            }
+
+            // Create Rates Snapshot for Legacy Compatibility (First Census/Effective found)
+            // Or just mock them.
+            let censusRate = 0;
+            let effectiveRate = 0;
+
+            // Try to find them in concepts to populate legacy fields just in case
+            const cenObj = concepts.find(c => c.name.toLowerCase().includes('censo'));
+            if (cenObj) censusRate = cenObj.rate;
+
+            const effObj = concepts.find(c => c.name.toLowerCase().includes('efectiv')); // encuesta efectiva
+            if (effObj) effectiveRate = effObj.rate;
 
             const formData = new FormData();
             formData.append('name', name);
@@ -638,8 +851,9 @@
             formData.append('study_code', code);
             formData.append('start_date', start);
             formData.append('end_date', end);
-            formData.append('census_rate', rCensus);
-            formData.append('effective_rate', rEffective);
+            formData.append('census_rate', censusRate);
+            formData.append('effective_rate', effectiveRate);
+            formData.append('initial_concepts', JSON.stringify(concepts));
 
             const res = await fetch('/payroll/periods', {
                 method: 'POST',
@@ -650,6 +864,13 @@
             if (res.ok) {
                 alert("Nómina Creada.");
                 loadPeriods();
+                fetchSuggestions();
+                // Clear Form
+                document.getElementById('pName').value = '';
+                document.getElementById('pCode').value = '';
+                document.getElementById('pStartDate').value = '';
+                document.getElementById('pEndDate').value = '';
+                updateDefaultRates();
             } else {
                 alert("Error al crear. Intente recargar la página.");
             }
@@ -663,7 +884,11 @@
 
             const isSuper = currentUser.role === 'superuser';
 
+            // Hide Creation Card if not superuser
+            document.getElementById('creationCard').style.display = isSuper ? 'block' : 'none';
+
             list.forEach(p => {
+                // Supervisors can see active periods
                 if (p.is_visible === false && !isSuper) return;
 
                 const opacity = (p.is_visible !== false) ? '1' : '0.6';
@@ -719,43 +944,45 @@
             });
         }
 
-        async function deletePeriod(id) {
-            if (!confirm("¿Estás seguro de eliminar esta Nómina? Se borrarán todos los registros asociados.")) return;
-            try {
-                const res = await fetch(`/payroll/periods/${id}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-                if (res.ok) {
-                    alert("Eliminado.");
-                    loadPeriods();
-                } else {
-                    alert("Error al eliminar.");
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        async function toggleVisibility(id) {
-            const res = await fetch(`/payroll/periods/${id}/toggle-visibility`, {
-                method: 'POST',
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
-            if (res.ok) loadPeriods();
-        }
-
         async function openDetails(period) {
             currentLiquidacionId = period.id;
-            pRates = period.rates || { census: 0, effective: 0 };
+            // Ensure concepts are available.
+            currentPeriodConcepts = period.concepts || [];
+
+            if (currentPeriodConcepts.length === 0 && period.rates) {
+                if (period.rates.census) currentPeriodConcepts.push({ id: 'census', name: 'Censos', rate: period.rates.census });
+                if (period.rates.effective) currentPeriodConcepts.push({ id: 'effective', name: 'Encuestas Efectivas', rate: period.rates.effective });
+            }
 
             document.getElementById('listCard').style.display = 'none';
             document.getElementById('creationCard').style.display = 'none';
             document.getElementById('periodDetailsCard').style.display = 'block';
 
             document.getElementById('detailsTitle').textContent = period.name + (period.study_code ? ` (${period.study_code})` : '');
-            document.getElementById('detailsSubtitle').textContent = `Tarifas: Censo $${pRates.census} | Efectiva $${pRates.effective}`;
 
-            document.getElementById('displayRateCen').textContent = '$' + pRates.census.toLocaleString();
-            document.getElementById('displayRateEff').textContent = '$' + pRates.effective.toLocaleString();
+            // Subtitle & Edit Button (Superuser Only)
+            const isSuper = currentUser.role === 'superuser';
+            let editBtn = '';
+            if (isSuper) {
+                editBtn = `
+                <button onclick="openConceptManager()" style="background:#f59e0b; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; cursor:pointer;">
+                    <i class="fas fa-edit"></i> Editar Nómina
+                </button>`;
+            }
+
+            const subtitle = document.getElementById('detailsSubtitle');
+            subtitle.innerHTML = `${currentPeriodConcepts.length} Conceptos Configurados ${editBtn}`;
+
+            // Build Dynamic Header
+            const thead = document.querySelector('#periodDetailsCard thead tr');
+            thead.innerHTML = '<th>Colaborador</th>';
+
+            currentPeriodConcepts.sort((a, b) => a.name.localeCompare(b.name));
+
+            currentPeriodConcepts.forEach(c => {
+                thead.innerHTML += `<th style="text-align:center;">${c.name} <br><small style="color:#94a3b8; font-weight:normal;">$${c.rate.toLocaleString()}</small></th>`;
+            });
+            thead.innerHTML += '<th>Total Pagar</th><th>Acciones</th>';
 
             loadRecords(period.id);
         }
@@ -763,13 +990,21 @@
         function closeDetails() {
             document.getElementById('periodDetailsCard').style.display = 'none';
             document.getElementById('listCard').style.display = 'block';
-            document.getElementById('creationCard').style.display = 'block';
+
+            // Restore creation card visibility logic locally or just reloadPeriods
+            // Simplest is to reload main view logic or just reset based on role 
+            const isSuper = currentUser.role === 'superuser';
+            document.getElementById('creationCard').style.display = isSuper ? 'block' : 'none';
+
+            currentPeriodConcepts = [];
         }
 
         async function loadRecords(id) {
             const tbody = document.getElementById('periodDetailsBody');
             const tfoot = document.getElementById('periodDetailsFoot');
-            tbody.innerHTML = '<tr><td colspan="5">Cargando...</td></tr>';
+            const colSpan = 3 + currentPeriodConcepts.length; // Name + Concepts + Total + Actions
+
+            tbody.innerHTML = `<tr><td colspan="${colSpan}">Cargando...</td></tr>`;
             tfoot.innerHTML = '';
 
             currentPeriodUserIds.clear();
@@ -781,44 +1016,67 @@
             records.forEach(r => currentPeriodUserIds.add(r.user_id));
 
             if (records.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:#aaa;">No hay personas agregadas a esta nómina.</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:#aaa;">No hay personas agregadas a esta nómina.</td></tr>`;
                 return;
             }
 
-            let sumEff = 0, sumCen = 0, sumTotal = 0;
-            let qtyEff = 0, qtyCen = 0;
+            // Totals Tracking
+            let sums = {};
+            currentPeriodConcepts.forEach(c => sums[c.id] = { qty: 0, total: 0 });
+            let grandTotal = 0;
 
             records.forEach(r => {
                 const user = window.allUsersMap[r.user_id] || { full_name: 'Unknown', username: r.user_id };
+                grandTotal += r.total_amount;
 
-                const effTotal = r.total_effective * pRates.effective;
-                const cenTotal = r.total_censuses * pRates.census;
+                let details = [];
+                try { details = JSON.parse(r.details_json); } catch (e) { }
 
-                sumEff += effTotal;
-                sumCen += cenTotal;
-                sumTotal += r.total_amount;
+                let rMap = {};
+                details.forEach(d => {
+                    let cid = d.concept_id;
+                    if (!cid) {
+                        const found = currentPeriodConcepts.find(c => c.name === d.concept);
+                        if (found) cid = found.id;
+                    }
+                    if (cid) rMap[cid] = d;
+                });
 
-                qtyEff += r.total_effective;
-                qtyCen += r.total_censuses;
+                let cellsHtml = '';
+                currentPeriodConcepts.forEach(c => {
+                    const item = rMap[c.id];
+                    const qty = item ? item.qty : 0;
+                    const money = item ? item.total : 0;
+
+                    sums[c.id].qty += qty;
+                    sums[c.id].total += money;
+
+                    if (qty > 0) {
+                        cellsHtml += `
+                            <td style="text-align:center;">
+                                <div style="font-weight:bold;">${qty}</div>
+                                <div style="font-size:0.75rem; color:#aaa;">$${money.toLocaleString()}</div>
+                            </td>
+                         `;
+                    } else {
+                        cellsHtml += `<td style="text-align:center; color:#444;">-</td>`;
+                    }
+                });
+
+                // Audit info
+                const modifiedBy = r.last_modified_by ? `<div style="font-size:0.7rem; color:#64748b; margin-top:2px;"><i class="fas fa-user-edit"></i> ${r.last_modified_by}</div>` : '';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>
                         <div style="font-weight:bold;">${user.full_name || user.username}</div>
                         <div style="font-size:0.8rem; color:#aaa;">CC: ${user.username}</div>
+                        ${modifiedBy}
                     </td>
-                    <td>
-                        <div style="font-weight:bold;">${r.total_effective}</div>
-                        <div style="font-size:0.75rem; color:#aaa;">x $${pRates.effective.toLocaleString()} = $${effTotal.toLocaleString()}</div>
-                    </td>
-                    <td>
-                        <div style="font-weight:bold;">${r.total_censuses}</div>
-                        <div style="font-size:0.75rem; color:#aaa;">x $${pRates.census.toLocaleString()} = $${cenTotal.toLocaleString()}</div>
-                    </td>
+                    ${cellsHtml}
                     <td style="color:#4ade80; font-weight:bold;">$${r.total_amount.toLocaleString()}</td>
                     <td>
                         <div style="display:flex; gap:10px;">
-                            <!-- PRINT REMOVED PER REQUEST -->
                             <button onclick='editRecord(${JSON.stringify(r)})' class="btn-icon" title="Editar" style="color:#f59e0b;"><i class="fas fa-pencil-alt"></i></button>
                             <button onclick='deleteRecordUser(${currentLiquidacionId}, ${r.user_id})' class="btn-icon" title="Eliminar" style="color:#ef4444;"><i class="fas fa-trash"></i></button>
                         </div>
@@ -827,18 +1085,23 @@
                 tbody.appendChild(tr);
             });
 
+            // Footer Totals
+            let footerCells = '';
+            currentPeriodConcepts.forEach(c => {
+                const s = sums[c.id];
+                footerCells += `
+                    <td style="text-align:center; color:white;">
+                        <span style="display:block; font-size:1.1rem; color:#cbd5e1;">${s.qty}</span>
+                        <span style="font-size:0.8rem; color:#94a3b8;">$${s.total.toLocaleString()}</span>
+                    </td>
+                `;
+            });
+
             tfoot.innerHTML = `
-                <tr style="font-weight:bold; font-size:1.1rem;">
+                <tr style="font-weight:bold; font-size:1.1rem; background:rgba(0,0,0,0.3);">
                     <td style="text-align:right;">TOTALES:</td>
-                    <td style="color:white;">
-                        <span style="display:block; font-size:1.2rem; color:#cbd5e1;">${qtyEff}</span>
-                        <span style="font-size:0.9rem; color:#94a3b8;">$${sumEff.toLocaleString()}</span>
-                    </td>
-                    <td style="color:white;">
-                         <span style="display:block; font-size:1.2rem; color:#cbd5e1;">${qtyCen}</span>
-                         <span style="font-size:0.9rem; color:#94a3b8;">$${sumCen.toLocaleString()}</span>
-                    </td>
-                    <td style="color:#4ade80; vertical-align:middle;">$${sumTotal.toLocaleString()}</td>
+                    ${footerCells}
+                    <td style="color:#4ade80; vertical-align:middle;">$${grandTotal.toLocaleString()}</td>
                     <td></td>
                 </tr>
             `;
@@ -871,22 +1134,95 @@
             });
         }
 
+        // --- DYNAMIC MANUAL MODAL FORMS ---
+
         function openManualModal() {
             if (!currentLiquidacionId) return;
             rebuildUserDropdown(currentPeriodUserIds);
+
+            // Generate Inputs
+            generateManualInputs();
+
             document.getElementById('manualModal').style.display = 'block';
             document.getElementById('manualUser').disabled = false;
-            document.getElementById('manualEffective').value = 0;
-            document.getElementById('manualCensus').value = 0;
         }
 
         function editRecord(r) {
             rebuildUserDropdown(null);
+
+            // Generate Inputs
+            generateManualInputs();
+
             document.getElementById('manualModal').style.display = 'block';
             document.getElementById('manualUser').value = r.user_id;
             document.getElementById('manualUser').disabled = true;
-            document.getElementById('manualEffective').value = r.total_effective;
-            document.getElementById('manualCensus').value = r.total_censuses;
+
+            // Fill Values
+            let details = [];
+            try { details = JSON.parse(r.details_json); } catch (e) { }
+
+            currentPeriodConcepts.forEach(c => {
+                const inp = document.getElementById(`manual_qty_${c.id}`);
+                if (inp) {
+                    // Find qty in details
+                    // Try match by ID then Name
+                    let val = 0;
+                    let found = details.find(d => d.concept_id === c.id);
+                    if (!found) found = details.find(d => d.concept === c.name);
+
+                    if (found) val = found.qty;
+                    inp.value = val;
+                }
+            });
+        }
+
+        function generateManualInputs() {
+            // Target the container in the modal. 
+            // We need to REPLACE the static inputs in the modal HTML first? 
+            // Or just clear and inject.
+            // The modal HTML currently has static fields. We need to replace that area dynamically.
+
+            // Let's modify the Modal HTML structure slightly in this function using reference
+            // But better to update the HTML static part first.
+            // Wait, I can't update HTML static part here easily.
+            // I will target the container referencing the static static inputs and replace content.
+
+            // The modal has:
+            /*
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Cant. Efectivas</label>
+                        ...
+            </div>
+            */
+
+            // I need to give that container an ID. I didn't in previous steps.
+            // I will find it by manual traversal
+            const modalContent = document.querySelector('#manualModal .modal-content');
+            // Find the grid container. It's the div after the user select form-group.
+            // Selector: #manualModal .modal-content > div (grid)
+            // It is the 4th child (close, h3, p, form-group(user), div(grid), button)
+
+            const gridContainer = modalContent.querySelectorAll('div')[1]; // This is risky.
+            // Better: Replace innerHTML of the container that held manualEffective/manualCensus
+
+            if (gridContainer) {
+                gridContainer.style.display = 'grid';
+                gridContainer.style.gridTemplateColumns = '1fr 1fr';
+                gridContainer.style.gap = '1rem';
+                gridContainer.innerHTML = ''; // Clear static inputs
+
+                currentPeriodConcepts.forEach(c => {
+                    const div = document.createElement('div');
+                    div.className = 'form-group';
+                    div.innerHTML = `
+                        <label>${c.name}</label>
+                        <input type="number" id="manual_qty_${c.id}" class="manual-qty-input" data-cid="${c.id}" value="0">
+                        <small style="color:#aaa;">x $${c.rate.toLocaleString()}</small>
+                    `;
+                    gridContainer.appendChild(div);
+                });
+            }
         }
 
         function closeManualModal() {
@@ -895,14 +1231,32 @@
 
         async function saveManualRecord() {
             const userId = document.getElementById('manualUser').value;
-            const eff = parseInt(document.getElementById('manualEffective').value) || 0;
-            const cen = parseInt(document.getElementById('manualCensus').value) || 0;
+
+            // Gather items
+            const items = {};
+            let totalEff = 0; // Legacy fallback
+            let totalCen = 0; // Legacy fallback
+
+            currentPeriodConcepts.forEach(c => {
+                const inp = document.getElementById(`manual_qty_${c.id}`);
+                const qty = parseInt(inp.value) || 0;
+                if (qty > 0) items[c.id] = qty;
+
+                // Legacy mapping for backward compatibility if needed?
+                // The backend now relies on `items` primarily if sent.
+                // But `create_manual_record` has `total_effective` required in schema?
+                // Yes: class PayrollUpdate(BaseModel): total_effective: int, total_censuses: int ...
+
+                if (c.name.toLowerCase().includes('efectiv')) totalEff += qty;
+                if (c.name.toLowerCase().includes('censo')) totalCen += qty;
+            });
 
             const body = {
-                total_effective: eff,
-                total_censuses: cen,
+                total_effective: totalEff,
+                total_censuses: totalCen,
                 total_enp: 0,
-                total_training: 0
+                total_training: 0,
+                items: items
             };
 
             const res = await fetch(`/payroll/records/manual?period_id=${currentLiquidacionId}&user_id=${userId}`, {
@@ -918,7 +1272,7 @@
                 closeManualModal();
                 loadRecords(currentLiquidacionId);
             } else {
-                alert("Error al guardar");
+                alert("Error al guardar.");
             }
         }
 
@@ -942,8 +1296,441 @@
             });
         }
 
+        // --- CONCEPT MANAGER ---
+        let editingConceptId = null;
+
+        function openConceptManager() {
+            if (!currentLiquidacionId) return;
+            document.getElementById('conceptManagerModal').style.display = 'block';
+            loadConceptManager();
+        }
+
+        function closeConceptManager() {
+            document.getElementById('conceptManagerModal').style.display = 'none';
+        }
+
+        function loadConceptManager() {
+            const tbody = document.getElementById('conceptManagerBody');
+            tbody.innerHTML = '';
+
+            // sorted concepts
+            currentPeriodConcepts.sort((a, b) => a.name.localeCompare(b.name));
+
+            currentPeriodConcepts.forEach(c => {
+                const tr = document.createElement('tr');
+                tr.id = `concept-row-${c.id}`;
+                tr.innerHTML = `
+                    <td>
+                        <span id="view-name-${c.id}">${c.name}</span>
+                        <input type="text" id="edit-name-${c.id}" value="${c.name}" style="display:none; width:100%; padding:5px; background:#334155; border:1px solid #475569; color:white;">
+                    </td>
+                    <td>
+                        <span id="view-rate-${c.id}">$${c.rate.toLocaleString()}</span>
+                        <input type="number" id="edit-rate-${c.id}" value="${c.rate}" style="display:none; width:100%; padding:5px; background:#334155; border:1px solid #475569; color:white;">
+                    </td>
+                    <td style="text-align:right;">
+                        <div id="actions-view-${c.id}">
+                            <button onclick="editConcept(${c.id})" class="btn-icon" style="color:#f59e0b;"><i class="fas fa-pencil-alt"></i></button>
+                        </div>
+                        <div id="actions-edit-${c.id}" style="display:none;">
+                            <button onclick="saveConceptUpdate(${c.id})" class="btn-icon" style="color:#22c55e;"><i class="fas fa-check"></i></button>
+                            <button onclick="cancelEditConcept(${c.id})" class="btn-icon" style="color:#ef4444;"><i class="fas fa-times"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function editConcept(id) {
+            document.getElementById(`view-name-${id}`).style.display = 'none';
+            document.getElementById(`edit-name-${id}`).style.display = 'block';
+            document.getElementById(`view-rate-${id}`).style.display = 'none';
+            document.getElementById(`edit-rate-${id}`).style.display = 'block';
+
+            document.getElementById(`actions-view-${id}`).style.display = 'none';
+            document.getElementById(`actions-edit-${id}`).style.display = 'block';
+        }
+
+        function cancelEditConcept(id) {
+            document.getElementById(`view-name-${id}`).style.display = 'block';
+            document.getElementById(`edit-name-${id}`).style.display = 'none';
+            document.getElementById(`view-rate-${id}`).style.display = 'block';
+            document.getElementById(`edit-rate-${id}`).style.display = 'none';
+
+            document.getElementById(`actions-view-${id}`).style.display = 'block';
+            document.getElementById(`actions-edit-${id}`).style.display = 'none';
+        }
+
+        async function saveConceptUpdate(id) {
+            const newName = document.getElementById(`edit-name-${id}`).value;
+            const newRate = document.getElementById(`edit-rate-${id}`).value;
+
+            if (!newName || !newRate) return alert("Complete los campos.");
+
+            try {
+                const res = await fetch(`/payroll/concepts/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName, rate: parseInt(newRate) })
+                });
+
+                if (res.ok) {
+                    const updated = await res.json();
+                    // Update local list
+                    const idx = currentPeriodConcepts.findIndex(c => c.id === id);
+                    if (idx !== -1) {
+                        currentPeriodConcepts[idx].name = updated.name;
+                        currentPeriodConcepts[idx].rate = updated.rate;
+                    }
+
+                    cancelEditConcept(id);
+                    loadConceptManager(); // Refresh table row
+
+                    // Refresh Main Details View if open?
+                    // We need to refresh the headers and totals in openDetails/loadRecords
+                    // But openDetails expects a 'period' object. 
+                    // We can just reload the current period from server or manually update DOM.
+                    // Easier: just reload details
+                    // We need to fetch the period again to get fresh data struct if needed
+                    reloadCurrentDetails();
+                } else {
+                    alert("Error actualizando concepto.");
+                }
+            } catch (e) { console.error(e); alert("Error de conexión"); }
+        }
+
+        async function reloadCurrentDetails() {
+            const res = await fetch('/payroll/periods', { headers: { 'Authorization': 'Bearer ' + token } });
+            const list = await res.json();
+            const p = list.find(item => item.id === currentLiquidacionId);
+            if (p) openDetails(p);
+        }
+
+        // --- GLOBAL ACCOUNT LOGIC ---
+        let currentGlobalRecords = [];
+        let currentGlobalUser = null;
+        let isGlobalDetailView = false; // Toggle state
+
+        async function openGlobalAccountModal() {
+            // Populate user dropdown
+            const res = await fetch('/payroll/active-users', { headers: { 'Authorization': 'Bearer ' + token } });
+            const users = await res.json();
+
+            const sel = document.getElementById('globalUserSelect');
+            sel.innerHTML = '<option value="">Seleccione...</option>';
+            users.sort((a, b) => (a.full_name || a.username).localeCompare(b.full_name || b.username));
+
+            users.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = `${u.full_name || u.username} (${u.username})`;
+                sel.appendChild(opt);
+            });
+
+            document.getElementById('globalAccountModal').style.display = 'block';
+            document.getElementById('globalAccountResult').style.display = 'none';
+        }
+
+        function closeGlobalAccountModal() {
+            document.getElementById('globalAccountModal').style.display = 'none';
+        }
+
+        async function loadGlobalAccount() {
+            const userId = document.getElementById('globalUserSelect').value;
+            if (!userId) return;
+
+            const sel = document.getElementById('globalUserSelect');
+            const userName = sel.options[sel.selectedIndex].text;
+            const match = userName.match(/\((.*?)\)/);
+            const cc = match ? match[1] : 'N/A';
+            currentGlobalUser = { name: userName.split('(')[0].trim(), cc: cc };
+
+            const res = await fetch(`/payroll/records/by-user/${userId}`, { headers: { 'Authorization': 'Bearer ' + token } });
+            currentGlobalRecords = await res.json();
+
+            isGlobalDetailView = false; // Reset to summary
+            renderGlobalAccount();
+        }
+
+        function toggleGlobalView() {
+            isGlobalDetailView = !isGlobalDetailView;
+            renderGlobalAccount();
+        }
+
+        function renderGlobalAccount() {
+            const container = document.getElementById('globalAccountResult');
+            container.style.display = 'block';
+
+            // Header Stats
+            let totalEff = 0; // Legacy stats
+            let totalCen = 0; // Legacy stats
+            let grandTotal = 0;
+
+            currentGlobalRecords.forEach(r => {
+                totalEff += r.total_effective;
+                totalCen += r.total_censuses;
+                grandTotal += r.total_amount;
+            });
+
+            const btnLabel = isGlobalDetailView ? 'Ver Resumen' : 'Ver Detalle';
+            const btnColor = isGlobalDetailView ? '#3b82f6' : '#64748b';
+
+            container.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                    <div>
+                        <div style="font-size:1.1rem; font-weight:bold; color:white;">Total Efectivas: <span style="color:#d1d5db;">${totalEff}</span></div>
+                        <div style="font-size:1.1rem; font-weight:bold; color:white;">Total Censos: <span style="color:#d1d5db;">${totalCen}</span></div>
+                        <div style="font-size:1.5rem; font-weight:bold; color:#4ade80; margin-top:10px;">GRAN TOTAL A PAGAR: $${grandTotal.toLocaleString()}</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom:15px; text-align:right;">
+                     <button onclick="toggleGlobalView()" style="background:${btnColor}; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">${btnLabel}</button>
+                </div>
+
+                <div style="background:#1e293b; border-radius:8px; overflow:hidden;">
+                    <table style="width:100%; border-collapse:collapse; color:#cbd5e1;">
+                        <thead style="background:#334155; color:white;">
+                            ${isGlobalDetailView ? renderDetailHeader() : renderSummaryHeader()}
+                        </thead>
+                        <tbody id="globalTableBody">
+                            ${isGlobalDetailView ? renderDetailRows() : renderSummaryRows()}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div style="margin-top:20px; text-align:center;">
+                    <button onclick="printGlobalAccount()" class="btn-primary" style="background:#8b5cf6;"><i class="fas fa-print"></i> Imprimir Cuenta de Cobro Global</button>
+                </div>
+            `;
+        }
+
+        // --- SUMMARY VIEW (HOMOGENEOUS) ---
+        function renderSummaryHeader() {
+            return `
+                <tr>
+                    <th style="padding:10px; text-align:left;">Estudio</th>
+                    <th style="padding:10px; text-align:left;">Concepto</th>
+                    <th style="padding:10px; text-align:center;">Cantidad</th>
+                    <th style="padding:10px; text-align:right;">Valor Unitario</th>
+                    <th style="padding:10px; text-align:right;">Total</th>
+                </tr>
+            `;
+        }
+
+        function renderSummaryRows() {
+            // Aggregate by Study Code + Concept Name + Rate
+            const map = {}; // Key: "StudyCode|ConceptName|Rate" -> { qty, total }
+
+            currentGlobalRecords.forEach(r => {
+                let details = [];
+                try { details = JSON.parse(r.details_json); } catch (e) { }
+
+                // If details empty but legacy totals exist, mock items? 
+                // Currently backend saves details_json for everything (auto & manual).
+
+                // Group
+                details.forEach(d => {
+                    const key = `${r.study_code || 'General'}|${d.concept}|${d.rate}`;
+                    if (!map[key]) map[key] = { study: r.study_code || 'General', concept: d.concept, rate: d.rate, qty: 0, total: 0 };
+
+                    map[key].qty += d.qty;
+                    map[key].total += d.total;
+                });
+            });
+
+            // Convert to Array and Sort
+            const rows = Object.values(map).sort((a, b) => a.study.localeCompare(b.study));
+
+            if (rows.length === 0) return '<tr><td colspan="5" style="padding:20px; text-align:center;">Sin detalles.</td></tr>';
+
+            return rows.map(r => `
+                <tr style="border-bottom:1px solid #334155;">
+                    <td style="padding:10px;">${r.study}</td>
+                    <td style="padding:10px;">${r.concept}</td>
+                    <td style="padding:10px; text-align:center;">${r.qty}</td>
+                    <td style="padding:10px; text-align:right;">$${r.rate.toLocaleString()}</td>
+                    <td style="padding:10px; text-align:right; color:#4ade80;">$${r.total.toLocaleString()}</td>
+                </tr>
+            `).join('');
+        }
+
+        // --- DETAILED VIEW (DISAGGREGATED) ---
+        function renderDetailHeader() {
+            return `
+                <tr>
+                    <th style="padding:10px; text-align:left;">Fecha</th>
+                    <th style="padding:10px; text-align:left;">Estudio</th>
+                    <th style="padding:10px; text-align:left;">Supervisor</th>
+                    <th style="padding:10px; text-align:left;">Concepto</th>
+                    <th style="padding:10px; text-align:center;">Cant.</th>
+                    <th style="padding:10px; text-align:right;">Valor</th>
+                    <th style="padding:10px; text-align:right;">Total</th>
+                </tr>
+            `;
+        }
+
+        function renderDetailRows() {
+            let html = '';
+            // Sort records by updated_at desc
+            const sortedRecords = [...currentGlobalRecords].sort((a, b) => new Date(b.updated_at || 0) - new Date(a.updated_at || 0));
+
+            sortedRecords.forEach(r => {
+                let details = [];
+                try { details = JSON.parse(r.details_json); } catch (e) { }
+
+                const dateStr = r.updated_at ? new Date(r.updated_at).toLocaleString() : (r.created_at ? new Date(r.created_at).toLocaleDateString() : '-');
+                const sup = r.last_modified_by || 'Sistema';
+
+                details.forEach(d => {
+                    html += `
+                        <tr style="border-bottom:1px solid #334155;">
+                            <td style="padding:10px; font-size:0.8rem; color:#94a3b8;">${dateStr}</td>
+                            <td style="padding:10px;">${r.study_code || 'General'}</td>
+                            <td style="padding:10px; font-size:0.8rem;">${sup}</td>
+                            <td style="padding:10px;">${d.concept}</td>
+                            <td style="padding:10px; text-align:center;">${d.qty}</td>
+                            <td style="padding:10px; text-align:right;">$${d.rate.toLocaleString()}</td>
+                            <td style="padding:10px; text-align:right; color:#4ade80;">$${d.total.toLocaleString()}</td>
+                        </tr>
+                     `;
+                });
+            });
+
+            if (html === '') return '<tr><td colspan="7" style="padding:20px; text-align:center;">Sin detalles.</td></tr>';
+            return html;
+        }
+
+        function printGlobalAccount() {
+            // Print what is currently visible? Or always Summary?
+            // User: "para imprimir que valla todo homogeneo" (Homogeneous/Summary)
+            // But usually users want to print what they see.
+            // Let's print the Current View. 
+            // If user wants homogeneous, they select Summary (default) then print.
+
+            const tableContent = document.querySelector('#globalAccountResult table').outerHTML;
+            const totals = document.querySelector('#globalAccountResult > div:first-child').innerHTML; // Stats header
+            const userName = currentGlobalUser.name;
+            const userCC = currentGlobalUser.cc;
+            const title = isGlobalDetailView ? "CUENTA DE COBRO DETALLADA" : "CUENTA DE COBRO UNIFICADA";
+            const date = new Date().toLocaleDateString();
+
+            const win = window.open('', '', 'width=900,height=700');
+            win.document.write(`
+                <html>
+                <head>
+                    <title>Imprimir Cuenta Global</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 40px; }
+                        h1, h2 { text-align: center; margin: 0; }
+                        .header { display: flex; justify-content: space-between; margin-top: 40px; border-bottom: 2px solid #000; padding-bottom: 20px; }
+                        .info { margin-top: 20px; font-weight: bold; font-size: 1.1rem; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 30px; }
+                        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                        th { background: #eee; }
+                        .totals { margin-top:30px; text-align:right; font-size:1.2rem; font-weight:bold; }
+                        .signatures { margin-top: 80px; display: flex; justify-content: space-between; }
+                        .sig-line { border-top: 1px solid #000; width: 40%; text-align: center; padding-top: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>AZ MARKETING</h2>
+                    <p>NIT: 900.123.456-7</p>
+                    
+                    <div style="text-align:right;">
+                        <h3>${title}</h3>
+                        <p>${date}</p>
+                    </div>
+                    
+                    <div class="header"></div>
+                    
+                    <div class="info">
+                        NOMBRE: ${userName} <br>
+                        CC: ${userCC} <br>
+                        CUENTA: Banco No Reg. - - N/A
+                    </div>
+                    
+                    ${tableContent}
+                    
+                    <div class="totals">
+                        ${totals.replace(/color:white;/g, 'color:black;').replace(/color:#d1d5db;/g, 'color:black;').replace(/color:#4ade80;/g, 'color:black;')} 
+                    </div>
+                    
+                    <div class="signatures">
+                        <div class="sig-line">Firma Beneficiario</div>
+                        <div class="sig-line">Aprobado AZ Marketing</div>
+                    </div>
+                    
+                    <script>
+                        // Remove dark mode colors from table for print
+                        const table = document.querySelector('table');
+                        table.style.color = 'black';
+                        table.querySelectorAll('th').forEach(th => { th.style.background = '#eee'; th.style.color = 'black'; });
+                        table.querySelectorAll('td').forEach(td => { td.style.color = 'black'; });
+                        window.print();
+                    <\/script>
+</body>
+
+</html>
+`);
+            win.document.close();
+        }
+
         init();
     </script>
+
+    <!-- Modal Concept Manager -->
+    <div id="conceptManagerModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close" onclick="closeConceptManager()">&times;</span>
+            <h3 style="color:#3b82f6; margin-bottom:15px;"><i class="fas fa-tags"></i> Gestionar Conceptos</h3>
+            <p style="color:#cbd5e1; margin-bottom:20px;">Edite los nombres o valores de los conceptos de esta nómina.
+            </p>
+
+            <table style="width:100%; border-collapse:collapse; color:#cbd5e1;">
+                <thead>
+                    <tr style="border-bottom:1px solid #334155;">
+                        <th style="text-align:left; padding:8px;">Nombre</th>
+                        <th style="text-align:left; padding:8px;">Valor Unitario</th>
+                        <th style="text-align:right; padding:8px;">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="conceptManagerBody">
+                    <!-- Dynamic -->
+                </tbody>
+            </table>
+
+            <div style="margin-top:20px; text-align:right;">
+                <button onclick="closeConceptManager()" class="btn-secondary">Cerrar</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Global Account -->
+    <div id="globalAccountModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close" onclick="closeGlobalAccountModal()">&times;</span>
+            <h3 style="color:#3b82f6; margin-bottom:15px;"><i class="fas fa-file-invoice-dollar"></i> Cuenta de Cobro
+                Unificada</h3>
+            <p style="color:#cbd5e1; margin-bottom:20px;">Consulte y genere la cuenta de cobro global para un
+                colaborador.</p>
+
+            <div class="form-group">
+                <label>Seleccione Colaborador</label>
+                <div style="display:flex; gap:10px;">
+                    <select id="globalUserSelect" class="form-input" style="flex:1;">
+                        <option value="">Cargando...</option>
+                    </select>
+                    <button onclick="loadGlobalAccount()" class="btn-primary" style="margin:0;">Consultar</button>
+                </div>
+            </div>
+
+            <div id="globalAccountResult"
+                style="display:none; margin-top:20px; border-top:1px solid #334155; padding-top:20px;">
+                <!-- Dynamic Content -->
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>

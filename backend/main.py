@@ -7,7 +7,7 @@ import json
 import pandas as pd
 import io
 import os
-from typing import List, Optional
+from typing import List, Optional, Dict
 from datetime import datetime
 from pydantic import BaseModel
 import re
@@ -2682,6 +2682,7 @@ def create_period(
     end_date: str = Form(None),   # "Lapsos"
     census_rate: int = Form(5000),
     effective_rate: int = Form(10000),
+    initial_concepts: str = Form(None), # JSON String of initial concepts
     db: Session = Depends(database.get_db)
 ):
     # Handle Dates
@@ -2706,6 +2707,18 @@ def create_period(
     
     # Create
     try:
+        # Handle initial concepts (JSON string)
+        concept_list = []
+        if initial_concepts:
+             try:
+                 raw_concepts = json.loads(initial_concepts) # Expect [{"name": "X", "rate": 10}, ...]
+                 for rc in raw_concepts:
+                     # Validate
+                     if rc.get('name') and rc.get('rate') is not None:
+                         concept_list.append(models.PayrollConcept(name=str(rc['name']).strip(), rate=int(rc['rate'])))
+             except Exception as e:
+                 print(f"Error parsing initial concepts: {e}")
+
         period = models.PayrollPeriod(
             name=name,
             study_code=study_code,
@@ -2717,6 +2730,11 @@ def create_period(
             status="open",
             is_visible=True
         )
+        
+        # Add concepts
+        for c in concept_list:
+            period.concepts.append(c)
+            
         db.add(period)
         db.commit()
         db.refresh(period)
@@ -2725,6 +2743,66 @@ def create_period(
         db.rollback()
         print(f"Error creating period: {e}")
         raise HTTPException(500, detail=f"Error creando nómina: {str(e)}")
+
+@app.post("/payroll/periods/{period_id}/concepts")
+def add_concept(
+    period_id: int, 
+    name: str = Form(...), 
+    rate: int = Form(...), 
+    db: Session = Depends(database.get_db)
+):
+    period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
+    if not period: raise HTTPException(404, "Period not found")
+    
+    new_concept = models.PayrollConcept(period_id=period_id, name=name, rate=rate)
+    db.add(new_concept)
+    db.commit()
+    db.refresh(new_concept)
+    return new_concept
+
+@app.get("/payroll/concepts/suggestions")
+def get_concepts_suggestions(db: Session = Depends(database.get_db)):
+    # Fetch all unique concept names and their latest rate
+    # Subquery to find max ID for each name? Or just simple distinct.
+    # We want valid suggestions.
+    # Group by name?
+    
+    # Simple approach: Get all, map by name to overwrite with latest (likely higher ID).
+    concepts = db.query(models.PayrollConcept).all()
+    
+    suggestions_map = {}
+    for c in concepts:
+        suggestions_map[c.name] = c.rate
+        
+    # Convert to list
+    res = [{"name": k, "rate": v} for k, v in suggestions_map.items()]
+    # Sort by name
+    res.sort(key=lambda x: x['name'])
+    return res
+
+class ConceptUpdate(BaseModel):
+    name: str
+    rate: int
+
+@app.put("/payroll/concepts/{concept_id}")
+def update_concept(
+    concept_id: int, 
+    data: ConceptUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role not in ['superuser', 'admin']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    concept = db.query(models.PayrollConcept).filter(models.PayrollConcept.id == concept_id).first()
+    if not concept:
+        raise HTTPException(status_code=404, detail="Concept not found")
+        
+    concept.name = data.name
+    concept.rate = data.rate
+    db.commit()
+    db.refresh(concept)
+    return concept
 
 @app.post("/payroll/periods/{period_id}/toggle-visibility")
 def toggle_period_visibility(period_id: int, db: Session = Depends(database.get_db)):
@@ -2763,7 +2841,8 @@ def get_periods(db: Session = Depends(database.get_db)):
             "end_date": p.end_date,
             "rates": json.loads(p.rates_snapshot) if p.rates_snapshot else {},
             "status": p.status,
-            "is_visible": p.is_visible if p.is_visible is not None else True
+            "is_visible": p.is_visible if p.is_visible is not None else True,
+            "concepts": [{"id": c.id, "name": c.name, "rate": c.rate} for c in p.concepts]
         })
     return res
 
@@ -2773,51 +2852,53 @@ def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
     if not period:
         raise HTTPException(status_code=404, detail="Period not found")
     
-    # Get active rates for the period's year
-    year = period.start_date.year
-    rates = db.query(models.RateSheet).filter(models.RateSheet.year == year).first()
-    if not rates:
-        raise HTTPException(status_code=400, detail=f"No hay tarifas configuradas para el año {year}")
-    
-    # 1. Clear existing DRAFT records (Only auto-generated ones? Or all? User might have manual edits...)
-    # User said "llamar a personas registradas para asignar encuestas".
-    # If we regenerate, we might lose manual work.
-    # Strategy: Only CREATE missing, or Update existing?
-    # "Generar" usually implies calculating from system.
-    # Let's delete DRAFTs that match the period. Re-generation is destructive to manual edits on DRAFTs.
-    # We should warn user. For now, standard behavior: wipe and recalc.
-    
+    # 1. Clear existing DRAFT records
     db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id, models.PayrollRecord.status == "draft").delete()
     db.commit()
     
     date_filter_start = period.start_date
     date_filter_end = period.end_date.replace(hour=23, minute=59, second=59)
 
-    # Base Query
+    # 2. Base Query for Calls
     query = db.query(models.Call).filter(
         models.Call.updated_at >= date_filter_start,
         models.Call.updated_at <= date_filter_end,
         models.Call.user_id != None
     )
     
-    # Filter by Study if set
     if period.study_id:
         query = query.filter(models.Call.study_id == period.study_id)
         
     calls = query.all()
     
-    # Group by User
+    # 3. Identify Concepts for Automatic Matching
+    # We look for concepts in the period that look like "Encuesta Efectiva" or "Censo"
+    # to attribute the automatic counts to them.
+    # Fallback to Period Snapshot rates if concepts not found (Legacy behavior), 
+    # but mainly we want to use the Concept ID.
+    
+    effective_concept = None
+    census_concept = None
+    
+    for c in period.concepts:
+        name_lower = c.name.lower()
+        if "efectiv" in name_lower: # "Encuestas Efectivas", "Efectiva", etc.
+            effective_concept = c
+        elif "censo" in name_lower:
+            census_concept = c
+            
+    # Fallback Rates from snapshot if concept not found (unlikely if created correctly)
+    snapshot_rates = json.loads(period.rates_snapshot) if period.rates_snapshot else {}
+    rate_eff = effective_concept.rate if effective_concept else snapshot_rates.get("effective", 0)
+    rate_cen = census_concept.rate if census_concept else snapshot_rates.get("census", 0)
+
+    # 4. Group by User
     user_activity = {}
     
     for c in calls:
         uid = c.user_id
         if uid not in user_activity:
-            user_activity[uid] = {
-                "user": c.user,
-                "censuses": 0,
-                "effective": 0,
-                "enp": 0
-            }
+            user_activity[uid] = { "effective": 0, "censuses": 0 }
             
         status_norm = (c.status or "").lower()
         
@@ -2829,25 +2910,46 @@ def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
         if c.census and c.census.strip():
              user_activity[uid]["censuses"] += 1
              
-    # Create Records
+    # 5. Create Records
     created_records = []
     for uid, data in user_activity.items():
         total_p = 0
         details = []
+        record_items_data = [] # For secondary table
         
         # Calc Effective
         if data["effective"] > 0:
             qty = data["effective"]
-            amt = qty * rates.survey_effective_rate
+            amt = qty * rate_eff
             total_p += amt
-            details.append({"concept": "Encuestas Efectivas", "qty": qty, "rate": rates.survey_effective_rate, "total": amt})
+            
+            item = {
+                "concept": effective_concept.name if effective_concept else "Encuestas Efectivas (Auto)", 
+                "qty": qty, 
+                "rate": rate_eff, 
+                "total": amt,
+                "concept_id": effective_concept.id if effective_concept else None
+            }
+            details.append(item)
+            if effective_concept:
+                record_items_data.append({"concept_id": effective_concept.id, "quantity": qty, "total": amt})
             
         # Calc Census
         if data["censuses"] > 0:
             qty = data["censuses"]
-            amt = qty * rates.census_rate
+            amt = qty * rate_cen
             total_p += amt
-            details.append({"concept": "Censos", "qty": qty, "rate": rates.census_rate, "total": amt})
+            
+            item = {
+                "concept": census_concept.name if census_concept else "Censos (Auto)", 
+                "qty": qty, 
+                "rate": rate_cen, 
+                "total": amt,
+                "concept_id": census_concept.id if census_concept else None
+            }
+            details.append(item)
+            if census_concept:
+                record_items_data.append({"concept_id": census_concept.id, "quantity": qty, "total": amt})
             
         # Save
         if total_p > 0:
@@ -2858,9 +2960,22 @@ def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
                 total_censuses=data["censuses"],
                 total_amount=total_p,
                 details_json=json.dumps(details),
-                status="draft"
+                status="draft",
+                last_modified_by="Sistema",
+                updated_at=datetime.now()
             )
             db.add(rec)
+            db.flush() # Get ID
+            
+            # Create Items
+            for item_data in record_items_data:
+                db.add(models.PayrollRecordItem(
+                    record_id=rec.id,
+                    concept_id=item_data['concept_id'],
+                    quantity=item_data['quantity'],
+                    total=item_data['total']
+                ))
+            
             created_records.append(rec)
             
     db.commit()
@@ -2871,21 +2986,25 @@ class PayrollUpdate(BaseModel):
     total_censuses: int
     total_enp: int = 0
     total_training: int = 0
+    items: Optional[Dict[str, int]] = {} # concept_id -> quantity
 
 @app.post("/payroll/records/manual")
-def create_manual_record(period_id: int, user_id: int, data: PayrollUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+def create_manual_record(
+    period_id: int, 
+    user_id: int, 
+    data: PayrollUpdate, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
     # Get Period 
     period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
     if not period: raise HTTPException(404, "Period not found")
     
     # SECURITY: Supervisors cannot edit hidden periods
-    # (Superusers can always edit)
     if not period.is_visible and current_user.role != 'superuser':
         raise HTTPException(status_code=403, detail="No tienes permisos para modificar este pago (está oculto).")
 
-    # Use rates from the Period Snapshot (The 5000/10000 set at creation)
-    # If not present (legacy), fallback to 0 or manual global lookup? 
-    # Let's assume snapshot exists for new flow.
+    # 1. Calculate Standard Legacy Items
     rates = {}
     if period.rates_snapshot:
         rates = json.loads(period.rates_snapshot)
@@ -2893,10 +3012,10 @@ def create_manual_record(period_id: int, user_id: int, data: PayrollUpdate, db: 
     census_rate = rates.get("census", 0)
     effective_rate = rates.get("effective", 0)
     
-    # Calculate Total
     details = []
     total = 0
     
+    # Legacy Calculations
     if data.total_effective > 0:
         amt = data.total_effective * effective_rate
         total += amt
@@ -2907,33 +3026,70 @@ def create_manual_record(period_id: int, user_id: int, data: PayrollUpdate, db: 
         total += amt
         details.append({"concept": "Censos", "qty": data.total_censuses, "rate": census_rate, "total": amt})
 
-    # Check if record exists
+    # 2. Calculate Dynamic Items
+    # Fetch all concepts for this period to verify and get rates
+    period_concepts = {str(c.id): c for c in period.concepts}
+    
+    dynamic_items_data = [] # To store for DB creation/update
+    
+    if data.items:
+        for cid, qty in data.items.items():
+            qty = int(qty)
+            if qty > 0:
+                concept = period_concepts.get(str(cid))
+                if concept:
+                    amt = qty * concept.rate
+                    total += amt
+                    details.append({
+                        "concept": concept.name, 
+                        "qty": qty, 
+                        "rate": concept.rate, 
+                        "total": amt,
+                        "concept_id": concept.id
+                    })
+                    dynamic_items_data.append({"concept_id": concept.id, "quantity": qty, "total": amt})
+
+    # 3. Create or Get Record
     existing = db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id, models.PayrollRecord.user_id == user_id).first()
     
-    if existing:
-        existing.total_effective = data.total_effective
-        existing.total_censuses = data.total_censuses
-        existing.total_enp = data.total_enp
-        existing.total_training_days = data.total_training
-        existing.total_amount = total
-        existing.details_json = json.dumps(details)
-        db.commit()
-        return existing
-    else:
-        rec = models.PayrollRecord(
+    if not existing:
+        existing = models.PayrollRecord(
             period_id=period_id,
             user_id=user_id,
-            total_effective=data.total_effective,
-            total_censuses=data.total_censuses,
-            total_enp=data.total_enp,
-            total_training_days=data.total_training,
-            total_amount=total,
-            details_json=json.dumps(details),
             status="draft"
         )
-        db.add(rec)
-        db.commit()
-        return rec
+        db.add(existing)
+        db.commit() # Commit to get ID
+        db.refresh(existing)
+        
+    # 4. Update Record Fields
+    existing.total_effective = data.total_effective
+    existing.total_censuses = data.total_censuses
+    existing.total_enp = data.total_enp
+    existing.total_training_days = data.total_training
+    existing.total_amount = total
+    existing.details_json = json.dumps(details)
+    
+    # Audit
+    existing.last_modified_by = current_user.username
+    # updated_at will be set automatically by SQLAlchemy onupdate if supported, or we can force it
+    existing.updated_at = datetime.now() # Explicit update to be safe
+    
+    # 5. Connect Dynamic Items (PayrollRecordItem)
+    # Strategy: Wipe existing items for this record and recreate? Or update?
+    # Wiping is safer for full sync.
+    db.query(models.PayrollRecordItem).filter(models.PayrollRecordItem.record_id == existing.id).delete()
+    
+    for item in dynamic_items_data:
+        db.add(models.PayrollRecordItem(
+            record_id=existing.id,
+            concept_id=item['concept_id'],
+            quantity=item['quantity'],
+            total=item['total']
+        ))
+
+    db.commit()
+    return existing
 
 @app.get("/payroll/records/{period_id}")
 def get_payroll_records(period_id: int, db: Session = Depends(database.get_db)):
@@ -2966,7 +3122,11 @@ def get_user_records_admin(user_id: int, db: Session = Depends(database.get_db),
             "total_censuses": r.total_censuses,
             "total_amount": r.total_amount,
             "details_json": r.details_json,
-            "created_at": r.period.created_at # Fixed: Record has no created_at
+            "total_amount": r.total_amount,
+            "details_json": r.details_json,
+            "created_at": r.period.created_at,
+            "last_modified_by": r.last_modified_by,
+            "updated_at": r.updated_at
         })
     return res
 
