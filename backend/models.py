@@ -251,7 +251,19 @@ class PayrollPeriod(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     records = relationship("PayrollRecord", back_populates="period")
+    concepts = relationship("PayrollConcept", back_populates="period", cascade="all, delete-orphan")
     study = relationship("Study") # Relationship
+
+class PayrollConcept(Base):
+    __tablename__ = "payroll_concepts"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    period_id = Column(Integer, ForeignKey("payroll_periods.id"))
+    name = Column(String(100))
+    rate = Column(Integer, default=0)
+    
+    period = relationship("PayrollPeriod", back_populates="concepts")
+    record_items = relationship("PayrollRecordItem", back_populates="concept")
 
 class PayrollRecord(Base):
     __tablename__ = "payroll_records"
@@ -271,6 +283,10 @@ class PayrollRecord(Base):
     total_amount = Column(Integer, default=0) # Sum of all calculated
     adjustments = Column(Integer, default=0) # Manual +/-
     
+    # Audit
+    last_modified_by = Column(String(50), nullable=True)
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
     # JSON breakdown for the detailed table in PDF
     # Structure: [ { "study_name": "Studio 1", "dates": "...", "concept": "Encuesta", "qty": 10, "rate": 1000, "total": 10000 }, ... ]
     details_json = Column(Text, nullable=True) 
@@ -279,6 +295,20 @@ class PayrollRecord(Base):
     
     period = relationship("PayrollPeriod", back_populates="records")
     user = relationship("User", back_populates="payroll_records")
+    items = relationship("PayrollRecordItem", back_populates="record", cascade="all, delete-orphan")
+
+class PayrollRecordItem(Base):
+    __tablename__ = "payroll_record_items"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    record_id = Column(Integer, ForeignKey("payroll_records.id"))
+    concept_id = Column(Integer, ForeignKey("payroll_concepts.id"))
+    
+    quantity = Column(Integer, default=0)
+    total = Column(Integer, default=0)
+    
+    record = relationship("PayrollRecord", back_populates="items")
+    concept = relationship("PayrollConcept", back_populates="record_items")
 
 # Backref alias for User
 User.payroll_records = relationship("PayrollRecord", back_populates="user")
