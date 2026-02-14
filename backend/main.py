@@ -2683,6 +2683,7 @@ def create_period(
     census_rate: int = Form(5000),
     effective_rate: int = Form(10000),
     initial_concepts: str = Form(None), # JSON String of initial concepts
+    supervisor_ids: str = Form(None), # JSON String of user IDs
     db: Session = Depends(database.get_db)
 ):
     # Handle Dates
@@ -2712,6 +2713,7 @@ def create_period(
         if initial_concepts:
              try:
                  raw_concepts = json.loads(initial_concepts) # Expect [{"name": "X", "rate": 10}, ...]
+
                  for rc in raw_concepts:
                      # Validate
                      if rc.get('name') and rc.get('rate') is not None:
@@ -2731,10 +2733,19 @@ def create_period(
             is_visible=True
         )
         
-        # Add concepts
         for c in concept_list:
             period.concepts.append(c)
             
+        # Handle Supervisors
+        if supervisor_ids:
+            try:
+                s_ids = json.loads(supervisor_ids)
+                if isinstance(s_ids, list):
+                     supervisors = db.query(models.User).filter(models.User.id.in_(s_ids)).all()
+                     period.supervisors = supervisors
+            except Exception as e:
+                print(f"Error parsing supervisor IDs: {e}")
+
         db.add(period)
         db.commit()
         db.refresh(period)
@@ -2827,8 +2838,19 @@ def delete_period(period_id: int, db: Session = Depends(database.get_db)):
     return {"status": "ok", "message": "Nómina eliminada"}
 
 @app.get("/payroll/periods")
-def get_periods(db: Session = Depends(database.get_db)):
-    periods = db.query(models.PayrollPeriod).order_by(models.PayrollPeriod.created_at.desc()).all()
+@app.get("/payroll/periods")
+def get_periods(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    query = db.query(models.PayrollPeriod)
+    
+    # RBAC: Superusers see all. Supervisors/Admins see only assigned.
+    if current_user.role != 'superuser':
+        # Filter where current_user is in period.supervisors
+        query = query.filter(models.PayrollPeriod.supervisors.any(id=current_user.id))
+
+    periods = query.order_by(models.PayrollPeriod.created_at.desc()).all()
     res = []
     for p in periods:
         res.append({
@@ -2981,12 +3003,17 @@ def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
     db.commit()
     return {"message": "Generated", "count": len(created_records)}
 
+class PayrollItemUpdate(BaseModel):
+    concept_id: int
+    quantity: int
+    date: Optional[str] = None # YYYY-MM-DD
+
 class PayrollUpdate(BaseModel):
     total_effective: int
     total_censuses: int
     total_enp: int = 0
     total_training: int = 0
-    items: Optional[Dict[str, int]] = {} # concept_id -> quantity
+    items: Optional[List[PayrollItemUpdate]] = [] # New detailed items list
 
 @app.post("/payroll/records/manual")
 def create_manual_record(
@@ -3030,24 +3057,7 @@ def create_manual_record(
     # Fetch all concepts for this period to verify and get rates
     period_concepts = {str(c.id): c for c in period.concepts}
     
-    dynamic_items_data = [] # To store for DB creation/update
-    
-    if data.items:
-        for cid, qty in data.items.items():
-            qty = int(qty)
-            if qty > 0:
-                concept = period_concepts.get(str(cid))
-                if concept:
-                    amt = qty * concept.rate
-                    total += amt
-                    details.append({
-                        "concept": concept.name, 
-                        "qty": qty, 
-                        "rate": concept.rate, 
-                        "total": amt,
-                        "concept_id": concept.id
-                    })
-                    dynamic_items_data.append({"concept_id": concept.id, "quantity": qty, "total": amt})
+
 
     # 3. Create or Get Record
     existing = db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id, models.PayrollRecord.user_id == user_id).first()
@@ -3073,23 +3083,58 @@ def create_manual_record(
     # Audit
     existing.last_modified_by = current_user.username
     # updated_at will be set automatically by SQLAlchemy onupdate if supported, or we can force it
+    # updated_at will be set automatically by SQLAlchemy onupdate if supported, or we can force it
     existing.updated_at = datetime.now() # Explicit update to be safe
     
     # 5. Connect Dynamic Items (PayrollRecordItem)
-    # Strategy: Wipe existing items for this record and recreate? Or update?
-    # Wiping is safer for full sync.
+    # Clear old items (Simpler to clear and re-add for manual edits)
+    # We might want to be careful if we want to preserve history, but usually manual edit overwrites current state.
     db.query(models.PayrollRecordItem).filter(models.PayrollRecordItem.record_id == existing.id).delete()
     
-    for item in dynamic_items_data:
-        db.add(models.PayrollRecordItem(
-            record_id=existing.id,
-            concept_id=item['concept_id'],
-            quantity=item['quantity'],
-            total=item['total']
-        ))
 
+    
+    if data.items:
+        for item in data.items:
+            qty = item.quantity
+            # Allow negative quantities for deductions!
+            if qty != 0:
+                concept = period_concepts.get(str(item.concept_id))
+                if concept:
+                    amt = qty * concept.rate
+                    total += amt
+                    
+                    # Parse date
+                    item_date = None
+                    if item.date:
+                        try:
+                            item_date = datetime.strptime(item.date, "%Y-%m-%d")
+                        except: pass
+                    
+                    details.append({
+                        "concept": concept.name, 
+                        "qty": qty, 
+                        "rate": concept.rate, 
+                        "total": amt,
+                        "concept_id": concept.id,
+                        "date": item.date
+                    })
+                    
+                    db.add(models.PayrollRecordItem(
+                        record_id=existing.id,
+                        concept_id=concept.id,
+                        quantity=qty,
+                        rate=concept.rate,
+                        total=amt,
+                        date=item_date
+                    ))
+    
+    # Update total with new items calc
+    # Note: Legacy calc above added to 'total'. Dynamic calc adds to 'total'.
+    existing.total_amount = total
     db.commit()
     return existing
+
+
 
 @app.get("/payroll/records/{period_id}")
 def get_payroll_records(period_id: int, db: Session = Depends(database.get_db)):
