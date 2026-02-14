@@ -2816,7 +2816,14 @@ def update_concept(
     return concept
 
 @app.post("/payroll/periods/{period_id}/toggle-visibility")
-def toggle_period_visibility(period_id: int, db: Session = Depends(database.get_db)):
+def toggle_period_visibility(
+    period_id: int, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role != 'superuser':
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
     p = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
     if not p: raise HTTPException(404, "Period not found")
     p.is_visible = not p.is_visible
@@ -2824,7 +2831,14 @@ def toggle_period_visibility(period_id: int, db: Session = Depends(database.get_
     return {"status": "ok", "is_visible": p.is_visible}
 
 @app.delete("/payroll/periods/{period_id}")
-def delete_period(period_id: int, db: Session = Depends(database.get_db)):
+def delete_period(
+    period_id: int, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role != 'superuser':
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
     # Cascade delete is handled by database usually, but we should verify.
     # For now, simplistic delete.
     p = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()

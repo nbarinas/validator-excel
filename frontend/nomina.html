@@ -7,6 +7,7 @@
     <title>Nómina - AZ Marketing</title>
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <style>
         /* SCROLL FIX */
         body {
@@ -238,7 +239,23 @@
 
             <!-- LIST CARD -->
             <div class="card" id="listCard">
-                <h3>Historial de Nóminas</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <input type="checkbox" id="selectAllPeriods" onchange="toggleSelectAll(this)"
+                            style="width: 20px; height: 20px; cursor: pointer;" title="Seleccionar Todos">
+                        <h3 style="margin:0;">Historial de Nóminas</h3>
+                    </div>
+                    <div id="bulkActions" style="display: none; gap: 10px;">
+                        <button onclick="exportBulkExcel()"
+                            style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-file-excel"></i> Exportar Excel
+                        </button>
+                        <button onclick="exportBulkPDF()"
+                            style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-file-pdf"></i> Exportar PDF
+                        </button>
+                    </div>
+                </div>
                 <div id="periodsList"></div>
             </div>
 
@@ -254,6 +271,24 @@
                         <button onclick="openManualModal()"
                             style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
                             <i class="fas fa-user-plus"></i> Agregar Persona
+                        </button>
+
+                        <button id="editPeriodBtn" onclick="openConceptManager()"
+                            style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none;">
+                            <i class="fas fa-edit"></i> Editar Nómina
+                        </button>
+
+                        <div style="border-left: 1px solid #475569; margin: 0 5px;"></div>
+
+                        <button onclick="exportToExcel()"
+                            style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                            title="Descargar Excel">
+                            <i class="fas fa-file-excel"></i> Excel
+                        </button>
+                        <button onclick="exportToPDF()"
+                            style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                            title="Imprimir PDF">
+                            <i class="fas fa-file-pdf"></i> PDF
                         </button>
                         <button onclick="closeDetails()"
                             style="background: transparent; color: white; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
@@ -498,16 +533,16 @@
         }
 
         async function loadUsersForDropdown() {
-            // FILTER DEEP: Request excluded roles from backend directly
-            const uRes = await fetch('/users?exclude_roles=auxiliar', { headers: { 'Authorization': 'Bearer ' + token } });
+            // Fetch ALL users (no filters) to allow user to decide who to add
+            const uRes = await fetch('/users', { headers: { 'Authorization': 'Bearer ' + token } });
             const uList = await uRes.json();
             window.allUsersMap = {};
-            const sel = document.getElementById('manualUser');
-            sel.innerHTML = '';
 
-            // Populate Global Search too
-            const globSel = document.getElementById('globalUserParams');
-            globSel.innerHTML = '<option value="">Seleccione...</option>';
+            const manualList = document.getElementById('manualUserList');
+            if (manualList) manualList.innerHTML = '';
+
+            const globalList = document.getElementById('globalUserList');
+            if (globalList) globalList.innerHTML = '';
 
             const sorted = uList.sort((a, b) => (a.full_name || a.username).localeCompare(b.full_name || b.username));
 
@@ -515,21 +550,20 @@
                 window.allUsersMap[u.id] = u;
 
                 // FILTER: Do not show 'auxiliar' role in the payroll addition list
-                // Unless the user specifically asks for them, usually they are system accounts.
-                // Keeping 'agent', 'supervisor' and 'superuser' (if they receive payments).
                 const r = (u.role || '').toLowerCase().trim();
                 if (r === 'auxiliar') return;
 
                 // Add to manual datalist
                 let opt = document.createElement('option');
                 opt.value = `${u.full_name || u.username} (${u.username})`; // Value shown
-                opt.dataset.id = u.id; // Hidden ID not directly supported in datalist option value access easily without map
-                document.getElementById('manualUserList').appendChild(opt);
 
-                // Add to Global Dropdown (Keep as select for now or upgrade? User asked for search "for adding payroll")
-                // Let's upgrade Global Search too for consistency
-                let opt2 = opt.cloneNode(true);
-                document.getElementById('globalUserList').appendChild(opt2);
+                if (manualList) manualList.appendChild(opt);
+
+                // Add to Global Dropdown
+                if (globalList) {
+                    let opt2 = opt.cloneNode(true);
+                    globalList.appendChild(opt2);
+                }
             });
         }
 
@@ -935,9 +969,11 @@
             }
         }
 
+        let allFetchedPeriods = [];
         async function loadPeriods() {
             const res = await fetch('/payroll/periods', { headers: { 'Authorization': 'Bearer ' + token } });
             const list = await res.json();
+            allFetchedPeriods = list;
             const container = document.getElementById('periodsList');
             container.innerHTML = '';
 
@@ -983,16 +1019,25 @@
                 div.style.borderLeft = `4px solid ${stateColor}`;
                 div.style.opacity = opacity;
 
+                const checkboxHtml = `
+                    <div style="margin-right: 15px;">
+                        <input type="checkbox" class="period-checkbox" data-id="${p.id}" onchange="updateBulkActionsVisibility()" style="width: 20px; height: 20px; cursor: pointer;">
+                    </div>
+                `;
+
                 div.innerHTML = `
-                    <div>
-                        <div style="font-weight:bold; font-size:1.1rem; display:flex; align-items:center; gap:10px;">
-                            ${p.name} 
-                            <span style="font-size:0.8rem; background:#0f172a; padding:2px 6px; border-radius:4px;">${p.study_code || 'S/C'}</span>
-                            <span style="font-size:0.75rem; background:${stateColor}; padding:2px 8px; border-radius:10px; color:white;">${stateLabel}</span>
-                        </div>
-                        <div style="color:#aaa; font-size:0.9rem; margin-top:4px;">
-                            <i class="far fa-calendar-alt"></i> ${start} - ${end} | 
-                            <span style="text-transform:uppercase; color:#93c5fd;">${p.study_type || 'General'}</span>
+                    <div style="display: flex; align-items: center;">
+                        ${checkboxHtml}
+                        <div>
+                            <div style="font-weight:bold; font-size:1.1rem; display:flex; align-items:center; gap:10px;">
+                                ${p.name} 
+                                <span style="font-size:0.8rem; background:#0f172a; padding:2px 6px; border-radius:4px;">${p.study_code || 'S/C'}</span>
+                                <span style="font-size:0.75rem; background:${stateColor}; padding:2px 8px; border-radius:10px; color:white;">${stateLabel}</span>
+                            </div>
+                            <div style="color:#aaa; font-size:0.9rem; margin-top:4px;">
+                                <i class="far fa-calendar-alt"></i> ${start} - ${end} | 
+                                <span style="text-transform:uppercase; color:#93c5fd;">${p.study_type || 'General'}</span>
+                            </div>
                         </div>
                     </div>
                     <div style="display:flex; align-items:center;">
@@ -1001,9 +1046,162 @@
                 `;
                 container.appendChild(div);
             });
+            updateBulkActionsVisibility(); // Reset visibility if list reloaded
         }
 
+        function toggleSelectAll(masterCb) {
+            const cbs = document.querySelectorAll('.period-checkbox');
+            cbs.forEach(cb => {
+                cb.checked = masterCb.checked;
+            });
+            updateBulkActionsVisibility();
+        }
+
+        function updateBulkActionsVisibility() {
+            const checked = document.querySelectorAll('.period-checkbox:checked');
+            const total = document.querySelectorAll('.period-checkbox').length;
+            const bulkActions = document.getElementById('bulkActions');
+            if (bulkActions) {
+                bulkActions.style.display = checked.length > 0 ? 'flex' : 'none';
+            }
+
+            // Sync master checkbox
+            const master = document.getElementById('selectAllPeriods');
+            if (master) {
+                master.checked = checked.length > 0 && checked.length === total;
+                master.indeterminate = checked.length > 0 && checked.length < total;
+            }
+        }
+
+        async function exportBulkExcel() {
+            const checked = document.querySelectorAll('.period-checkbox:checked');
+            const selectedIds = Array.from(checked).map(cb => parseInt(cb.dataset.id));
+            if (selectedIds.length === 0) return;
+
+            const allRows = [];
+
+            for (let id of selectedIds) {
+                const period = allFetchedPeriods.find(p => p.id === id);
+                if (!period) continue;
+
+                const res = await fetch(`/payroll/records/${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const records = await res.json();
+
+                const periodConcepts = period.concepts || [];
+                if (periodConcepts.length === 0 && period.rates) {
+                    if (period.rates.census) periodConcepts.push({ id: 'census', name: 'Censos', rate: period.rates.census });
+                    if (period.rates.effective) periodConcepts.push({ id: 'effective', name: 'Encuestas Efectivas', rate: period.rates.effective });
+                }
+
+                records.forEach(r => {
+                    const user = window.allUsersMap[r.user_id] || { full_name: 'Unknown', username: r.user_id };
+                    let details = [];
+                    try { details = JSON.parse(r.details_json); } catch (e) { }
+
+                    const row = {
+                        "Nómina": period.name,
+                        "Estudio": period.study_code || 'Gral',
+                        "Colaborador": user.full_name || user.username,
+                        "CC/Usuario": user.username,
+                        "Total Pagar": r.total_amount
+                    };
+
+                    // Add concept breakdowns
+                    details.forEach(d => {
+                        row[`${d.concept} (Cant)`] = d.qty;
+                        row[`${d.concept} ($)`] = d.total;
+                    });
+
+                    allRows.push(row);
+                });
+            }
+
+            if (allRows.length === 0) return alert("No hay datos para exportar.");
+
+            const ws = XLSX.utils.json_to_sheet(allRows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Nóminas Seleccionadas");
+            XLSX.writeFile(wb, `Export_Nomina_Masiva_${new Date().getTime()}.xlsx`);
+        }
+
+        async function exportBulkPDF() {
+            const checked = document.querySelectorAll('.period-checkbox:checked');
+            const selectedIds = Array.from(checked).map(cb => parseInt(cb.dataset.id));
+            if (selectedIds.length === 0) return;
+
+            const win = window.open('', '', 'width=1100,height=800');
+            win.document.write('<html><head><title>Reporte Masivo de Nóminas</title><style>body { font-family: sans-serif; padding: 20px; color: #333; } .page-break { page-break-after: always; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; } th, td { border: 1px solid #e2e8f0; padding: 6px; text-align: left; } th { background: #f8fafc; color: #475569; } h2, h3 { text-align: center; color: #1e293b; } .total-row { font-weight: bold; background: #f1f5f9; }</style></head><body>');
+            win.document.write('<h2>AZ MARKETING - REPORTE DE NÓMINA CONSOLIDADO</h2>');
+
+            for (let id of selectedIds) {
+                const period = allFetchedPeriods.find(p => p.id === id);
+                if (!period) continue;
+
+                const res = await fetch(`/payroll/records/${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const records = await res.json();
+
+                const periodConcepts = (period.concepts || []).sort((a, b) => a.name.localeCompare(b.name));
+                if (periodConcepts.length === 0 && period.rates) {
+                    if (period.rates.census) periodConcepts.push({ id: 'census', name: 'Censos', rate: period.rates.census });
+                    if (period.rates.effective) periodConcepts.push({ id: 'effective', name: 'Encuestas Efectivas', rate: period.rates.effective });
+                }
+
+                win.document.write(`<div class="page-break"><h3>${period.name} (${period.study_code || 'Gral'})</h3>`);
+                win.document.write('<table><thead><tr><th>Colaborador</th>');
+                periodConcepts.forEach(c => { win.document.write(`<th style="text-align:center;">${c.name}<br>$${c.rate.toLocaleString()}</th>`); });
+                win.document.write('<th>Total</th></tr></thead><tbody>');
+
+                let periodTotal = 0;
+                records.forEach(r => {
+                    const user = window.allUsersMap[r.user_id] || { full_name: 'Unknown', username: r.user_id };
+                    let details = [];
+                    try { details = JSON.parse(r.details_json); } catch (e) { }
+                    periodTotal += r.total_amount;
+
+                    win.document.write(`<tr><td>${user.full_name || user.username}<br><small>${user.username}</small></td>`);
+                    periodConcepts.forEach(pc => {
+                        const item = details.find(d => d.concept_id === pc.id || d.concept === pc.name);
+                        win.document.write(`<td style="text-align:center;">${item ? item.qty : 0}<br><small>$${(item ? item.total : 0).toLocaleString()}</small></td>`);
+                    });
+                    win.document.write(`<td style="font-weight:bold;">$${r.total_amount.toLocaleString()}</td></tr>`);
+                });
+
+                win.document.write(`<tr class="total-row"><td colspan="${periodConcepts.length + 1}" style="text-align:right;">TOTAL ESTUDIO:</td><td>$${periodTotal.toLocaleString()}</td></tr>`);
+                win.document.write('</tbody></table></div>');
+            }
+
+            win.document.write('<script>setTimeout(() => { window.print(); window.close(); }, 1200);<\/script></body></html>');
+            win.document.close();
+        }
+
+        async function toggleVisibility(id) {
+            const res = await fetch(`/payroll/periods/${id}/toggle-visibility`, {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok) {
+                loadPeriods();
+            } else {
+                alert("Error al cambiar visibilidad");
+            }
+        }
+
+        async function deletePeriod(id) {
+            if (!confirm("¿Está seguro de eliminar esta nómina por completo? Esto eliminará todos los registros de pago asociados.")) return;
+            const res = await fetch(`/payroll/periods/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if (res.ok) {
+                loadPeriods();
+            } else {
+                alert("Error al eliminar");
+            }
+        }
+
+        let currentPeriodMetadata = null;
         async function openDetails(period) {
+            currentPeriodMetadata = period;
             currentLiquidacionId = period.id;
             // Ensure concepts are available.
             currentPeriodConcepts = period.concepts || [];
@@ -1021,16 +1219,10 @@
 
             // Subtitle & Edit Button (Superuser Only)
             const isSuper = currentUser.role === 'superuser';
-            let editBtn = '';
-            if (isSuper) {
-                editBtn = `
-                <button onclick="openConceptManager()" style="background:#f59e0b; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.8rem; margin-left:10px; cursor:pointer;">
-                    <i class="fas fa-edit"></i> Editar Nómina
-                </button>`;
-            }
+            document.getElementById('editPeriodBtn').style.display = isSuper ? 'block' : 'none';
 
             const subtitle = document.getElementById('detailsSubtitle');
-            subtitle.innerHTML = `${currentPeriodConcepts.length} Conceptos Configurados ${editBtn}`;
+            subtitle.innerHTML = `${currentPeriodConcepts.length} Conceptos Configurados`;
 
             // Build Dynamic Header
             const thead = document.querySelector('#periodDetailsCard thead tr');
@@ -1044,6 +1236,96 @@
             thead.innerHTML += '<th>Total Pagar</th><th>Acciones</th>';
 
             loadRecords(period.id);
+        }
+
+        async function exportToExcel() {
+            if (!currentLiquidacionId || !currentPeriodMetadata) return;
+            const res = await fetch(`/payroll/records/${currentLiquidacionId}`, { headers: { 'Authorization': 'Bearer ' + token } });
+            const records = await res.json();
+
+            // Format data for sheet
+            const data = records.map(r => {
+                const user = window.allUsersMap[r.user_id] || { full_name: 'Unknown', username: r.user_id };
+                const row = {
+                    "Colaborador": user.full_name || user.username,
+                    "CC/Usuario": user.username,
+                };
+
+                // Add concepts qty and total
+                let details = [];
+                try { details = JSON.parse(r.details_json); } catch (e) { }
+
+                currentPeriodConcepts.forEach(c => {
+                    const item = details.find(d => d.concept_id === c.id || d.concept === c.name);
+                    row[`${c.name} (Cant)`] = item ? item.qty : 0;
+                    row[`${c.name} ($)`] = item ? item.total : 0;
+                });
+
+                row["Total Pagar"] = r.total_amount;
+                return row;
+            });
+
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Nómina");
+
+            // Auto-width for columns
+            const range = XLSX.utils.decode_range(ws['!ref']);
+            const wscols = [];
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+                wscols.push({ wch: 20 });
+            }
+            ws['!cols'] = wscols;
+
+            const fileName = `Nomina_${currentPeriodMetadata.study_code || 'Gral'}_${currentPeriodMetadata.name.replace(/\s+/g, '_')}.xlsx`;
+            XLSX.writeFile(wb, fileName);
+        }
+
+        function exportToPDF() {
+            // Re-use current table view for a clean print
+            if (!currentPeriodMetadata) return;
+
+            const title = document.getElementById('detailsTitle').textContent;
+            const tableHtml = document.querySelector('#periodDetailsCard table').outerHTML;
+            const date = new Date().toLocaleDateString();
+
+            const win = window.open('', '', 'width=1100,height=800');
+            win.document.write(`
+                <html>
+                <head>
+                    <title>Nómina - ${title}</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 20px; color: #333; }
+                        h2 { text-align: center; color: #1e293b; margin-bottom: 5px; }
+                        .subtitle { text-align: center; color: #64748b; margin-bottom: 30px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
+                        th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+                        th { background: #f8fafc; color: #475569; font-weight: bold; }
+                        .text-center { text-align: center; }
+                        .text-right { text-align: right; }
+                        .total-cell { font-weight: bold; color: #059669; }
+                        /* Hide actions column in print */
+                        th:last-child, td:last-child { display: none; }
+                        @media print {
+                            @page { size: landscape; margin: 1cm; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <h2>AZ MARKETING</h2>
+                    <div class="subtitle">Resumen de Nómina: ${title} | Fecha: ${date}</div>
+                    ${tableHtml}
+                    <div style="margin-top: 50px; display: flex; justify-content: space-around;">
+                        <div style="border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px;">Revisado por</div>
+                        <div style="border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px;">Autorizado por</div>
+                    </div>
+                    <script>
+                        setTimeout(() => { window.print(); window.close(); }, 500);
+                    <\/script>
+                </body>
+                </html>
+            `);
+            win.document.close();
         }
 
         function closeDetails() {
@@ -1181,30 +1463,23 @@
         }
 
         function rebuildUserDropdown(excludeSet = null) {
-            const sel = document.getElementById('manualUser');
-            sel.innerHTML = '';
+            const list = document.getElementById('manualUserList');
+            if (!list) return;
+            list.innerHTML = '';
             const sortedUsers = Object.values(window.allUsersMap).sort((a, b) => (a.full_name || a.username).localeCompare(b.full_name || b.username));
             sortedUsers.forEach(u => {
                 if (excludeSet && excludeSet.has(u.id)) return;
+
+                const r = (u.role || '').toLowerCase().trim();
+                if (r === 'auxiliar') return;
+
                 const opt = document.createElement('option');
-                opt.value = u.id;
-                opt.textContent = u.full_name || u.username;
-                sel.appendChild(opt);
+                opt.value = `${u.full_name || u.username} (${u.username})`;
+                list.appendChild(opt);
             });
         }
 
         // --- DYNAMIC MANUAL MODAL FORMS ---
-
-        function openManualModal() {
-            if (!currentLiquidacionId) return;
-            rebuildUserDropdown(currentPeriodUserIds);
-
-            // Generate Inputs
-            generateManualInputs();
-
-            document.getElementById('manualModal').style.display = 'block';
-            document.getElementById('manualUser').disabled = false;
-        }
 
         let manualItems = [];
         let manualUserId = null;
@@ -1248,8 +1523,15 @@
             }
         }
 
-        function openManualModal() {
+        async function openManualModal() {
             if (!currentLiquidacionId) return;
+
+            // Refresh user list from server to ensure new users appear
+            await loadUsersForDropdown();
+
+            // Populate/Filter users for this period
+            rebuildUserDropdown(currentPeriodUserIds);
+
             // Clear
             manualItems = [];
             manualUserId = null;
@@ -1404,58 +1686,6 @@
             }
         }
 
-
-
-        function closeManualModal() {
-            document.getElementById('manualModal').style.display = 'none';
-        }
-
-        async function saveManualRecord() {
-            const userId = document.getElementById('manualUser').value;
-
-            // Gather items
-            const items = {};
-            let totalEff = 0; // Legacy fallback
-            let totalCen = 0; // Legacy fallback
-
-            currentPeriodConcepts.forEach(c => {
-                const inp = document.getElementById(`manual_qty_${c.id}`);
-                const qty = parseInt(inp.value) || 0;
-                if (qty > 0) items[c.id] = qty;
-
-                // Legacy mapping for backward compatibility if needed?
-                // The backend now relies on `items` primarily if sent.
-                // But `create_manual_record` has `total_effective` required in schema?
-                // Yes: class PayrollUpdate(BaseModel): total_effective: int, total_censuses: int ...
-
-                if (c.name.toLowerCase().includes('efectiv')) totalEff += qty;
-                if (c.name.toLowerCase().includes('censo')) totalCen += qty;
-            });
-
-            const body = {
-                total_effective: totalEff,
-                total_censuses: totalCen,
-                total_enp: 0,
-                total_training: 0,
-                items: items
-            };
-
-            const res = await fetch(`/payroll/records/manual?period_id=${currentLiquidacionId}&user_id=${userId}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + token,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(body)
-            });
-
-            if (res.ok) {
-                closeManualModal();
-                loadRecords(currentLiquidacionId);
-            } else {
-                alert("Error al guardar.");
-            }
-        }
 
         async function loadMyPayments() {
             const res = await fetch('/payroll/my-records', { headers: { 'Authorization': 'Bearer ' + token } });
