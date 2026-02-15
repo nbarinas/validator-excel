@@ -3162,6 +3162,7 @@ def create_manual_record(
     # Update total with new items calc
     # Note: Legacy calc above added to 'total'. Dynamic calc adds to 'total'.
     existing.total_amount = total
+    existing.details_json = json.dumps(details) # FIX: Update JSON after adding items
     db.commit()
     return existing
 
