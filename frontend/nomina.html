@@ -2085,14 +2085,45 @@
                 try { details = JSON.parse(r.details_json); } catch (e) { }
                 if (!Array.isArray(details)) details = [];
 
-                // If details empty but total > 0 (Legacy/Error), create a fallback item
                 if (details.length === 0 && r.total_amount > 0) {
-                    details.push({
-                        concept: "Pago/Ajuste (Sin detalle)",
-                        qty: 1,
-                        rate: r.total_amount,
-                        total: r.total_amount
-                    });
+                    // Try Heuristics strictly for Current Period (where we have concept info)
+                    if (r.period_id === currentLiquidacionId && currentPeriodConcepts && currentPeriodConcepts.length > 0) {
+                        // 1. Single Concept Heuristic
+                        if (currentPeriodConcepts.length === 1) {
+                            const c = currentPeriodConcepts[0];
+                            const qty = c.rate > 0 ? Math.floor(r.total_amount / c.rate) : 1;
+                            details.push({
+                                concept: c.name,
+                                qty: qty,
+                                rate: c.rate,
+                                total: r.total_amount
+                            });
+                        }
+                        // 2. Smart Math Heuristic
+                        else {
+                            const matches = currentPeriodConcepts.filter(c => c.rate > 0 && (r.total_amount % c.rate === 0) && (r.total_amount >= c.rate));
+                            if (matches.length === 1) {
+                                const c = matches[0];
+                                const qty = Math.floor(r.total_amount / c.rate);
+                                details.push({
+                                    concept: c.name,
+                                    qty: qty,
+                                    rate: c.rate,
+                                    total: r.total_amount
+                                });
+                            }
+                        }
+                    }
+
+                    // Fallback if heuristics failed
+                    if (details.length === 0) {
+                        details.push({
+                            concept: "Pago/Ajuste (Sin detalle)",
+                            qty: 1,
+                            rate: r.total_amount,
+                            total: r.total_amount
+                        });
+                    }
                 }
 
                 // Group
@@ -2149,14 +2180,45 @@
                 const dateStr = r.updated_at ? new Date(r.updated_at).toLocaleString() : (r.created_at ? new Date(r.created_at).toLocaleDateString() : '-');
                 const sup = r.last_modified_by || 'Sistema';
 
-                // If details empty but total > 0 (Legacy/Error), create a fallback item
                 if (details.length === 0 && r.total_amount > 0) {
-                    details.push({
-                        concept: "Pago/Ajuste (Sin detalle)",
-                        qty: 1,
-                        rate: r.total_amount,
-                        total: r.total_amount
-                    });
+                    // Try Heuristics strictly for Current Period (where we have concept info)
+                    if (r.period_id === currentLiquidacionId && currentPeriodConcepts && currentPeriodConcepts.length > 0) {
+                        // 1. Single Concept Heuristic
+                        if (currentPeriodConcepts.length === 1) {
+                            const c = currentPeriodConcepts[0];
+                            const qty = c.rate > 0 ? Math.floor(r.total_amount / c.rate) : 1;
+                            details.push({
+                                concept: c.name,
+                                qty: qty,
+                                rate: c.rate,
+                                total: r.total_amount
+                            });
+                        }
+                        // 2. Smart Math Heuristic
+                        else {
+                            const matches = currentPeriodConcepts.filter(c => c.rate > 0 && (r.total_amount % c.rate === 0) && (r.total_amount >= c.rate));
+                            if (matches.length === 1) {
+                                const c = matches[0];
+                                const qty = Math.floor(r.total_amount / c.rate);
+                                details.push({
+                                    concept: c.name,
+                                    qty: qty,
+                                    rate: c.rate,
+                                    total: r.total_amount
+                                });
+                            }
+                        }
+                    }
+
+                    // Fallback
+                    if (details.length === 0) {
+                        details.push({
+                            concept: "Pago/Ajuste (Sin detalle)",
+                            qty: 1,
+                            rate: r.total_amount,
+                            total: r.total_amount
+                        });
+                    }
                 }
 
                 details.forEach(d => {
