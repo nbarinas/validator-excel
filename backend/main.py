@@ -3209,6 +3209,84 @@ def get_active_payroll_users(db: Session = Depends(database.get_db), current_use
     
     return [{"id": u.id, "full_name": u.full_name, "username": u.username} for u in users]
 
+class LoanCreate(BaseModel):
+    user_id: int
+    amount: int
+    description: str
+
+class LoanPaymentCreate(BaseModel):
+    amount: int
+    notes: Optional[str] = None
+
+@app.post("/loans")
+def create_loan(data: LoanCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role not in ['superuser', 'admin', 'coordinator']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    user = db.query(models.User).filter(models.User.id == data.user_id).first()
+    if not user: raise HTTPException(404, "User not found")
+    
+    loan = models.Loan(
+        user_id=data.user_id,
+        amount=data.amount,
+        balance=data.amount,
+        description=data.description,
+        status="active"
+    )
+    db.add(loan)
+    db.commit()
+    db.refresh(loan)
+    return loan
+
+@app.get("/loans/user/{user_id}")
+def get_user_loans(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Allow user to see their own loans? For now admin/super/coord
+    if current_user.role not in ['superuser', 'admin', 'coordinator'] and current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    loans = db.query(models.Loan).filter(models.Loan.user_id == user_id).order_by(models.Loan.created_at.desc()).all()
+    return loans
+
+@app.post("/loans/{loan_id}/payment")
+def add_loan_payment(loan_id: int, data: LoanPaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role not in ['superuser', 'admin', 'coordinator']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
+    if not loan: raise HTTPException(404, "Loan not found")
+    
+    # Create Payment
+    payment = models.LoanPayment(
+        loan_id=loan.id,
+        amount=data.amount,
+        notes=data.notes,
+        date=datetime.now()
+    )
+    db.add(payment)
+    
+    # Update Balance
+    loan.balance -= data.amount
+    if loan.balance <= 0:
+        loan.status = "paid"
+    elif loan.status == "paid" and loan.balance > 0:
+        loan.status = "active"
+        
+    db.commit()
+    return {"status": "ok", "new_balance": loan.balance}
+
+@app.delete("/loans/{loan_id}")
+def delete_loan(loan_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != 'superuser':
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    loan = db.query(models.Loan).filter(models.Loan.id == loan_id).first()
+    if not loan: raise HTTPException(404, "Loan not found")
+    
+    # Payments cascade delete
+    db.delete(loan)
+    db.commit()
+    return {"status": "ok"}
+
 @app.get("/nomina-page")
 async def nomina_page():
     return FileResponse(os.path.join(FRONTEND_DIR, "nomina.html"))
