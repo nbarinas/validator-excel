@@ -2269,8 +2269,15 @@
 
                 // Group
                 details.forEach(d => {
-                    const key = `${r.study_code || 'General'}|${d.concept}|${d.rate}`;
-                    if (!map[key]) map[key] = { study: r.study_code || 'General', concept: d.concept, rate: d.rate, qty: 0, total: 0 };
+                    const key = `${r.study_code || 'General'}|${r.period_name || ''}|${d.concept}|${d.rate}`;
+                    if (!map[key]) map[key] = {
+                        study: r.study_code || 'General',
+                        study_name: r.period_name || '',
+                        concept: d.concept,
+                        rate: d.rate,
+                        qty: 0,
+                        total: 0
+                    };
 
                     map[key].qty += d.qty;
                     map[key].total += d.total;
@@ -2284,7 +2291,10 @@
 
             return rows.map(r => `
                 <tr style="border-bottom:1px solid #334155;">
-                    <td style="padding:10px;">${r.study}</td>
+                    <td style="padding:10px;">
+                        <span style="font-weight:bold;">${r.study}</span><br>
+                        <span style="font-size:0.75rem; color:#64748b; font-style:italic;">${r.study_name}</span>
+                    </td>
                     <td style="padding:10px;">${r.concept}</td>
                     <td style="padding:10px; text-align:center;">${r.qty}</td>
                     <td style="padding:10px; text-align:right;">$${r.rate.toLocaleString()}</td>
@@ -2366,7 +2376,10 @@
                     html += `
                         <tr style="border-bottom:1px solid #334155;">
                             <td style="padding:10px; font-size:0.8rem; color:#94a3b8;">${dateStr}</td>
-                            <td style="padding:10px;">${r.study_code || 'General'}</td>
+                            <td style="padding:10px;">
+                                <b>${r.study_code || 'General'}</b><br>
+                                <small style="color:#64748b;">${r.period_name || ''}</small>
+                            </td>
                             <td style="padding:10px; font-size:0.8rem;">${sup}</td>
                             <td style="padding:10px;">${d.concept}</td>
                             <td style="padding:10px; text-align:center;">${d.qty}</td>
