@@ -176,6 +176,10 @@
                     <input type="text" id="username" required placeholder="Ej: 123456789">
                 </div>
                 <div class="form-group">
+                    <label>Cédula de Ciudadanía</label>
+                    <input type="text" id="cedula_ciudadania" placeholder="Cédula si es diferente al usuario">
+                </div>
+                <div class="form-group">
                     <label>Contraseña</label>
                     <input type="password" id="password" required placeholder="Contraseña">
                 </div>
@@ -312,6 +316,11 @@
                     <div class="form-group">
                         <label>Usuario (CC/Username)</label>
                         <input type="text" id="edit_username" disabled style="background: rgba(255,255,255,0.5);">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cédula de Ciudadanía</label>
+                        <input type="text" id="edit_cedula_ciudadania">
                     </div>
 
                     <div class="form-group">
@@ -529,6 +538,7 @@
             const blood_type = document.getElementById('blood_type').value;
             const account_holder = document.getElementById('account_holder').value;
             const account_holder_cc = document.getElementById('account_holder_cc').value;
+            const cedula_ciudadania = document.getElementById('cedula_ciudadania').value;
 
             // Validation
             if (phone_number) {
@@ -566,7 +576,8 @@
                         neighborhood,
                         blood_type,
                         account_holder,
-                        account_holder_cc
+                        account_holder_cc,
+                        cedula_ciudadania
                     })
                 });
 
@@ -607,6 +618,7 @@
             document.getElementById('edit_blood_type').value = user.blood_type || '';
             document.getElementById('edit_account_holder').value = user.account_holder || '';
             document.getElementById('edit_account_holder_cc').value = user.account_holder_cc || '';
+            document.getElementById('edit_cedula_ciudadania').value = user.cedula_ciudadania || '';
 
             document.getElementById('editUserModal').style.display = 'flex';
         }
@@ -632,7 +644,8 @@
                 neighborhood: document.getElementById('edit_neighborhood').value,
                 blood_type: document.getElementById('edit_blood_type').value,
                 account_holder: document.getElementById('edit_account_holder').value,
-                account_holder_cc: document.getElementById('edit_account_holder_cc').value
+                account_holder_cc: document.getElementById('edit_account_holder_cc').value,
+                cedula_ciudadania: document.getElementById('edit_cedula_ciudadania').value
             };
 
             const pass = document.getElementById('edit_password').value;
@@ -707,6 +720,7 @@
                         
                         Nombre: ${u.full_name || '-'}
                         CC/Usuario: ${u.username}
+                        Cédula: ${u.cedula_ciudadania || '-'}
                         Rol: ${u.role}
                         Celular: ${u.phone_number || '-'}
                         Ciudad: ${u.city || '-'}

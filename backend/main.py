@@ -138,6 +138,7 @@ class UserCreate(BaseModel):
     blood_type: Optional[str] = None
     account_holder: Optional[str] = None
     account_holder_cc: Optional[str] = None
+    cedula_ciudadania: Optional[str] = None
 
 # --- DEBUG ENDPOINTS ---
 @app.get("/debug/reset-admin")
@@ -345,7 +346,8 @@ def create_user(user: UserCreate, db: Session = Depends(database.get_db), curren
         neighborhood=user.neighborhood,
         blood_type=user.blood_type,
         account_holder=user.account_holder,
-        account_holder_cc=user.account_holder_cc
+        account_holder_cc=user.account_holder_cc,
+        cedula_ciudadania=user.cedula_ciudadania
     )
     db.add(db_user)
     db.commit()
@@ -360,7 +362,8 @@ def create_user(user: UserCreate, db: Session = Depends(database.get_db), curren
         "neighborhood": db_user.neighborhood,
         "blood_type": db_user.blood_type,
         "account_holder": db_user.account_holder,
-        "account_holder_cc": db_user.account_holder_cc
+        "account_holder_cc": db_user.account_holder_cc,
+        "cedula_ciudadania": db_user.cedula_ciudadania
     }
 
 class UserUpdate(BaseModel):
@@ -379,6 +382,7 @@ class UserUpdate(BaseModel):
     blood_type: Optional[str] = None
     account_holder: Optional[str] = None
     account_holder_cc: Optional[str] = None
+    cedula_ciudadania: Optional[str] = None
 
 @app.put("/users/{user_id}")
 def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -418,6 +422,8 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(dat
         db_user.account_holder = user_update.account_holder
     if user_update.account_holder_cc is not None:
         db_user.account_holder_cc = user_update.account_holder_cc
+    if user_update.cedula_ciudadania is not None:
+        db_user.cedula_ciudadania = user_update.cedula_ciudadania
         
     db.commit()
     db.refresh(db_user)
@@ -463,7 +469,8 @@ def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(databa
         "neighborhood": u.neighborhood,
         "blood_type": u.blood_type,
         "account_holder": u.account_holder,
-        "account_holder_cc": u.account_holder_cc
+        "account_holder_cc": u.account_holder_cc,
+        "cedula_ciudadania": u.cedula_ciudadania
     } for u in users]
 
 @app.get("/debug/user-count")
@@ -556,9 +563,10 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("address", "VARCHAR(200)"),
             ("city", "VARCHAR(100)"),
             ("neighborhood", "VARCHAR(100)"),  # ← MISSING!
-            ("blood_type", "VARCHAR(10)"),  # ← MISSING!
-            ("account_holder", "VARCHAR(100)"),  # ← MISSING!
-            ("account_holder_cc", "VARCHAR(20)"),  # ← MISSING!
+            ("blood_type", "VARCHAR(10)"),
+            ("account_holder", "VARCHAR(100)"), 
+            ("account_holder_cc", "VARCHAR(20)"),
+            ("cedula_ciudadania", "VARCHAR(20)"),  # ← MISSING!
         ]
         
         for col, dtype in new_user_cols:
