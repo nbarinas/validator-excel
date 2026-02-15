@@ -2492,34 +2492,45 @@
                 <head>
                     <title>Imprimir Cuenta Global</title>
                     <style>
-                        body { font-family: sans-serif; padding: 40px; }
-                        h1, h2 { text-align: center; margin: 0; }
-                        .header { display: flex; justify-content: space-between; margin-top: 40px; border-bottom: 2px solid #000; padding-bottom: 20px; }
-                        .info { margin-top: 20px; font-weight: bold; font-size: 1.1rem; }
-                        table { width: 100%; border-collapse: collapse; margin-top: 30px; }
-                        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+                        body { font-family: sans-serif; padding: 30px 40px; }
+                        .top-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+                        .brand h2 { margin: 0; font-size: 1.6rem; text-transform: uppercase; }
+                        .brand p { margin: 2px 0 0 0; font-size: 0.9rem; color: #333; }
+                        .meta { text-align: right; }
+                        .meta h3 { margin: 0; font-size: 1.1rem; text-transform: uppercase; }
+                        .meta p { margin: 2px 0 0 0; font-size: 0.85rem; color: #555; }
+                        
+                        .info { font-weight: bold; font-size: 1rem; line-height: 1.4; }
+                        
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 0.9rem; }
                         th { background: #eee; }
-                        .totals { margin-top:30px; text-align:right; font-size:1.2rem; font-weight:bold; }
-                        .signatures { margin-top: 80px; display: flex; justify-content: space-between; }
-                        .sig-line { border-top: 1px solid #000; width: 40%; text-align: center; padding-top: 10px; }
+                        
+                        .totals { margin-top:20px; text-align:right; font-size:1.1rem; font-weight:bold; }
+                        
+                        .signatures { margin-top: 60px; display: flex; justify-content: space-between; }
+                        .sig-line { border-top: 1px solid #000; width: 40%; text-align: center; padding-top: 5px; font-size: 0.9rem; }
                     </style>
                 </head>
                 <body>
-                    <h2>AZ MARKETING</h2>
-                    <p>NIT: 900.123.456-7</p>
-                    
-                    <div style="text-align:right;">
-                        <h3>${title}</h3>
-                        <p>${date}</p>
+                    <div class="top-header">
+                        <div class="brand">
+                            <h2>AZ MARKETING</h2>
+                            <p>NIT: 900.123.456-7</p>
+                        </div>
+                        <div class="meta">
+                            <h3>${title}</h3>
+                            <p>${date}</p>
+                        </div>
                     </div>
                     
-                    <div class="header"></div>
-                    
                     <div class="info">
-                        NOMBRE: ${currentGlobalUser.full_name || currentGlobalUser.username || 'N/A'} <br>
-                        CC: ${currentGlobalUser.cedula_ciudadania || 'N/A'} <br>
-                        CELULAR: ${currentGlobalUser.phone_number || 'N/A'} <br>
-                        CUENTA: ${currentGlobalUser.bank || 'Banco No Reg.'} - ${currentGlobalUser.account_type || ''} - ${currentGlobalUser.account_number || 'N/A'}
+                        <div style="display:grid; grid-template-columns: auto 1fr; gap: 5px 10px;">
+                            <div>NOMBRE:</div> <div>${currentGlobalUser.full_name || currentGlobalUser.username || 'N/A'}</div>
+                            <div>CC:</div> <div>${currentGlobalUser.cedula_ciudadania || 'N/A'}</div>
+                            <div>CELULAR:</div> <div>${currentGlobalUser.phone_number || 'N/A'}</div>
+                            <div>CUENTA:</div> <div>${currentGlobalUser.bank || 'Banco No Reg.'} - ${currentGlobalUser.account_type || ''} - ${currentGlobalUser.account_number || 'N/A'}</div>
+                        </div>
                     </div>
                     
                     ${tableContent}
@@ -2528,19 +2539,13 @@
                         ${totals.replace(/color:white;/g, 'color:black;').replace(/color:#d1d5db;/g, 'color:black;').replace(/color:#4ade80;/g, 'color:black;')} 
                     </div>
                     
-                    <div style="margin-top: 10px; font-weight: bold; font-size: 0.9rem; border-top: 1px dotted #ccc; padding-top: 5px;">
+                    <div style="margin-top: 10px; font-weight: bold; font-size: 0.85rem; border-top: 1px dotted #ccc; padding-top: 5px;">
                         SON: ${amountInWords}
                     </div>
                     
                     <div class="signatures">
                         <div class="sig-line">Firma Beneficiario</div>
                         <div class="sig-line">Aprobado AZ Marketing</div>
-                    </div>
-                    
-                    <script>
-                        // Remove dark mode colors from table for print
-                        const table = document.querySelector('table');
-                        table.style.color = 'black';
                         table.querySelectorAll('th').forEach(th => { th.style.background = '#eee'; th.style.color = 'black'; });
                         table.querySelectorAll('td').forEach(td => { td.style.color = 'black'; });
                         window.print();
