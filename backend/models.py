@@ -32,6 +32,7 @@ class User(Base):
     schedules = relationship("Schedule", back_populates="user")
     assigned_studies = relationship("Study", secondary="study_assignments", back_populates="assistants")
     assigned_payrolls = relationship("PayrollPeriod", secondary="payroll_assignments", back_populates="supervisors")
+    loans = relationship("Loan", back_populates="user")
 
 from sqlalchemy import Table
 
@@ -322,3 +323,31 @@ class PayrollRecordItem(Base):
 
 # Backref alias for User
 User.payroll_records = relationship("PayrollRecord", back_populates="user")
+
+class Loan(Base):
+    __tablename__ = "loans"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    amount = Column(Integer) # Original loan amount
+    balance = Column(Integer) # Current balance
+    description = Column(String(200))
+    status = Column(String(20), default="active") # active, paid, cancelled
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
+    user = relationship("User", back_populates="loans")
+    payments = relationship("LoanPayment", back_populates="loan")
+
+class LoanPayment(Base):
+    __tablename__ = "loan_payments"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    loan_id = Column(Integer, ForeignKey("loans.id"))
+    payroll_record_id = Column(Integer, ForeignKey("payroll_records.id"), nullable=True) # Optional link if paid via payroll
+    
+    amount = Column(Integer)
+    date = Column(DateTime(timezone=True), server_default=func.now())
+    notes = Column(String(200), nullable=True)
+    
+    loan = relationship("Loan", back_populates="payments")
+    payroll_record = relationship("PayrollRecord")

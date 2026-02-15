@@ -127,7 +127,11 @@
         <div id="adminView" style="display: none;">
 
             <!-- TOP ACTIONS: Global Print -->
-            <div style="margin-bottom: 2rem; display: flex; justify-content: flex-end;">
+            <div style="margin-bottom: 2rem; display: flex; justify-content: flex-end; gap: 10px;">
+                <button onclick="openLoansModal()"
+                    style="background: #eab308; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-hand-holding-usd"></i> Gestión de Préstamos
+                </button>
                 <button onclick="openGlobalAccountModal()"
                     style="background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">
                     <i class="fas fa-print"></i> Consultar Pagos / Imprimir Cuenta Global
@@ -2202,6 +2206,271 @@
             </div>
         </div>
     </div>
-</body>
+    <!-- Loans Modal -->
+    <div id="loansModal" class="modal">
+        <div class="modal-content" style="max-width: 900px; display:flex; flex-direction:column; gap:20px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h3 style="color:#eab308; margin:0;"><i class="fas fa-hand-holding-usd"></i> Gestión de Préstamos</h3>
+                <span class="close" onclick="closeLoansModal()">&times;</span>
+            </div>
+
+            <div style="display: flex; gap: 20px; flex:1; min-height:400px;">
+                <!-- Left: User List -->
+                <div style="flex: 1; display:flex; flex-direction:column; gap:10px;">
+                    <div style="background:rgba(255,255,255,0.05); padding:10px; border-radius:6px;">
+                        <label style="font-size:0.9rem; color:#aaa;">Buscar Usuario</label>
+                        <input list="loanUserList" id="loanUserSearch" class="form-input" placeholder="Nombre..."
+                            onchange="resolveLoanUser()">
+                        <datalist id="loanUserList"></datalist>
+                        <input type="hidden" id="loanUserId">
+                    </div>
+
+                    <button onclick="openNewLoanForm()"
+                        style="width:100%; padding: 10px; background: #22c55e; color: white; border: none; border-radius: 6px; font-weight:bold; cursor:pointer;">
+                        <i class="fas fa-plus"></i> Nuevo Préstamo
+                    </button>
+                </div>
+
+                <!-- Right: Details -->
+                <div
+                    style="flex: 2; border-left: 1px solid #334155; padding-left: 20px; display:flex; flex-direction:column;">
+                    <h4 id="loanUserName" style="margin-top:0; border-bottom:1px solid #334155; padding-bottom:10px;">
+                        Seleccione un usuario</h4>
+
+                    <div id="loanDetailsArea" style="display:none; flex:1;">
+                        <div style="background: rgba(0,0,0,0.2); margin-bottom: 15px; border-radius:6px; padding:10px;">
+                            <h5 style="margin-top:0;">Préstamos Activos</h5>
+                            <div style="max-height:200px; overflow-y:auto;">
+                                <table class="data-table" style="font-size: 0.9rem;">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Descripción</th>
+                                            <th>Monto Original</th>
+                                            <th>Saldo Pendiente</th>
+                                            <th>Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="loansTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="paymentArea"
+                            style="display:none; background: rgba(30,41,59,0.5); padding: 15px; border-radius: 6px; border:1px solid #475569;">
+                            <h5 style="margin-top:0; color:#4ade80;">Registrar Abono / Pago</h5>
+                            <input type="hidden" id="selectedLoanId">
+                            <div style="margin-bottom:5px; color:#aaa; font-size:0.9rem;">Abonar al préstamo: <span
+                                    id="paymentLoanDesc" style="color:white;"></span></div>
+                            <div style="display:grid; grid-template-columns: 1fr 2fr auto; gap: 10px;">
+                                <input type="number" id="paymentAmount" placeholder="Monto" class="form-input"
+                                    style="margin:0;">
+                                <input type="text" id="paymentNotes" placeholder="Notas (opcional)" class="form-input"
+                                    style="margin:0;">
+                                <button onclick="submitPayment()"
+                                    style="background: #3b82f6; color: white; border: none; padding: 0 20px; border-radius: 4px; font-weight:bold; cursor:pointer;">Pagar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- New Loan Form -->
+                    <div id="newLoanForm"
+                        style="display:none; background: rgba(30,41,59,0.8); padding: 20px; border-radius: 6px; border:1px solid #475569;">
+                        <h5 style="margin-top:0; color:#22c55e;">Crear Nuevo Préstamo</h5>
+                        <div class="form-group">
+                            <label>Usuario</label>
+                            <input type="text" id="newLoanUserDisplay" readonly class="form-input"
+                                style="background: #334155; color:#aaa;">
+                            <input type="hidden" id="newLoanUserId">
+                        </div>
+                        <div class="form-group">
+                            <label>Monto a Prestar</label>
+                            <input type="number" id="newLoanAmount" class="form-input">
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción / Motivo</label>
+                            <input type="text" id="newLoanDesc" class="form-input">
+                        </div>
+                        <div style="display:flex; gap:10px; margin-top:20px;">
+                            <button onclick="submitNewLoan()"
+                                style="background: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; flex:1; font-weight:bold; cursor:pointer;">Crear
+                                Préstamo</button>
+                            <button onclick="cancelNewLoan()"
+                                style="background: transparent; color: #cbd5e1; border: 1px solid #475569; padding: 10px; border-radius: 6px; cursor:pointer;">Cancelar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // --- LOAN MANAGEMENT LOGIC ---
+        function openLoansModal() {
+            document.getElementById('loansModal').style.display = 'block';
+            resetLoanUI();
+
+            // Populate datalist if empty
+            const dl = document.getElementById('loanUserList');
+            if (dl.options.length === 0 && window.allUsersMap) {
+                Object.values(window.allUsersMap).forEach(u => {
+                    const op = document.createElement('option');
+                    op.value = u.full_name || u.username;
+                    op.setAttribute('data-id', u.id);
+                    dl.appendChild(op);
+                });
+            }
+        }
+
+        function closeLoansModal() {
+            document.getElementById('loansModal').style.display = 'none';
+        }
+
+        function resetLoanUI() {
+            document.getElementById('loanUserSearch').value = '';
+            document.getElementById('loanUserId').value = '';
+            document.getElementById('loanUserName').innerText = 'Seleccione un usuario';
+            document.getElementById('loanDetailsArea').style.display = 'none';
+            document.getElementById('newLoanForm').style.display = 'none';
+        }
+
+        function resolveLoanUser() {
+            const val = document.getElementById('loanUserSearch').value;
+            if (!val) return;
+
+            // Find in datalist logic (similar to other resolves)
+            const opts = document.getElementById('loanUserList').options;
+            let id = null;
+            for (let i = 0; i < opts.length; i++) {
+                if (opts[i].value === val) {
+                    id = opts[i].getAttribute('data-id');
+                    break;
+                }
+            }
+
+            if (id) {
+                document.getElementById('loanUserId').value = id;
+                document.getElementById('loanUserName').innerText = val;
+                loadUserLoans(id);
+            }
+        }
+
+        async function loadUserLoans(userId) {
+            if (!userId) userId = document.getElementById('loanUserId').value;
+            // Ensure UI shows loans
+            document.getElementById('loanDetailsArea').style.display = 'flex';
+            document.getElementById('newLoanForm').style.display = 'none';
+            document.getElementById('paymentArea').style.display = 'none';
+
+            try {
+                const res = await fetch(`/loans/user/${userId}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const loans = await res.json();
+
+                const tbody = document.getElementById('loansTableBody');
+                tbody.innerHTML = '';
+
+                if (loans.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No tiene préstamos registrados.</td></tr>';
+                    return;
+                }
+
+                loans.forEach(l => {
+                    const tr = document.createElement('tr');
+                    const dateStr = new Date(l.created_at).toLocaleDateString();
+                    tr.style.opacity = l.status === 'paid' ? '0.5' : '1';
+
+                    tr.innerHTML = `
+                        <td>${dateStr}</td>
+                        <td>${l.description}</td>
+                        <td>$${l.amount.toLocaleString()}</td>
+                        <td style="font-weight:bold; color:${l.balance > 0 ? '#ef4444' : '#4ade80'};">$${l.balance.toLocaleString()}</td>
+                        <td>
+                            ${l.status === 'active' ? `<button onclick="setupPayment(${l.id}, '${l.description}', ${l.balance})" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Abonar</button>` : '<span style="color:#4ade80; font-weight:bold;">PAGADO</span>'}
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) { console.error(e); alert("Error cargando préstamos"); }
+        }
+
+        function openNewLoanForm() {
+            const userId = document.getElementById('loanUserId').value;
+            const userName = document.getElementById('loanUserSearch').value;
+
+            if (!userId) return alert("Primero busque y seleccione un usuario");
+
+            document.getElementById('loanDetailsArea').style.display = 'none';
+            document.getElementById('newLoanForm').style.display = 'block';
+
+            document.getElementById('newLoanUserId').value = userId;
+            document.getElementById('newLoanUserDisplay').value = userName;
+            document.getElementById('newLoanAmount').value = '';
+            document.getElementById('newLoanDesc').value = '';
+        }
+
+        function cancelNewLoan() {
+            document.getElementById('newLoanForm').style.display = 'none';
+            document.getElementById('loanDetailsArea').style.display = 'flex';
+        }
+
+        async function submitNewLoan() {
+            const userId = document.getElementById('newLoanUserId').value;
+            const amount = document.getElementById('newLoanAmount').value;
+            const desc = document.getElementById('newLoanDesc').value;
+
+            if (!amount || !desc) return alert("Complete todos los campos");
+
+            try {
+                const res = await fetch('/loans', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: parseInt(userId), amount: parseInt(amount), description: desc })
+                });
+
+                if (res.ok) {
+                    alert("Préstamo creado correctamente");
+                    cancelNewLoan();
+                    loadUserLoans(userId);
+                } else {
+                    alert("Error creando préstamo");
+                }
+            } catch (e) { console.error(e); alert("Error de red"); }
+        }
+
+        function setupPayment(loanId, desc, balance) {
+            document.getElementById('paymentArea').style.display = 'block';
+            document.getElementById('selectedLoanId').value = loanId;
+            document.getElementById('paymentLoanDesc').innerText = `${desc} (Saldo: $${balance.toLocaleString()})`;
+            document.getElementById('paymentAmount').value = '';
+            document.getElementById('paymentNotes').value = '';
+
+            // Scroll to payment area
+            document.getElementById('paymentArea').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function submitPayment() {
+            const loanId = document.getElementById('selectedLoanId').value;
+            const amount = document.getElementById('paymentAmount').value;
+            const notes = document.getElementById('paymentNotes').value;
+
+            if (!amount) return alert("Ingrese el monto del abono");
+
+            try {
+                const res = await fetch(`/loans/${loanId}/payment`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: parseInt(amount), notes: notes })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    alert("Abono registrado. Nuevo saldo: $" + data.new_balance.toLocaleString());
+                    document.getElementById('paymentArea').style.display = 'none';
+                    loadUserLoans(); // Refresh list
+                } else {
+                    alert("Error registrando pago");
+                }
+            } catch (e) { console.error(e); alert("Error de red"); }
+        }
+    </script>
 
 </html>
