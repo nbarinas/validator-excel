@@ -301,19 +301,22 @@
                     </div>
                 </div>
 
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Colaborador</th>
-                            <th>Efectivas</th>
-                            <th>Censos</th>
-                            <th>Total Pagar</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="periodDetailsBody"></tbody>
-                    <tfoot id="periodDetailsFoot" style="background: rgba(15, 23, 42, 0.8); font-weight: bold;"></tfoot>
-                </table>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Colaborador</th>
+                                <th>Efectivas</th>
+                                <th>Censos</th>
+                                <th>Total Pagar</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="periodDetailsBody"></tbody>
+                        <tfoot id="periodDetailsFoot" style="background: rgba(15, 23, 42, 0.8); font-weight: bold;">
+                        </tfoot>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -362,7 +365,7 @@
                     </div>
                 </div>
 
-                <div style="max-height:200px; overflow-y:auto; margin-bottom:15px; border:1px solid #334155;">
+                <div style="max-height:200px; overflow:auto; margin-bottom:15px; border:1px solid #334155;">
                     <table style="width:100%; font-size:0.9rem; border-collapse:collapse;">
                         <thead style="background:#1e293b; position:sticky; top:0;">
                             <tr>
@@ -421,7 +424,7 @@
                     </div>
 
                     <div
-                        style="height:200px; overflow-y:auto; margin-bottom:20px; border:1px solid #333; border-radius:6px;">
+                        style="height:200px; overflow:auto; margin-bottom:20px; border:1px solid #333; border-radius:6px;">
                         <table class="data-table" style="font-size:0.9rem;">
                             <thead>
                                 <tr>

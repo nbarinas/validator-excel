@@ -3163,6 +3163,27 @@ def create_manual_record(
 def get_payroll_records(period_id: int, db: Session = Depends(database.get_db)):
     return db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id).all()
 
+@app.delete("/payroll/records/{period_id}/{user_id}")
+def delete_payroll_record_user(period_id: int, user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role not in ['superuser', 'coordinator', 'supervisor']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    record = db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id, models.PayrollRecord.user_id == user_id).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="Record not found")
+    
+    # Check if period is visible (Security)
+    if record.period and not record.period.is_visible and current_user.role != 'superuser':
+         raise HTTPException(status_code=403, detail="No puedes modificar una nómina cerrada/oculta.")
+
+    # Delete Items first
+    db.query(models.PayrollRecordItem).filter(models.PayrollRecordItem.record_id == record.id).delete()
+    
+    # Delete Record
+    db.delete(record)
+    db.commit()
+    return {"status": "ok", "message": "Registro eliminado"}
+
 @app.get("/payroll/records/by-user/{user_id}")
 def get_user_records_admin(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role not in ['superuser', 'coordinator', 'supervisor']:
