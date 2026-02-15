@@ -2381,6 +2381,72 @@
             return html;
         }
 
+        function numeroALetras(num) {
+            function convertGroup(n) {
+                const unidades = ['', 'UN ', 'DOS ', 'TRES ', 'CUATRO ', 'CINCO ', 'SEIS ', 'SIETE ', 'OCHO ', 'NUEVE '];
+                const decenas = ['DIEZ ', 'ONCE ', 'DOCE ', 'TRECE ', 'CATORCE ', 'QUINCE ', 'DIECISES ', 'DIECISIETE ', 'DIECIOCHO ', 'DIECINUEVE ', 'VEINTE ', 'TREINTA ', 'CUARENTA ', 'CINCUENTA ', 'SESENTA ', 'SETENTA ', 'OCHENTA ', 'NOVENTA '];
+                const centenas = ['', 'CIENTO ', 'DOSCIENTOS ', 'TRESCIENTOS ', 'CUATROCIENTOS ', 'QUINIENTOS ', 'SEISCIENTOS ', 'SETECIENTOS ', 'OCHOCIENTOS ', 'NOVECIENTOS '];
+
+                let output = '';
+
+                if (n >= 100) {
+                    if (n === 100) output += 'CIEN ';
+                    else output += centenas[Math.floor(n / 100)];
+                    n %= 100;
+                }
+
+                if (n >= 20) {
+                    if (n === 20) output += 'VEINTE '; // Specific fix
+                    else {
+                        let ten = Math.floor(n / 10);
+                        // decenas array maps: 10->index 0, 11->index 1... 19->index 9. 20->index 10...
+                        // My previous mapping was loose. Let's strict map:
+                        // 0-9: DIEZ..DIECINUEVE
+                        // 10: VEINTE
+                        // 11: TREINTA
+                        // Let's restart array for clarity
+                        const tens = ['', '', 'VEINTE ', 'TREINTA ', 'CUARENTA ', 'CINCUENTA ', 'SESENTA ', 'SETENTA ', 'OCHENTA ', 'NOVENTA '];
+                        const teens = ['DIEZ ', 'ONCE ', 'DOCE ', 'TRECE ', 'CATORCE ', 'QUINCE ', 'DIECISEIS ', 'DIECISIETE ', 'DIECIOCHO ', 'DIECINUEVE '];
+
+                        output += tens[Math.floor(n / 10)];
+                        if (n % 10 > 0) output += 'Y ' + unidades[n % 10];
+                    }
+                } else if (n >= 10) {
+                    const teens = ['DIEZ ', 'ONCE ', 'DOCE ', 'TRECE ', 'CATORCE ', 'QUINCE ', 'DIECISEIS ', 'DIECISIETE ', 'DIECIOCHO ', 'DIECINUEVE '];
+                    output += teens[n - 10];
+                } else if (n > 0) {
+                    output += unidades[n];
+                }
+                return output;
+            }
+
+            if (num === 0) return 'CERO PESOS M/CTE';
+
+            let output = '';
+            // Millions
+            if (num >= 1000000) {
+                let millions = Math.floor(num / 1000000);
+                if (millions === 1) output += 'UN MILLON ';
+                else output += convertGroup(millions) + 'MILLONES ';
+                num %= 1000000;
+            }
+
+            // Thousands
+            if (num >= 1000) {
+                let thousands = Math.floor(num / 1000);
+                if (thousands === 1) output += 'MIL ';
+                else output += convertGroup(thousands) + 'MIL ';
+                num %= 1000;
+            }
+
+            // Hundreds
+            if (num > 0) {
+                output += convertGroup(num);
+            }
+
+            return output.trim() + ' PESOS M/CTE';
+        }
+
         function printGlobalAccount() {
             // Print what is currently visible? Or always Summary?
             // User: "para imprimir que valla todo homogeneo" (Homogeneous/Summary)
@@ -2389,11 +2455,23 @@
             // If user wants homogeneous, they select Summary (default) then print.
 
             const tableContent = document.querySelector('#globalAccountResult table').outerHTML;
+
+            // Calculate Grand Total again to be sure (or grab from UI)
+            let grandTotal = 0;
+            currentGlobalRecords.forEach(r => grandTotal += r.total_amount);
+
             const totals = document.querySelector('#globalAccountResult > div:first-child').innerHTML; // Stats header
             const userName = currentGlobalUser.name;
             const userCC = currentGlobalUser.cc;
             const title = isGlobalDetailView ? "CUENTA DE COBRO DETALLADA" : "CUENTA DE COBRO UNIFICADA";
-            const date = new Date().toLocaleDateString();
+
+            // Date with Time
+            const date = new Date().toLocaleString('es-CO', {
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', hour12: true
+            });
+
+            const amountInWords = numeroALetras(grandTotal);
 
             const win = window.open('', '', 'width=900,height=700');
             win.document.write(`
@@ -2435,6 +2513,10 @@
                     
                     <div class="totals">
                         ${totals.replace(/color:white;/g, 'color:black;').replace(/color:#d1d5db;/g, 'color:black;').replace(/color:#4ade80;/g, 'color:black;')} 
+                    </div>
+                    
+                    <div style="margin-top: 10px; font-weight: bold; font-size: 0.9rem; border-top: 1px dotted #ccc; padding-top: 5px;">
+                        SON: ${amountInWords}
                     </div>
                     
                     <div class="signatures">
