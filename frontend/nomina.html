@@ -1379,15 +1379,73 @@
 
                 let details = [];
                 try { details = JSON.parse(r.details_json); } catch (e) { }
+                if (!Array.isArray(details)) details = [];
+
+                // Ghost Record Heuristic: If no details but total > 0 and only 1 concept exists
+                if (details.length === 0 && r.total_amount > 0 && currentPeriodConcepts.length === 1) {
+                    const c = currentPeriodConcepts[0];
+                    // Avoid division by zero
+                    const qty = c.rate > 0 ? Math.floor(r.total_amount / c.rate) : 1;
+                    details.push({
+                        concept_id: c.id,
+                        concept: c.name,
+                        qty: qty,
+                        rate: c.rate,
+                        total: r.total_amount // Trust the total
+                    });
+                } else if (details.length === 0 && r.total_amount > 0 && currentPeriodConcepts.length > 1) {
+                    // Smart Math Heuristic for Multi-Concept: Find unique concept where total is a clean multiple of rate
+                    const matches = currentPeriodConcepts.filter(c => c.rate > 0 && (r.total_amount % c.rate === 0) && (r.total_amount >= c.rate));
+
+                    // Only apply if EXACTLY ONE concept matches this math
+                    if (matches.length === 1) {
+                        const c = matches[0];
+                        const qty = Math.floor(r.total_amount / c.rate);
+                        details.push({
+                            concept_id: c.id,
+                            concept: c.name,
+                            qty: qty,
+                            rate: c.rate,
+                            total: r.total_amount
+                        });
+                    }
+                }
 
                 let rMap = {};
                 details.forEach(d => {
                     let cid = d.concept_id;
-                    if (!cid) {
-                        const found = currentPeriodConcepts.find(c => c.name === d.concept);
+
+                    // Helper for normalization
+                    const norm = (s) => (s || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+                    // Verify if this ID is valid in current configuration
+                    // Verify if this ID is valid in current configuration (Loose check)
+                    const isValidId = currentPeriodConcepts.some(c => c.id == cid);
+
+                    if (!cid || !isValidId) {
+                        // 1. Precise Name Match (Trimmed Case-insensitive)
+                        const dNameRaw = (d.concept || '').trim().toLowerCase();
+                        let found = currentPeriodConcepts.find(c => c.name.trim().toLowerCase() === dNameRaw);
+
+                        // 2. Aggressive Normalization Match (No accents, no symbols)
+                        if (!found && d.concept) {
+                            const dNameNorm = norm(d.concept);
+                            found = currentPeriodConcepts.find(c => norm(c.name) === dNameNorm);
+                        }
+
+                        // 3. Single Concept Heuristic: If period has ONLY 1 concept, and we couldn't match, assume it's this one.
+                        if (!found && currentPeriodConcepts.length === 1) {
+                            found = currentPeriodConcepts[0];
+                        }
+
                         if (found) cid = found.id;
                     }
-                    if (cid) rMap[cid] = d;
+
+                    if (cid) {
+                        if (!rMap[cid]) rMap[cid] = { qty: 0, total: 0 };
+                        rMap[cid].qty += (d.qty || 0);
+                        rMap[cid].total += (d.total || 0);
+                    }
                 });
 
                 let cellsHtml = '';
@@ -1570,16 +1628,58 @@
             // Fill Values
             let details = [];
             try { details = JSON.parse(r.details_json); } catch (e) { }
+            if (!Array.isArray(details)) details = [];
 
-            // Map details to manualItems
-            manualItems = details.map(d => ({
-                date: d.date || '', // YYYY-MM-DD
-                concept_id: d.concept_id || currentPeriodConcepts.find(c => c.name === d.concept)?.id,
-                concept_name: d.concept,
-                qty: d.qty,
-                rate: d.rate,
-                total: d.total
-            }));
+            // Ghost Record Heuristic (Edit Mode)
+            if (details.length === 0 && r.total_amount > 0 && currentPeriodConcepts.length === 1) {
+                const c = currentPeriodConcepts[0];
+                const qty = c.rate > 0 ? Math.floor(r.total_amount / c.rate) : 1;
+                details.push({
+                    concept_id: c.id,
+                    concept: c.name,
+                    qty: qty,
+                    rate: c.rate,
+                    total: r.total_amount
+                });
+            } else if (details.length === 0 && r.total_amount > 0 && currentPeriodConcepts.length > 1) {
+                // Smart Math Heuristic for Multi-Concept (Edit Mode)
+                const matches = currentPeriodConcepts.filter(c => c.rate > 0 && (r.total_amount % c.rate === 0) && (r.total_amount >= c.rate));
+
+                if (matches.length === 1) {
+                    const c = matches[0];
+                    const qty = Math.floor(r.total_amount / c.rate);
+                    details.push({
+                        concept_id: c.id,
+                        concept: c.name,
+                        qty: qty,
+                        rate: c.rate,
+                        total: r.total_amount
+                    });
+                }
+            }
+
+            // Map details to manualItems with robust ID matching
+            manualItems = details.map(d => {
+                let cid = d.concept_id;
+                // Verify validity (Loose check)
+                const isValid = currentPeriodConcepts.some(c => c.id == cid);
+
+                if (!cid || !isValid) {
+                    // Fallback to name match
+                    const dName = (d.concept || '').trim().toLowerCase();
+                    const found = currentPeriodConcepts.find(c => c.name.trim().toLowerCase() === dName);
+                    if (found) cid = found.id;
+                }
+
+                return {
+                    date: d.date || '', // YYYY-MM-DD
+                    concept_id: cid,
+                    concept_name: d.concept,
+                    qty: d.qty,
+                    rate: d.rate,
+                    total: d.total
+                };
+            });
 
             renderManualItems();
 
@@ -1983,9 +2083,17 @@
             currentGlobalRecords.forEach(r => {
                 let details = [];
                 try { details = JSON.parse(r.details_json); } catch (e) { }
+                if (!Array.isArray(details)) details = [];
 
-                // If details empty but legacy totals exist, mock items? 
-                // Currently backend saves details_json for everything (auto & manual).
+                // If details empty but total > 0 (Legacy/Error), create a fallback item
+                if (details.length === 0 && r.total_amount > 0) {
+                    details.push({
+                        concept: "Pago/Ajuste (Sin detalle)",
+                        qty: 1,
+                        rate: r.total_amount,
+                        total: r.total_amount
+                    });
+                }
 
                 // Group
                 details.forEach(d => {
@@ -2036,9 +2144,20 @@
             sortedRecords.forEach(r => {
                 let details = [];
                 try { details = JSON.parse(r.details_json); } catch (e) { }
+                if (!Array.isArray(details)) details = [];
 
                 const dateStr = r.updated_at ? new Date(r.updated_at).toLocaleString() : (r.created_at ? new Date(r.created_at).toLocaleDateString() : '-');
                 const sup = r.last_modified_by || 'Sistema';
+
+                // If details empty but total > 0 (Legacy/Error), create a fallback item
+                if (details.length === 0 && r.total_amount > 0) {
+                    details.push({
+                        concept: "Pago/Ajuste (Sin detalle)",
+                        qty: 1,
+                        rate: r.total_amount,
+                        total: r.total_amount
+                    });
+                }
 
                 details.forEach(d => {
                     html += `
