@@ -2140,7 +2140,9 @@
             // Use map data if possible for cleaner name
             const userObj = window.allUsersMap[finalId];
 
-            currentGlobalUser = { name: userObj ? userObj.full_name || userObj.username : userName, cc: userObj ? userObj.username : '' };
+            currentGlobalUser = userObj || { name: userName, username: '', cedula_ciudadania: '' };
+            // Fallback for name if userObj is incomplete (rare if from map)
+            if (userObj && !currentGlobalUser.name) currentGlobalUser.name = userObj.full_name || userObj.username;
 
             const res = await fetch(`/payroll/records/by-user/${finalId}`, { headers: { 'Authorization': 'Bearer ' + token } });
             currentGlobalRecords = await res.json();
@@ -2423,9 +2425,10 @@
                     <div class="header"></div>
                     
                     <div class="info">
-                        NOMBRE: ${userName} <br>
-                        CC: ${userCC} <br>
-                        CUENTA: Banco No Reg. - - N/A
+                        NOMBRE: ${currentGlobalUser.full_name || currentGlobalUser.username || 'N/A'} <br>
+                        CC: ${currentGlobalUser.cedula_ciudadania || currentGlobalUser.username || 'N/A'} <br>
+                        CELULAR: ${currentGlobalUser.phone_number || 'N/A'} <br>
+                        CUENTA: ${currentGlobalUser.bank || 'Banco No Reg.'} - ${currentGlobalUser.account_type || ''} - ${currentGlobalUser.account_number || 'N/A'}
                     </div>
                     
                     ${tableContent}
