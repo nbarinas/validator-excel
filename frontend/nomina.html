@@ -515,6 +515,38 @@
         let globalRecordsCache = [];
         let globalSelectedUser = null;
 
+        function findMatchingConcept(d, concepts) {
+            let cid = d.concept_id;
+            // Helper for normalization
+            const norm = (s) => (s || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+            // 1. ID Match
+            const byId = concepts.find(c => c.id == cid);
+            if (byId) return byId;
+
+            // 2. Precise Name Match
+            const dNameRaw = (d.concept || '').trim().toLowerCase();
+            let found = concepts.find(c => c.name.trim().toLowerCase() === dNameRaw);
+            if (found) return found;
+
+            // 3. Aggressive Normalization + Plural
+            if (d.concept) {
+                const dNameNorm = norm(d.concept);
+                found = concepts.find(c => norm(c.name) === dNameNorm);
+                if (found) return found;
+
+                // Plurals
+                found = concepts.find(c => {
+                    const cNorm = norm(c.name);
+                    return cNorm === dNameNorm + 's' || cNorm === dNameNorm + 'es' ||
+                        dNameNorm === cNorm + 's' || dNameNorm === cNorm + 'es';
+                });
+                if (found) return found;
+            }
+
+            return null;
+        }
+
         async function init() {
             try {
                 const res = await fetch('/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -1114,9 +1146,20 @@
                     };
 
                     // Add concept breakdowns
+                    const rowMap = {};
                     details.forEach(d => {
-                        row[`${d.concept} (Cant)`] = d.qty;
-                        row[`${d.concept} ($)`] = d.total;
+                        const match = findMatchingConcept(d, periodConcepts);
+                        if (match) {
+                            if (!rowMap[match.id]) rowMap[match.id] = { qty: 0, total: 0 };
+                            rowMap[match.id].qty += (d.qty || 0);
+                            rowMap[match.id].total += (d.total || 0);
+                        }
+                    });
+
+                    periodConcepts.forEach(c => {
+                        const item = rowMap[c.id];
+                        row[`${c.name} (Cant)`] = item ? item.qty : 0;
+                        row[`${c.name} ($)`] = item ? item.total : 0;
                     });
 
                     allRows.push(row);
@@ -1167,8 +1210,16 @@
 
                     win.document.write(`<tr><td>${user.full_name || user.username}<br><small>${user.username}</small></td>`);
                     periodConcepts.forEach(pc => {
-                        const item = details.find(d => d.concept_id === pc.id || d.concept === pc.name);
-                        win.document.write(`<td style="text-align:center;">${item ? item.qty : 0}<br><small>$${(item ? item.total : 0).toLocaleString()}</small></td>`);
+                        let qty = 0;
+                        let total = 0;
+                        details.forEach(d => {
+                            const match = findMatchingConcept(d, periodConcepts);
+                            if (match && match.id === pc.id) {
+                                qty += (d.qty || 0);
+                                total += (d.total || 0);
+                            }
+                        });
+                        win.document.write(`<td style="text-align:center;">${qty}<br><small>$${total.toLocaleString()}</small></td>`);
                     });
                     win.document.write(`<td style="font-weight:bold;">$${r.total_amount.toLocaleString()}</td></tr>`);
                 });
@@ -1263,9 +1314,24 @@
                 try { details = JSON.parse(r.details_json); } catch (e) { }
 
                 currentPeriodConcepts.forEach(c => {
-                    const item = details.find(d => d.concept_id === c.id || d.concept === c.name);
-                    row[`${c.name} (Cant)`] = item ? item.qty : 0;
-                    row[`${c.name} ($)`] = item ? item.total : 0;
+                    // Use helper to find if any detail item matches this concept
+                    // But details is array of items. We need to sum them up.
+                    // Actually, simpler to iterate details and bucket them like in loadRecords
+                    // But here we are iterating concepts to create columns.
+                    // So we need: Sum of all d in details where findMatchingConcept(d) == c
+
+                    let qty = 0;
+                    let total = 0;
+                    details.forEach(d => {
+                        const match = findMatchingConcept(d, currentPeriodConcepts);
+                        if (match && match.id === c.id) {
+                            qty += d.qty || 0;
+                            total += d.total || 0;
+                        }
+                    });
+
+                    row[`${c.name} (Cant)`] = qty;
+                    row[`${c.name} ($)`] = total;
                 });
 
                 row["Total Pagar"] = r.total_amount;
@@ -1347,6 +1413,38 @@
             currentPeriodConcepts = [];
         }
 
+        function findMatchingConcept(d, concepts) {
+            let cid = d.concept_id;
+            // Helper for normalization
+            const norm = (s) => (s || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+            // 1. ID Match
+            const byId = concepts.find(c => c.id == cid);
+            if (byId) return byId;
+
+            // 2. Precise Name Match
+            const dNameRaw = (d.concept || '').trim().toLowerCase();
+            let found = concepts.find(c => c.name.trim().toLowerCase() === dNameRaw);
+            if (found) return found;
+
+            // 3. Aggressive Normalization + Plural
+            if (d.concept) {
+                const dNameNorm = norm(d.concept);
+                found = concepts.find(c => norm(c.name) === dNameNorm);
+                if (found) return found;
+
+                // Plurals
+                found = concepts.find(c => {
+                    const cNorm = norm(c.name);
+                    return cNorm === dNameNorm + 's' || cNorm === dNameNorm + 'es' ||
+                        dNameNorm === cNorm + 's' || dNameNorm === cNorm + 'es';
+                });
+                if (found) return found;
+            }
+
+            return null;
+        }
+
         async function loadRecords(id) {
             const tbody = document.getElementById('periodDetailsBody');
             const tfoot = document.getElementById('periodDetailsFoot');
@@ -1419,7 +1517,6 @@
                     const norm = (s) => (s || '').toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
                     // Verify if this ID is valid in current configuration
-                    // Verify if this ID is valid in current configuration (Loose check)
                     const isValidId = currentPeriodConcepts.some(c => c.id == cid);
 
                     if (!cid || !isValidId) {
@@ -1431,6 +1528,16 @@
                         if (!found && d.concept) {
                             const dNameNorm = norm(d.concept);
                             found = currentPeriodConcepts.find(c => norm(c.name) === dNameNorm);
+
+                            // 2.1 Singular/Plural Match (Transporte <-> Transportes, Bonificacion <-> Bonificaciones)
+                            if (!found) {
+                                found = currentPeriodConcepts.find(c => {
+                                    const cNorm = norm(c.name);
+                                    // Check s or es suffix
+                                    return cNorm === dNameNorm + 's' || cNorm === dNameNorm + 'es' ||
+                                        dNameNorm === cNorm + 's' || dNameNorm === cNorm + 'es';
+                                });
+                            }
                         }
 
                         // 3. Single Concept Heuristic: If period has ONLY 1 concept, and we couldn't match, assume it's this one.
@@ -1442,9 +1549,22 @@
                     }
 
                     if (cid) {
-                        if (!rMap[cid]) rMap[cid] = { qty: 0, total: 0 };
-                        rMap[cid].qty += (d.qty || 0);
-                        rMap[cid].total += (d.total || 0);
+                        // Double check the found cid is actually in current period (if found via heuristics)
+                        if (currentPeriodConcepts.some(c => c.id == cid)) {
+                            if (!rMap[cid]) rMap[cid] = { qty: 0, total: 0 };
+                            rMap[cid].qty += (d.qty || 0);
+                            rMap[cid].total += (d.total || 0);
+                        } else {
+                            // Should not happen if logic is correct, but effectively this is a "Hidden" item
+                            if (!rMap['hidden']) rMap['hidden'] = { qty: 0, total: 0, items: [] };
+                            rMap['hidden'].total += (d.total || 0);
+                            rMap['hidden'].items.push(`${d.concept} ($${d.total})`);
+                        }
+                    } else {
+                        // No match found -> Hidden Item
+                        if (!rMap['hidden']) rMap['hidden'] = { qty: 0, total: 0, items: [] };
+                        rMap['hidden'].total += (d.total || 0);
+                        rMap['hidden'].items.push(`${d.concept} ($${d.total})`);
                     }
                 });
 
@@ -1472,6 +1592,26 @@
                 // Audit info
                 const modifiedBy = r.last_modified_by ? `<div style="font-size:0.7rem; color:#64748b; margin-top:2px;"><i class="fas fa-user-edit"></i> ${r.last_modified_by}</div>` : '';
 
+                // HIDDEN ITEMS WARNING
+                let warningHtml = '';
+                // Check if we have explicit hidden items or if math doesn't add up
+                let displayedTotal = 0;
+                currentPeriodConcepts.forEach(c => {
+                    if (rMap[c.id]) displayedTotal += rMap[c.id].total;
+                });
+
+                // Difference tolerance (for rounding)
+                if (Math.abs(r.total_amount - displayedTotal) > 100 || (rMap['hidden'] && rMap['hidden'].total > 0)) {
+                    let tooltip = "Este registro tiene montos que no coinciden con las columnas actuales:\n";
+                    if (rMap['hidden'] && rMap['hidden'].items.length > 0) {
+                        tooltip += rMap['hidden'].items.join("\n");
+                    } else {
+                        tooltip += `Diferencia: $${(r.total_amount - displayedTotal).toLocaleString()}`;
+                        tooltip += "\nPosiblemente conceptos con nombres diferentes.";
+                    }
+                    warningHtml = `<i class="fas fa-exclamation-triangle" title="${tooltip}" style="color:#f59e0b; margin-left:5px; cursor:help;"></i>`;
+                }
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>
@@ -1480,7 +1620,10 @@
                         ${modifiedBy}
                     </td>
                     ${cellsHtml}
-                    <td style="color:#4ade80; font-weight:bold;">$${r.total_amount.toLocaleString()}</td>
+                    <td style="color:#4ade80; font-weight:bold;">
+                        $${r.total_amount.toLocaleString()}
+                        ${warningHtml}
+                    </td>
                     <td>
                         <div style="display:flex; gap:10px;">
                             <button onclick='editRecord(${JSON.stringify(r)})' class="btn-icon" title="Editar" style="color:#f59e0b;"><i class="fas fa-pencil-alt"></i></button>
@@ -1660,21 +1803,14 @@
 
             // Map details to manualItems with robust ID matching
             manualItems = details.map(d => {
-                let cid = d.concept_id;
-                // Verify validity (Loose check)
-                const isValid = currentPeriodConcepts.some(c => c.id == cid);
-
-                if (!cid || !isValid) {
-                    // Fallback to name match
-                    const dName = (d.concept || '').trim().toLowerCase();
-                    const found = currentPeriodConcepts.find(c => c.name.trim().toLowerCase() === dName);
-                    if (found) cid = found.id;
-                }
+                const match = findMatchingConcept(d, currentPeriodConcepts);
+                const cid = match ? match.id : null;
+                const cName = match ? match.name : (d.concept || 'Desconocido');
 
                 return {
                     date: d.date || '', // YYYY-MM-DD
                     concept_id: cid,
-                    concept_name: d.concept,
+                    concept_name: cName,
                     qty: d.qty,
                     rate: d.rate,
                     total: d.total
