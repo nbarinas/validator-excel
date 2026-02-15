@@ -1602,12 +1602,15 @@
 
                 // Difference tolerance (for rounding)
                 if (Math.abs(r.total_amount - displayedTotal) > 100 || (rMap['hidden'] && rMap['hidden'].total > 0)) {
-                    let tooltip = "Este registro tiene montos que no coinciden con las columnas actuales:\n";
-                    if (rMap['hidden'] && rMap['hidden'].items.length > 0) {
+                    let tooltip = "";
+                    if (details.length === 0) {
+                        tooltip = "Este registro tiene un Total válido ($" + r.total_amount.toLocaleString() + ") pero NO tiene detalles internos (conceptos).\nNo se puede asignar a ninguna columna automáticamente.\nDebe editarlo y asignar los conceptos manualmente.";
+                    } else if (rMap['hidden'] && rMap['hidden'].items.length > 0) {
+                        tooltip = "Conceptos encontrados que NO coinciden con las columnas:\n\n";
                         tooltip += rMap['hidden'].items.join("\n");
+                        tooltip += "\n\nSugerencia: Cambie el nombre de la columna para que coincida.";
                     } else {
-                        tooltip += `Diferencia: $${(r.total_amount - displayedTotal).toLocaleString()}`;
-                        tooltip += "\nPosiblemente conceptos con nombres diferentes.";
+                        tooltip = `Diferencia de valores calculados vs Total: $${(r.total_amount - displayedTotal).toLocaleString()}`;
                     }
                     warningHtml = `<i class="fas fa-exclamation-triangle" title="${tooltip}" style="color:#f59e0b; margin-left:5px; cursor:help;"></i>`;
                 }
