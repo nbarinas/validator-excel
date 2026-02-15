@@ -1682,7 +1682,17 @@
                 loadRecords(currentLiquidacionId);
             } else {
                 const err = await res.json();
-                alert("Error: " + (err.detail || "Error al guardar"));
+                let msg = "Error al guardar";
+                if (err.detail) {
+                    if (typeof err.detail === 'string') {
+                        msg = err.detail;
+                    } else if (Array.isArray(err.detail)) {
+                        msg = err.detail.map(e => `${e.loc ? e.loc.join('.') : ''}: ${e.msg}`).join('\n');
+                    } else {
+                        msg = JSON.stringify(err.detail);
+                    }
+                }
+                alert("Error: " + msg);
             }
         }
 

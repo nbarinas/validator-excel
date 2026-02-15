@@ -2834,17 +2834,31 @@ def delete_period(
     if current_user.role != 'superuser':
         raise HTTPException(status_code=403, detail="Not authorized")
         
-    # Cascade delete is handled by database usually, but we should verify.
-    # For now, simplistic delete.
     p = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
     if not p: raise HTTPException(404, "Period not found")
     
-    # Delete related records
-    db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id).delete()
-    
-    db.delete(p)
-    db.commit()
-    return {"status": "ok", "message": "Nómina eliminada"}
+    try:
+        # 1. Delete Record Items (Deepest Level - Children of Records)
+        # Find all records for this period to get IDs
+        records = db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id).all()
+        record_ids = [r.id for r in records]
+        
+        if record_ids:
+            # Bulk delete items for these records
+            db.query(models.PayrollRecordItem).filter(models.PayrollRecordItem.record_id.in_(record_ids)).delete(synchronize_session=False)
+
+        # 2. Delete Payroll Records (Children of Period)
+        db.query(models.PayrollRecord).filter(models.PayrollRecord.period_id == period_id).delete(synchronize_session=False)
+        
+        # 3. Delete Period (Concepts will cascade delete via ORM if defined, or we might need manual)
+        # Check models.py: concepts = relationship(..., cascade="all, delete-orphan") -> This handles concepts if we delete `p` via session add/delete
+        db.delete(p)
+        db.commit()
+        return {"status": "ok", "message": "Nómina eliminada correctamente"}
+    except Exception as e:
+        db.rollback()
+        print(f"Error deleting period: {e}")
+        raise HTTPException(500, detail=f"Error al eliminar nómina: {str(e)}")
 
 @app.get("/payroll/periods")
 @app.get("/payroll/periods")
