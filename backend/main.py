@@ -1345,18 +1345,12 @@ async def upload_calls(
             "collection_date": ["fecha recoleccion", "fecha recolección", "fecha recogida", "fecha de recogida", "fecha rec"], # Added 'fecha de recogida'
             "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec"], # Added 'hora de recogida'
             "census": ["censo", "id", "identifier"],
+            "code": ["codigo", "código", "cod", "id"], # Explicit mapping for Code
+            "implantation_pollster": ["encuestador", "pollster", "nombre encuestador", "implantation_pollster"],
+
             # Dog Food Study
             "dog_name": ["nombre del perro", "dog name", "mascota", "nombre de la mascota"],
-            "dog_breed": ["raza", "breed"],
-            "dog_size": ["tamaño", "tamano", "size"],
-            "dog_user_type": ["tipo de usuario", "tipo usuario", "user type", "tipo de mezclador"],
-            "stool_texture": ["textura popo del perro", "textura", "textura heces", "¿la textura del popó de su perro es?", "¿la textura del popó de su perro es?\n"],
-            "health_status": ["estado de salud", "salud", "condicion", "su perro ha tenido problemas digestivos?", "su perro ha tenido problemas digestivos?\n(si la respuesta es si pregunte)\n¿qué problemas digestivos a tenido? (respuesta espontanea)\n vomito\n diarrea\n otro"],
-            
-            # New Request
-            "second_collection_date": ["fecha 2 recogida", "fecha segunda recogida", "2 recogida", "segunda recogida"],
-            "second_collection_time": ["hora 2 recogida", "hora segunda recogida", "hora 2"],
-            "shampoo_quantity": ["cantidad shampoo", "shampoo", "cantidad", "cant"],
+            # ... existing ...
 
             # Hair Study
             "shampoo_brand": ["marca de shampoo", "marca shampoo"],
@@ -1485,6 +1479,7 @@ async def upload_calls(
                 second_collection_date=get_val("second_collection_date")[:50] if get_val("second_collection_date") else None,
                 second_collection_time=get_val("second_collection_time")[:50] if get_val("second_collection_time") else None,
                 shampoo_quantity=get_val("shampoo_quantity")[:50] if get_val("shampoo_quantity") else None,
+                implantation_pollster=get_val("implantation_pollster")[:100] if get_val("implantation_pollster") else None,
                 
                 # Hair
                 shampoo_brand=get_val("shampoo_brand")[:100] if get_val("shampoo_brand") else None,
