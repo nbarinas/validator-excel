@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
     <style>
         /* SCROLL FIX */
         body {
@@ -1734,6 +1739,24 @@
             }
         }
 
+        // Flatpickr Instance
+        let fpInstance = null;
+
+        function initFlatpickr() {
+            if (fpInstance) return;
+            const input = document.getElementById('newItemDate');
+            if (input) {
+                // Change input type to text implementation to avoid browser date picker conflict
+                input.type = "text";
+                fpInstance = flatpickr(input, {
+                    mode: "multiple",
+                    dateFormat: "Y-m-d",
+                    locale: "es",
+                    conjunction: " :: "
+                });
+            }
+        }
+
         async function openManualModal() {
             if (!currentLiquidacionId) return;
 
@@ -1757,6 +1780,10 @@
             renderManualItems();
 
             document.getElementById('manualModal').style.display = 'block';
+
+            // Init Flatpickr
+            initFlatpickr();
+            if (fpInstance) fpInstance.clear();
         }
 
         function editRecord(r) {
@@ -1823,6 +1850,10 @@
             renderManualItems();
 
             document.getElementById('manualModal').style.display = 'block';
+
+            // Init Flatpickr logic if editing date is needed (currently date isn't editable per row in existing UI logic, but standard input is there)
+            initFlatpickr();
+            if (fpInstance) fpInstance.clear();
         }
 
         function populateManualConcepts() {
@@ -1838,7 +1869,9 @@
         }
 
         function addManualItem() {
-            const date = document.getElementById('newItemDate').value;
+            const dateStr = document.getElementById('newItemDate').value; // Flatpickr puts values here
+            if (!dateStr) return alert("LA FECHA ES OBLIGATORIA.");
+
             const cid = parseInt(document.getElementById('newItemConcept').value);
             const qty = parseInt(document.getElementById('newItemQty').value);
 
@@ -1847,19 +1880,27 @@
             const concept = currentPeriodConcepts.find(c => c.id === cid);
             if (!concept) return;
 
-            manualItems.push({
-                date: date,
-                concept_id: concept.id,
-                concept_name: concept.name,
-                qty: qty,
-                rate: concept.rate,
-                total: qty * concept.rate
+            // Split dates (conjunction: " :: ")
+            const dates = dateStr.split(" :: ");
+
+            dates.forEach(d => {
+                manualItems.push({
+                    date: d,
+                    concept_id: concept.id,
+                    concept_name: concept.name,
+                    qty: qty,
+                    rate: concept.rate,
+                    total: qty * concept.rate
+                });
             });
 
             renderManualItems();
 
             // Reset quantity to 1
             document.getElementById('newItemQty').value = 1;
+            // Clear date if desired, or keep for rapid entry. Let's keep it to allow rapid entry of same dates.
+            // If user wants to clear: 
+            if (fpInstance) fpInstance.clear();
         }
 
         function removeManualItem(idx) {
