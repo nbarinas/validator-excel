@@ -2551,10 +2551,7 @@
             </body>
             </html>
         `);
-</body >
 
-</html >
-`);
             win.document.close();
         }
 
@@ -2789,7 +2786,7 @@
             document.getElementById('paymentArea').style.display = 'none';
 
             try {
-                const res = await fetch(`/ loans / user / ${ userId } `, { headers: { 'Authorization': 'Bearer ' + token } });
+                const res = await fetch(`/ loans / user / ${userId} `, { headers: { 'Authorization': 'Bearer ' + token } });
                 const loans = await res.json();
 
                 const tbody = document.getElementById('loansTableBody');
@@ -2806,7 +2803,7 @@
                     tr.style.opacity = l.status === 'paid' ? '0.5' : '1';
 
                     tr.innerHTML = `
-                < td > ${ dateStr }</td >
+                < td > ${dateStr}</td >
                         <td>${l.description}</td>
                         <td>$${l.amount.toLocaleString()}</td>
                         <td style="font-weight:bold; color:${l.balance > 0 ? '#ef4444' : '#4ade80'};">$${l.balance.toLocaleString()}</td>
@@ -2866,8 +2863,8 @@
         function setupPayment(loanId, desc, balance) {
             document.getElementById('paymentArea').style.display = 'block';
             document.getElementById('selectedLoanId').value = loanId;
-            document.getElementById('paymentLoanDesc').innerText = `${ desc } (Saldo: $${ balance.toLocaleString()
-        })`;
+            document.getElementById('paymentLoanDesc').innerText = `${desc} (Saldo: $${balance.toLocaleString()
+                })`;
             document.getElementById('paymentAmount').value = '';
             document.getElementById('paymentNotes').value = '';
 
@@ -2883,20 +2880,20 @@
             if (!amount) return alert("Ingrese el monto del abono");
 
             try {
-                const res = await fetch(`/ loans / ${ loanId }/payment`, {
-        method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: parseInt(amount), notes: notes })
+                const res = await fetch(`/ loans / ${loanId}/payment`, {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ amount: parseInt(amount), notes: notes })
                 });
 
-        if (res.ok) {
-            const data = await res.json();
-            alert("Abono registrado. Nuevo saldo: $" + data.new_balance.toLocaleString());
-            document.getElementById('paymentArea').style.display = 'none';
-            loadUserLoans(); // Refresh list
-        } else {
-            alert("Error registrando pago");
-        }
+                if (res.ok) {
+                    const data = await res.json();
+                    alert("Abono registrado. Nuevo saldo: $" + data.new_balance.toLocaleString());
+                    document.getElementById('paymentArea').style.display = 'none';
+                    loadUserLoans(); // Refresh list
+                } else {
+                    alert("Error registrando pago");
+                }
             } catch (e) { console.error(e); alert("Error de red"); }
         }
     </script>
