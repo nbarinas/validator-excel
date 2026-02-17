@@ -27,6 +27,7 @@ class User(Base):
     account_holder = Column(String(100), nullable=True) # Titular
     account_holder_cc = Column(String(20), nullable=True) # CC Titular
     cedula_ciudadania = Column(String(20), nullable=True) # Default CC separate from username
+    photo_base64 = Column(Text, nullable=True) # Foto para carnet
 
     calls = relationship("Call", foreign_keys="Call.user_id", back_populates="user")
     observations = relationship("Observation", back_populates="user")

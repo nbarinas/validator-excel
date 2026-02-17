@@ -9,10 +9,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         .container {
-            max-width: 900px;
+            max-width: 1200px;
             margin: 2rem auto;
             padding: 2rem;
             color: white;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
         }
 
         .header {
@@ -287,22 +291,24 @@
 
         <div class="card">
             <h2>Usuarios Existentes</h2>
-            <table id="usersTable">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Usuario (CC)</th>
-                        <th>Nombre</th>
-                        <th>Celular</th>
-                        <th>Ciudad</th>
-                        <th>Rol</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <!-- Populated by JS -->
-                </tbody>
-            </table>
+            <div class="table-responsive">
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuario (CC)</th>
+                            <th>Nombre</th>
+                            <th>Celular</th>
+                            <th>Ciudad</th>
+                            <th>Rol</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <!-- Edit User Modal -->
@@ -431,6 +437,105 @@
         </div>
     </div>
 
+    <!-- ID CARD MODAL -->
+    <div id="carnetModal" class="modal">
+        <div class="modal-content" style="max-width: 500px; background: #e2e8f0; color: #333;">
+            <span class="close-modal" onclick="closeCarnetModal()" style="color: #64748b;">&times;</span>
+            <h2 style="color: #1e293b; text-align: center; margin-bottom: 20px;">Carnet de Identificación</h2>
+
+            <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
+                <button onclick="flipCard(false)"
+                    style="padding: 5px 10px; background: #3b82f6; border-radius: 4px; border:none; color: white;">Frente</button>
+                <button onclick="flipCard(true)"
+                    style="padding: 5px 10px; background: #64748b; border-radius: 4px; border:none; color: white;">Atrás</button>
+            </div>
+
+            <!-- CARNET CONTAINER -->
+            <div id="carnetArea"
+                style="width: 320px; height: 480px; background: white; margin: 0 auto; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #cbd5e1;">
+
+                <!-- FRONT -->
+                <div id="cardFront"
+                    style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 20px; text-align: center;">
+                    <!-- Logo -->
+                    <div
+                        style="width: 100px; height: 60px; margin-bottom: 15px; display:flex; align-items:center; justify-content:center;">
+                        <img src="/static/logo.png"
+                            onerror="this.src='https://via.placeholder.com/100x50?text=AZ+Marketing'" alt="AZ Marketing"
+                            style="max-width: 100%; max-height: 100%;">
+                    </div>
+
+                    <!-- Photo -->
+                    <div
+                        style="width: 140px; height: 160px; background: #f1f5f9; border: 2px solid #3b82f6; border-radius: 8px; overflow: hidden; margin-bottom: 15px; position: relative;">
+                        <img id="carnetPhotoImg" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div id="photoPlaceholder"
+                            style="position: absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:3rem; background:#f8fafc;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+
+                    <!-- Details -->
+                    <h2 id="carnetName"
+                        style="margin: 5px 0; font-size: 1.2rem; color: #0f172a; text-transform: uppercase; line-height: 1.2;">
+                    </h2>
+                    <p id="carnetCC" style="margin: 0; color: #475569; font-weight: bold; font-size: 1rem;"></p>
+
+                    <div style="margin-top: 15px; width: 100%; border-top: 2px solid #3b82f6; padding-top: 10px;">
+                        <div id="carnetRole"
+                            style="background: #3b82f6; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; font-weight: bold; font-size: 0.9rem;">
+                        </div>
+                    </div>
+
+                    <div
+                        style="margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.8rem; color: #64748b;">
+                        <div>RH: <span id="carnetRh" style="font-weight: bold; color: #333;"></span></div>
+                    </div>
+                </div>
+
+                <!-- BACK -->
+                <div id="cardBack"
+                    style="display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; background: #1e293b; color: white; padding: 20px; text-align: center;">
+                    <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 10px;">AZ MARKETING</div>
+                    <p style="margin: 5px 0; color: #94a3b8;">NIT: 900.123.456-7</p>
+                    <p style="margin: 5px 0;">Armando Zarate</p>
+                    <p style="font-size: 1.2rem; font-weight: bold; color: #4ade80; margin-top: 10px;">323 496 8972</p>
+
+                    <div
+                        style="margin-top: 30px; font-size: 0.8rem; color: #64748b; padding-top: 20px; border-top: 1px solid #334155; width: 100%;">
+                        Esta tarjeta es personal e intransferible.
+                        En caso de pérdida, favor comunicar al número indicado.
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CONTROLS -->
+            <div
+                style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="file" id="photoInput" accept="image/*" style="display:none;"
+                        onchange="handlePhotoUpload()">
+                    <button onclick="document.getElementById('photoInput').click()"
+                        style="flex:1; background: #64748b; border:none; padding: 10px; border-radius: 6px; color:white; cursor:pointer;">
+                        <i class="fas fa-camera"></i> Subir Foto
+                    </button>
+                    <button onclick="savePhoto()"
+                        style="background: #22c55e; border:none; padding: 10px; border-radius: 6px; color:white; cursor:pointer; width: 50px;"
+                        title="Guardar Foto en Base de Datos">
+                        <i class="fas fa-save"></i>
+                    </button>
+                </div>
+
+                <button onclick="printCarnet()"
+                    style="width: 100%; background: #3b82f6; border:none; padding: 12px; border-radius: 6px; color:white; font-weight:bold; cursor:pointer;">
+                    <i class="fas fa-print"></i> Imprimir Carnet
+                </button>
+            </div>
+
+        </div>
+    </div>
+
     <script>
         const token = localStorage.getItem('token');
         if (!token) window.location.href = '/login';
@@ -468,6 +573,7 @@
                             `<button class="btn-delete" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>`
                             : ''}
                                 <button class="btn-delete" style="background:#10b981;" onclick="viewDetails('${u.id}')"><i class="fas fa-eye"></i></button>
+                                <button class="btn-delete" style="background:#8b5cf6;" onclick="openCarnetModal('${u.id}')" title="Generar Carnet"><i class="fas fa-id-card"></i></button>
                             </div>
                         </td>
                     `;
@@ -738,6 +844,170 @@
             } catch (e) {
                 console.error(e);
             }
+        }
+
+        // --- CARNET LOGIC ---
+        let carnetUser = null;
+
+        async function openCarnetModal(id) {
+            try {
+                // Fetch latest user data to get photo
+                const res = await fetch(API_URL + '/users', { headers: { 'Authorization': 'Bearer ' + token } }); // Simplified. In prod, use /users/{id}
+                const users = await res.json();
+                carnetUser = users.find(x => x.id == id);
+                if (!carnetUser) return;
+
+                // Populate Front
+                document.getElementById('carnetName').textContent = carnetUser.full_name || carnetUser.username;
+                const cc = carnetUser.cedula_ciudadania || carnetUser.username;
+                document.getElementById('carnetCC').textContent = 'CC. ' + cc;
+                document.getElementById('carnetRh').textContent = carnetUser.blood_type || '';
+
+                // Role Logic
+                let displayRole = 'PERSONAL OPERATIVO';
+                const r = (carnetUser.role || '').toLowerCase();
+                if (r === 'agent' || r === 'bizage') displayRole = 'AGENTE ENCUESTADOR';
+                if (r === 'supervisor') displayRole = 'SUPERVISOR';
+                if (r === 'coordinator') displayRole = 'COORDINADOR';
+                if (r === 'auxiliar') displayRole = 'AUXILIAR ADMINISTRATIVO';
+
+                document.getElementById('carnetRole').textContent = displayRole;
+
+                // Photo
+                const img = document.getElementById('carnetPhotoImg');
+                const placeholder = document.getElementById('photoPlaceholder');
+
+                if (carnetUser.photo_base64) {
+                    img.src = carnetUser.photo_base64;
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                } else {
+                    img.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                }
+
+                // Reset View
+                flipCard(false);
+                document.getElementById('carnetModal').style.display = 'flex';
+            } catch (e) { console.error(e); }
+        }
+
+        function closeCarnetModal() {
+            document.getElementById('carnetModal').style.display = 'none';
+            carnetUser = null;
+        }
+
+        function flipCard(isBack) {
+            const f = document.getElementById('cardFront');
+            const b = document.getElementById('cardBack');
+            if (isBack) {
+                f.style.display = 'none';
+                b.style.display = 'flex';
+            } else {
+                f.style.display = 'flex';
+                b.style.display = 'none';
+            }
+        }
+
+        function handlePhotoUpload() {
+            const input = document.getElementById('photoInput');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = document.getElementById('carnetPhotoImg');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('photoPlaceholder').style.display = 'none';
+
+                    // Temp save to object
+                    if (carnetUser) carnetUser.temp_new_photo = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function savePhoto() {
+            if (!carnetUser || !carnetUser.temp_new_photo) return alert("No hay foto nueva para guardar");
+
+            try {
+                const res = await fetch(API_URL + '/users/' + carnetUser.id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ photo_base64: carnetUser.temp_new_photo })
+                });
+
+                if (res.ok) {
+                    alert('Foto guardada correctamente');
+                    loadUsers(); // Refresh
+                } else {
+                    alert('Error al guardar foto');
+                }
+            } catch (e) { console.error(e); alert('Error de conexión'); }
+        }
+
+        function printCarnet() {
+            // Open print window
+            const win = window.open('', '', 'width=600,height=800');
+            const content = `
+                <html>
+                <head>
+                    <title>Imprimir Carnet</title>
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+                    <style>
+                        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px; }
+                        .card { width: 8.6cm; height: 5.4cm; border: 1px dashed #ccc; margin-bottom: 20px; position: relative; overflow: hidden; page-break-inside: avoid; }
+                        
+                        /* Front Styles */
+                        .front { background: white; display: flex; flex-direction: column; align-items: center; position: relative; padding: 10px; }
+                        .back { background: #1e293b; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+                        @media print {
+                            .no-print { display: none; }
+                            body { padding: 0; margin: 0; }
+                            .card { border: none; margin: 0; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="no-print" style="margin-bottom: 20px;">
+                        <button onclick="window.print()">IMPRIMIR</button>
+                    </div>
+
+                    <!-- Front Render -->
+                    <div class="card front">
+                        <div style="width: 80px; height: 40px; margin-bottom: 5px;">
+                            <img src="/static/logo.png" onerror="this.style.display='none'" style="max-width: 100%; max-height: 100%;">
+                        </div>
+                        <div style="width: 80px; height: 95px; background: #eee; border: 2px solid #3b82f6; border-radius: 4px; overflow: hidden; margin-bottom: 5px;">
+                            <img src="${document.getElementById('carnetPhotoImg').src}" style="width:100%; height:100%; object-fit:cover;">
+                        </div>
+                        <div style="font-weight: bold; font-size: 14px; color: #0f172a; text-transform: uppercase;">${document.getElementById('carnetName').textContent}</div>
+                        <div style="font-size: 12px; color: #475569; font-weight: bold; margin-bottom: 5px;">${document.getElementById('carnetCC').textContent}</div>
+                        
+                        <div style="background: #3b82f6; color: white; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 10px; margin-bottom: auto;">${document.getElementById('carnetRole').textContent}</div>
+                        
+                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: flex-end; font-size: 10px; color: #64748b;">
+                            <div>RH: <b>${document.getElementById('carnetRh').textContent}</b></div>
+                        </div>
+                    </div>
+
+                    <div style="height: 20px;"></div>
+
+                    <!-- Back Render -->
+                    <div class="card back">
+                        <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">AZ MARKETING</div>
+                        <p style="margin: 2px 0; font-size: 10px; color: #cbd5e1;">NIT: 900.123.456-7</p>
+                        <p style="margin: 2px 0; font-size: 12px;">Armando Zarate</p>
+                        <p style="font-size: 14px; font-weight: bold; color: #4ade80; margin-top: 5px;">323 496 8972</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            win.document.write(content);
+            win.document.close();
         }
     </script>
     <script src="/static/heartbeat.js"></script>

@@ -139,6 +139,7 @@ class UserCreate(BaseModel):
     account_holder: Optional[str] = None
     account_holder_cc: Optional[str] = None
     cedula_ciudadania: Optional[str] = None
+    photo_base64: Optional[str] = None
 
 # --- DEBUG ENDPOINTS ---
 @app.get("/debug/reset-admin")
@@ -181,7 +182,8 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
         ("neighborhood", "VARCHAR(100)"),
         ("blood_type", "VARCHAR(10)"),
         ("account_holder", "VARCHAR(100)"),
-        ("account_holder_cc", "VARCHAR(20)")
+        ("account_holder_cc", "VARCHAR(20)"),
+        ("cedula_ciudadania", "VARCHAR(20)")
     ]
     
     # Columns for bizage_studies
@@ -347,7 +349,8 @@ def create_user(user: UserCreate, db: Session = Depends(database.get_db), curren
         blood_type=user.blood_type,
         account_holder=user.account_holder,
         account_holder_cc=user.account_holder_cc,
-        cedula_ciudadania=user.cedula_ciudadania
+        cedula_ciudadania=user.cedula_ciudadania,
+        photo_base64=user.photo_base64
     )
     db.add(db_user)
     db.commit()
@@ -362,8 +365,10 @@ def create_user(user: UserCreate, db: Session = Depends(database.get_db), curren
         "neighborhood": db_user.neighborhood,
         "blood_type": db_user.blood_type,
         "account_holder": db_user.account_holder,
+        "account_holder": db_user.account_holder,
         "account_holder_cc": db_user.account_holder_cc,
-        "cedula_ciudadania": db_user.cedula_ciudadania
+        "cedula_ciudadania": db_user.cedula_ciudadania,
+        "photo_base64": db_user.photo_base64
     }
 
 class UserUpdate(BaseModel):
@@ -383,6 +388,7 @@ class UserUpdate(BaseModel):
     account_holder: Optional[str] = None
     account_holder_cc: Optional[str] = None
     cedula_ciudadania: Optional[str] = None
+    photo_base64: Optional[str] = None
 
 @app.put("/users/{user_id}")
 def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -424,6 +430,8 @@ def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(dat
         db_user.account_holder_cc = user_update.account_holder_cc
     if user_update.cedula_ciudadania is not None:
         db_user.cedula_ciudadania = user_update.cedula_ciudadania
+    if user_update.photo_base64 is not None:
+        db_user.photo_base64 = user_update.photo_base64
         
     db.commit()
     db.refresh(db_user)
@@ -470,7 +478,8 @@ def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(databa
         "blood_type": u.blood_type,
         "account_holder": u.account_holder,
         "account_holder_cc": u.account_holder_cc,
-        "cedula_ciudadania": u.cedula_ciudadania
+        "cedula_ciudadania": u.cedula_ciudadania,
+        "photo_base64": u.photo_base64
     } for u in users]
 
 @app.get("/debug/user-count")
@@ -566,7 +575,8 @@ def debug_migrate_db(db: Session = Depends(database.get_db)):
             ("blood_type", "VARCHAR(10)"),
             ("account_holder", "VARCHAR(100)"), 
             ("account_holder_cc", "VARCHAR(20)"),
-            ("cedula_ciudadania", "VARCHAR(20)"),  # ← MISSING!
+            ("cedula_ciudadania", "VARCHAR(20)"),
+            ("photo_base64", "TEXT"),  # ← MISSING!
         ]
         
         for col, dtype in new_user_cols:
@@ -798,6 +808,93 @@ def bizage_page():
 class StudyCreate(BaseModel):
     code: str
     name: str
+
+# --- LOAN ENDPOINTS ---
+
+@app.get("/loans/active/{user_id}")
+def get_active_loan(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    loan = db.query(models.Loan).filter(
+        models.Loan.user_id == user_id, 
+        models.Loan.status == "active",
+        models.Loan.balance > 0
+    ).first()
+    
+    if not loan:
+        return {"has_loan": False}
+        
+    return {
+        "has_loan": True,
+        "loan_id": loan.id,
+        "amount": loan.amount,
+        "balance": loan.balance,
+        "description": loan.description
+    }
+
+class LoanCreate(BaseModel):
+    user_id: int
+    amount: int
+    description: str
+
+@app.post("/loans")
+def create_loan(loan: LoanCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Check if user exists
+    user = db.query(models.User).filter(models.User.id == loan.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    new_loan = models.Loan(
+        user_id=loan.user_id,
+        amount=loan.amount,
+        balance=loan.amount,
+        description=loan.description,
+        status="active"
+    )
+    db.add(new_loan)
+    db.commit()
+    db.refresh(new_loan)
+    return new_loan
+
+class LoanPaymentCreate(BaseModel):
+    loan_id: int
+    amount: int
+    notes: Optional[str] = None
+
+@app.post("/loans/payment")
+def create_loan_payment(payment: LoanPaymentCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Check permissions if strict needed, for now assuming authorized user (admin/coord)
+    loan = db.query(models.Loan).filter(models.Loan.id == payment.loan_id).first()
+    if not loan:
+        raise HTTPException(status_code=404, detail="Loan not found")
+        
+    if payment.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+        
+    if payment.amount > loan.balance:
+        raise HTTPException(status_code=400, detail="Amount exceeds loan balance")
+        
+    # Create Payment Record
+    new_payment = models.LoanPayment(
+        loan_id=loan.id,
+        amount=payment.amount,
+        notes=payment.notes or "Deducción de Nómina"
+    )
+    db.add(new_payment)
+    
+    # Update Balance
+    loan.balance -= payment.amount
+    if loan.balance <= 0:
+        loan.balance = 0
+        loan.status = "paid"
+        
+    db.commit()
+    
+    return {
+        "status": "success", 
+        "new_balance": loan.balance, 
+        "paid_amount": payment.amount,
+        "loan_status": loan.status
+    }
+
 
 @app.post("/studies")
 def create_study(study: StudyCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):

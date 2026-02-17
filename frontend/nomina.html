@@ -246,27 +246,30 @@
                 }
             </style>
 
-            <!-- LIST CARD -->
-            <div class="card" id="listCard">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <input type="checkbox" id="selectAllPeriods" onchange="toggleSelectAll(this)"
-                            style="width: 20px; height: 20px; cursor: pointer;" title="Seleccionar Todos">
-                        <h3 style="margin:0;">Historial de Nóminas</h3>
-                    </div>
-                    <div id="bulkActions" style="display: none; gap: 10px;">
-                        <button onclick="exportBulkExcel()"
-                            style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                            <i class="fas fa-file-excel"></i> Exportar Excel
-                        </button>
-                        <button onclick="exportBulkPDF()"
-                            style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                            <i class="fas fa-file-pdf"></i> Exportar PDF
-                        </button>
-                    </div>
+            <div id="periodsList"></div>
+        </div>
+
+        <div class="card" id="listCard" style="margin-top: 2rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <h3 style="margin:0;">Historial de Nóminas</h3>
                 </div>
-                <div id="periodsList"></div>
             </div>
+
+            <!-- TABS -->
+            <div
+                style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+                <button id="tabActive" onclick="switchTab('active')"
+                    style="background: transparent; border: none; color: white; font-weight: bold; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid #3b82f6;">
+                    <i class="fas fa-play-circle" style="color:#22c55e;"></i> Nóminas Activas
+                </button>
+                <button id="tabClosed" onclick="switchTab('closed')"
+                    style="background: transparent; border: none; color: #94a3b8; font-weight: normal; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent;">
+                    <i class="fas fa-archive" style="color:#64748b;"></i> Nóminas Cerradas
+                </button>
+            </div>
+
+            <div id="periodsListContent"></div>
 
             <!-- DETAILS CARD (Initially Hidden) -->
             <div class="card" id="periodDetailsCard"
@@ -444,6 +447,43 @@
 
                     <button onclick="printGlobal()" class="btn-submit" style="background:#8b5cf6;"><i
                             class="fas fa-print"></i> Imprimir Cuenta de Cobro Global</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loan Deduction Modal -->
+        <div id="loanDeductionModal" class="modal">
+            <div class="modal-content" style="max-width: 400px;">
+                <!-- <span class="close" onclick="closeLoanModal()">&times;</span> -->
+                <h3 style="color:#eab308;"><i class="fas fa-exclamation-triangle"></i> Préstamo Activo</h3>
+                <p>El colaborador <strong id="loanUserDisplay"></strong> tiene un préstamo activo.</p>
+
+                <div style="background:rgba(255,255,255,0.1); padding:10px; border-radius:6px; margin:10px 0;">
+                    <div>Saldo Actual: <span id="loanBalanceDisplay" style="font-weight:bold; color:#f87171;"></span>
+                    </div>
+                    <div style="font-size:0.85rem; color:#aaa; margin-top:5px;" id="loanDescDisplay"></div>
+                </div>
+
+                <p style="margin-bottom:10px;">¿Desea realizar un abono a la deuda en este pago?</p>
+
+                <div id="loanInputArea" style="display:none; margin-bottom:15px;">
+                    <label>Monto a Deducir:</label>
+                    <input type="number" id="loanDeductionAmount" class="form-input" placeholder="0">
+                </div>
+
+                <div style="display:flex; justify-content:flex-end; gap:10px;">
+                    <button id="btnSkipLoan" onclick="proceedPrintWithoutDeduction()"
+                        style="background:transparent; border:1px solid #aaa; color:white; padding:8px 16px; border-radius:4px; cursor:pointer;">
+                        No deducir
+                    </button>
+                    <button id="btnShowInput" onclick="showLoanInput()"
+                        style="background:#eab308; border:none; color:black; padding:8px 16px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                        Sí, Deducir
+                    </button>
+                    <button id="btnConfirmDeduction" onclick="confirmLoanDeduction()"
+                        style="display:none; background:#22c55e; border:none; color:white; padding:8px 16px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                        Confirmar Abono
+                    </button>
                 </div>
             </div>
         </div>
@@ -705,8 +745,16 @@
             document.getElementById('globalResultsArea').style.display = 'block';
         }
 
-        function printGlobal() {
+        async function printGlobal(deduction = null) {
             if (!globalSelectedUser) return;
+
+            // 1. Check for Loan (if not already processing a deduction or skipped)
+            if (!deduction && !window.skipLoanCheck) {
+                const hasLoan = await checkActiveLoan(globalSelectedUser.id);
+                if (hasLoan) return; // Modal opened, stop here
+            }
+            // Reset skip flag
+            window.skipLoanCheck = false;
 
             document.getElementById('printPeriodName').textContent = "CUENTA DE COBRO UNIFICADA";
             document.getElementById('printDate').textContent = new Date().toLocaleDateString();
@@ -776,8 +824,119 @@
             });
 
             document.getElementById('printTotal').textContent = '$' + total.toLocaleString();
+
+            // INJECT DEDUCTION ROW IF EXISTS
+            if (deduction) {
+                const tbody = document.getElementById('printDetailsBody');
+
+                // Deduction Row
+                const tr = document.createElement('tr');
+                tr.style.color = '#ef4444';
+                tr.innerHTML = `
+                    <td style="padding-left:20px; font-weight:bold;">ABONO A PRÉSTAMO / DEDUCCIÓN</td>
+                    <td style="text-align:center;">1</td>
+                    <td style="text-align:right;">-$${parseInt(deduction.amount).toLocaleString()}</td>
+                    <td style="text-align:right;">-$${parseInt(deduction.amount).toLocaleString()}</td>
+                 `;
+                tbody.appendChild(tr);
+
+                // Recalculate Total
+                const newTotal = total - parseInt(deduction.amount);
+                document.getElementById('printTotal').textContent = '$' + newTotal.toLocaleString();
+            }
+
             window.print();
         }
+
+        // --- LOAN LOGIC ---
+        let currentActiveLoan = null;
+
+        async function checkActiveLoan(userId) {
+            try {
+                const res = await fetch(`/loans/active/${userId}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const data = await res.json();
+
+                if (data.has_loan) {
+                    currentActiveLoan = data;
+                    showLoanModal(data);
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                console.error(e);
+                return false;
+            }
+        }
+
+        function showLoanModal(loan) {
+            document.getElementById('loanDeductionModal').style.display = 'block';
+            document.getElementById('loanUserDisplay').textContent = globalSelectedUser.full_name || globalSelectedUser.username;
+            document.getElementById('loanBalanceDisplay').textContent = '$' + loan.balance.toLocaleString();
+            document.getElementById('loanDescDisplay').textContent = loan.description;
+
+            // Reset States
+            document.getElementById('loanInputArea').style.display = 'none';
+            document.getElementById('btnShowInput').style.display = 'inline-block';
+            document.getElementById('btnSkipLoan').style.display = 'inline-block';
+            document.getElementById('btnConfirmDeduction').style.display = 'none';
+            document.getElementById('loanDeductionAmount').value = '';
+        }
+
+        function closeLoanModal() {
+            document.getElementById('loanDeductionModal').style.display = 'none';
+        }
+
+        function showLoanInput() {
+            document.getElementById('loanInputArea').style.display = 'block';
+            document.getElementById('btnShowInput').style.display = 'none';
+            document.getElementById('btnSkipLoan').style.display = 'none'; // Force decision? Or allow cancel?
+            // Allow cancel by clicking outside or added cancel button? 
+            // For now, let's keep it simple.
+            document.getElementById('btnConfirmDeduction').style.display = 'inline-block';
+            document.getElementById('loanDeductionAmount').focus();
+        }
+
+        function proceedPrintWithoutDeduction() {
+            closeLoanModal();
+            window.skipLoanCheck = true;
+            printGlobal();
+        }
+
+        async function confirmLoanDeduction() {
+            const amount = parseInt(document.getElementById('loanDeductionAmount').value);
+            if (!amount || amount <= 0) return alert("Ingrese un monto válido");
+            if (amount > currentActiveLoan.balance) return alert("El monto no puede superar el saldo ($" + currentActiveLoan.balance + ")");
+
+            if (!confirm(`¿Confirmar deducción de $${amount.toLocaleString()}? Se descontará del saldo del préstamo inmediatamente.`)) return;
+
+            try {
+                const res = await fetch('/loans/payment', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        loan_id: currentActiveLoan.loan_id,
+                        amount: amount,
+                        notes: "Deducción en Cuenta Global - " + new Date().toLocaleDateString()
+                    })
+                });
+
+                if (res.ok) {
+                    closeLoanModal();
+                    // Proceed to print with deduction info
+                    printGlobal({ amount: amount });
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + (err.detail || "No se pudo registrar el pago"));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error de conexión");
+            }
+        }
+
 
         let conceptSuggestions = [];
 
@@ -1013,13 +1172,51 @@
             }
         }
 
+
+        let currentTab = 'active'; // 'active' or 'closed'
+
+        function switchTab(tab) {
+            currentTab = tab;
+
+            // UI Update
+            const btnActive = document.getElementById('tabActive');
+            const btnClosed = document.getElementById('tabClosed');
+
+            if (tab === 'active') {
+                btnActive.style.borderBottom = '2px solid #3b82f6';
+                btnActive.style.color = 'white';
+                btnActive.style.fontWeight = 'bold';
+
+                btnClosed.style.borderBottom = '2px solid transparent';
+                btnClosed.style.color = '#94a3b8';
+                btnClosed.style.fontWeight = 'normal';
+            } else {
+                btnClosed.style.borderBottom = '2px solid #3b82f6';
+                btnClosed.style.color = 'white';
+                btnClosed.style.fontWeight = 'bold';
+
+                btnActive.style.borderBottom = '2px solid transparent';
+                btnActive.style.color = '#94a3b8';
+                btnActive.style.fontWeight = 'normal';
+            }
+
+            renderPeriodsList();
+        }
+
         let allFetchedPeriods = [];
         async function loadPeriods() {
             const res = await fetch('/payroll/periods', { headers: { 'Authorization': 'Bearer ' + token } });
             const list = await res.json();
             allFetchedPeriods = list;
-            const container = document.getElementById('periodsList');
+            renderPeriodsList();
+        }
+
+        function renderPeriodsList() {
+            const list = allFetchedPeriods;
+            const container = document.getElementById('periodsListContent');
+            if (!container) return; // robustness
             container.innerHTML = '';
+
 
             const isSuper = currentUser.role === 'superuser';
 
@@ -1030,7 +1227,12 @@
                 // Supervisors can see active periods
                 if (p.is_visible === false && !isSuper) return;
 
-                const opacity = (p.is_visible !== false) ? '1' : '0.6';
+                // Filter based on Tab
+                const isVisible = (p.is_visible !== false);
+                if (currentTab === 'active' && !isVisible) return;
+                if (currentTab === 'closed' && isVisible) return;
+
+                const opacity = (p.is_visible !== false) ? '1' : '0.8';
                 const start = p.start_date ? p.start_date.substring(0, 10) : (p.execution_date || '');
                 const end = p.end_date ? p.end_date.substring(0, 10) : '';
                 const stateLabel = (p.is_visible !== false) ? 'Activa' : 'Inactiva';
