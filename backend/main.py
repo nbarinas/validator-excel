@@ -3345,6 +3345,24 @@ class LoanPaymentCreate(BaseModel):
     amount: int
     notes: Optional[str] = None
 
+@app.get("/loans/active/{user_id}")
+def get_active_loan(user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Check if user has any active loan
+    loan = db.query(models.Loan).filter(
+        models.Loan.user_id == user_id, 
+        models.Loan.status == "active"
+    ).first()
+    
+    if loan:
+        return {
+            "has_loan": True,
+            "loan_id": loan.id,
+            "amount": loan.amount,
+            "balance": loan.balance,
+            "description": loan.description
+        }
+    return {"has_loan": False}
+
 @app.post("/loans")
 def create_loan(data: LoanCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role not in ['superuser', 'admin', 'coordinator']:
