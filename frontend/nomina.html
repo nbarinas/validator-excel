@@ -2912,21 +2912,51 @@
                     <h4 id="loanUserName" style="margin-top:0; border-bottom:1px solid #334155; padding-bottom:10px;">
                         Seleccione un usuario</h4>
 
-                    <div id="loanDetailsArea" style="display:none; flex:1;">
-                        <div style="background: rgba(0,0,0,0.2); margin-bottom: 15px; border-radius:6px; padding:10px;">
-                            <h5 style="margin-top:0;">Préstamos Activos</h5>
-                            <div style="max-height:200px; overflow-y:auto;">
-                                <table class="data-table" style="font-size: 0.9rem;">
+                    <div id="loanDetailsArea" style="display:none; flex:1; flex-direction:column;">
+                        <!-- Tabs -->
+                        <div style="display:flex; gap:10px; margin-bottom:10px;">
+                            <button onclick="showLoanTab('active')" id="btnTabActive"
+                                style="flex:1; padding:8px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">Activos</button>
+                            <button onclick="showLoanTab('paid')" id="btnTabPaid"
+                                style="flex:1; padding:8px; background:rgba(255,255,255,0.1); color:#cbd5e1; border:none; border-radius:4px; cursor:pointer;">Historial
+                                / Pagados</button>
+                        </div>
+
+                        <!-- Tab Active -->
+                        <div id="tabActiveLoans"
+                            style="display:block; background: rgba(0,0,0,0.2); margin-bottom: 15px; border-radius:6px; padding:10px; flex:1; display:flex; flex-direction:column;">
+                            <h5 style="margin-top:0; color:#4ade80;">Préstamos Activos</h5>
+                            <div style="flex:1; overflow-y:auto; min-height:150px;">
+                                <table class="data-table" style="font-size: 0.9rem; width:100%;">
                                     <thead>
                                         <tr>
                                             <th>Fecha</th>
                                             <th>Descripción</th>
-                                            <th>Monto Original</th>
-                                            <th>Saldo Pendiente</th>
+                                            <th>Monto</th>
+                                            <th>Saldo</th>
                                             <th>Acción</th>
                                         </tr>
                                     </thead>
                                     <tbody id="loansTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tab Paid -->
+                        <div id="tabPaidLoans"
+                            style="display:none; background: rgba(0,0,0,0.2); margin-bottom: 15px; border-radius:6px; padding:10px; flex:1; flex-direction:column;">
+                            <h5 style="margin-top:0; color:#d1d5db;">Historial de Préstamos Pagados</h5>
+                            <div style="flex:1; overflow-y:auto; min-height:150px;">
+                                <table class="data-table" style="font-size: 0.9rem; width:100%;">
+                                    <thead>
+                                        <tr>
+                                            <th>Fecha</th>
+                                            <th>Descripción</th>
+                                            <th>Monto</th>
+                                            <th>Estado</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="paidLoansTableBody"></tbody>
                                 </table>
                             </div>
                         </div>
@@ -3029,40 +3059,73 @@
             }
         }
 
+        function showLoanTab(tab) {
+            document.getElementById('tabActiveLoans').style.display = tab === 'active' ? 'flex' : 'none';
+            document.getElementById('tabPaidLoans').style.display = tab === 'paid' ? 'flex' : 'none';
+
+            // Update buttons style
+            document.getElementById('btnTabActive').style.background = tab === 'active' ? '#3b82f6' : 'rgba(255,255,255,0.1)';
+            document.getElementById('btnTabActive').style.color = tab === 'active' ? 'white' : '#cbd5e1';
+
+            document.getElementById('btnTabPaid').style.background = tab === 'paid' ? '#3b82f6' : 'rgba(255,255,255,0.1)';
+            document.getElementById('btnTabPaid').style.color = tab === 'paid' ? 'white' : '#cbd5e1';
+
+            // Hide payment area when switching tabs
+            document.getElementById('paymentArea').style.display = 'none';
+        }
+
         async function loadUserLoans(userId) {
             if (!userId) userId = document.getElementById('loanUserId').value;
             // Ensure UI shows loans
             document.getElementById('loanDetailsArea').style.display = 'flex';
             document.getElementById('newLoanForm').style.display = 'none';
-            document.getElementById('paymentArea').style.display = 'none';
+            document.getElementById('paymentArea').style.display = 'none'; // Hide by default
+
+            // Reset to active tab
+            showLoanTab('active');
 
             try {
-                const res = await fetch(`/ loans / user / ${userId} `, { headers: { 'Authorization': 'Bearer ' + token } });
+                const res = await fetch(`/loans/user/${userId}`, { headers: { 'Authorization': 'Bearer ' + token } });
                 const loans = await res.json();
 
-                const tbody = document.getElementById('loansTableBody');
-                tbody.innerHTML = '';
+                const tbodyActive = document.getElementById('loansTableBody');
+                const tbodyPaid = document.getElementById('paidLoansTableBody');
+
+                tbodyActive.innerHTML = '';
+                tbodyPaid.innerHTML = '';
 
                 if (loans.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No tiene préstamos registrados.</td></tr>';
+                    tbodyActive.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">No tiene préstamos registrados.</td></tr>';
+                    tbodyPaid.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">Sin historial.</td></tr>';
                     return;
                 }
 
                 loans.forEach(l => {
                     const tr = document.createElement('tr');
                     const dateStr = new Date(l.created_at).toLocaleDateString();
-                    tr.style.opacity = l.status === 'paid' ? '0.5' : '1';
 
-                    tr.innerHTML = `
-                < td > ${dateStr}</td >
-                        <td>${l.description}</td>
-                        <td>$${l.amount.toLocaleString()}</td>
-                        <td style="font-weight:bold; color:${l.balance > 0 ? '#ef4444' : '#4ade80'};">$${l.balance.toLocaleString()}</td>
-                        <td>
-                            ${l.status === 'active' ? `<button onclick="setupPayment(${l.id}, '${l.description}', ${l.balance})" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Abonar</button>` : '<span style="color:#4ade80; font-weight:bold;">PAGADO</span>'}
-                        </td>
-            `;
-                    tbody.appendChild(tr);
+                    if (l.status === 'active') {
+                        tr.innerHTML = `
+                            <td>${dateStr}</td>
+                            <td>${l.description}</td>
+                            <td>$${l.amount.toLocaleString()}</td>
+                            <td style="font-weight:bold; color:#ef4444;">$${l.balance.toLocaleString()}</td>
+                            <td>
+                                <button onclick="setupPayment(${l.id}, '${l.description}', ${l.balance})" style="background:#3b82f6; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">Abonar</button>
+                            </td>
+                        `;
+                        tbodyActive.appendChild(tr);
+                    } else {
+                        // Paid / Inactive
+                        tr.style.opacity = '0.7';
+                        tr.innerHTML = `
+                            <td>${dateStr}</td>
+                            <td>${l.description}</td>
+                            <td>$${l.amount.toLocaleString()}</td>
+                            <td><span style="color:#4ade80; font-weight:bold;">PAGADO</span></td>
+                        `;
+                        tbodyPaid.appendChild(tr);
+                    }
                 });
             } catch (e) { console.error(e); alert("Error cargando préstamos"); }
         }
@@ -3131,7 +3194,7 @@
             if (!amount) return alert("Ingrese el monto del abono");
 
             try {
-                const res = await fetch(`/ loans / ${loanId}/payment`, {
+                const res = await fetch(`/loans/${loanId}/payment`, {
                     method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
                     body: JSON.stringify({ amount: parseInt(amount), notes: notes })
