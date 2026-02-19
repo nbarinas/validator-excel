@@ -363,8 +363,27 @@
                 box-shadow: none !important;
                 padding: 0.5rem !important;
             }
+
+            /* Mobile Sidebar Toggle */
+            #mobileFilterBtn {
+                display: block !important;
+            }
+
+            .sidebar {
+                display: none;
+                /* Hidden by default on mobile */
+            }
+
+            .sidebar.active {
+                display: block;
+            }
         }
     </style>
+    <script>
+        function toggleSidebar() {
+            document.getElementById('crmSidebar').classList.toggle('active');
+        }
+    </script>
 </head>
 
 <body>
@@ -560,8 +579,14 @@
     </div>
 
     <div class="crm-container" id="crmInterface">
+        <!-- MOBILE TOGGLE BUTTON -->
+        <button id="mobileFilterBtn" onclick="toggleSidebar()"
+            style="display:none; background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; margin-bottom:10px; width:100%; text-align:left; font-weight:bold;">
+            <i class="fas fa-filter"></i> Mostrar/Ocultar Filtros
+        </button>
+
         <!-- SIDEBAR: Selection & Search -->
-        <div class="sidebar" style="height: 100%; border-radius: 0;">
+        <div class="sidebar" id="crmSidebar" style="height: 100%; border-radius: 0;">
             <div class="form-group">
                 <label>Estudio Activo</label>
                 <select id="studySelect" class="form-input">
