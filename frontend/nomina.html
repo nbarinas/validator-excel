@@ -115,6 +115,93 @@
                 display: block !important;
             }
         }
+
+        @media (max-width: 768px) {
+
+            /* Container */
+            .payroll-container {
+                padding: 1rem !important;
+                margin: 0 !important;
+                width: 100% !important;
+            }
+
+            /* Header */
+            .header {
+                flex-direction: column;
+                gap: 0.5rem;
+                align-items: flex-start !important;
+                margin-bottom: 1.5rem;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            /* Top Actions (Buttons) */
+            #adminView>div:first-child {
+                flex-direction: column;
+            }
+
+            #adminView>div:first-child button {
+                width: 100%;
+            }
+
+            /* Forms (Creation Card) */
+            #creationCard>h3 {
+                font-size: 1.2rem;
+            }
+
+            #creationCard>div {
+                grid-template-columns: 1fr !important;
+                /* Stack inputs */
+                gap: 0.5rem !important;
+            }
+
+            /* Specific fix for the 3-column row (Type/Supervisor/Empty) */
+            #creationCard>div:nth-of-type(2) {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Dates Row */
+            #creationCard>div:nth-of-type(3) {
+                grid-template-columns: 1fr !important;
+            }
+
+            /* Tables */
+            .data-table {
+                display: block;
+                overflow-x: auto;
+                /* Scrollable tables */
+                white-space: nowrap;
+            }
+
+            /* Tabs */
+            #listCard>div:nth-child(2) {
+                flex-direction: column;
+            }
+
+            #listCard>div:nth-child(2) button {
+                width: 100%;
+                text-align: left;
+            }
+
+            /* Modals */
+            .modal-content {
+                width: 95% !important;
+                padding: 1rem !important;
+                margin: 10% auto !important;
+            }
+
+            /* Manual Entry Modal Grid */
+            #manualModal .modal-content>div:nth-of-type(2)>div {
+                grid-template-columns: 1fr !important;
+            }
+
+            #manualModal button {
+                width: 100%;
+                margin-top: 0.5rem;
+            }
+        }
     </style>
 </head>
 
