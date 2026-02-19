@@ -370,12 +370,35 @@
             }
 
             .sidebar {
-                display: none;
-                /* Hidden by default on mobile */
+                display: none !important;
+                /* Force hide */
             }
 
             .sidebar.active {
-                display: block;
+                display: block !important;
+                /* Force show */
+            }
+
+            /* Header Compact */
+            .main-content>div:first-child {
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+
+            .main-content>div:first-child h1 {
+                font-size: 1.2rem !important;
+                margin: 0 !important;
+            }
+
+            .main-content>div:first-child>div {
+                justify-content: center !important;
+                width: 100%;
+            }
+
+            .main-content>div:first-child a {
+                font-size: 0.9rem !important;
             }
         }
     </style>
