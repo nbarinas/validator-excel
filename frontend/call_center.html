@@ -343,13 +343,18 @@
             .crm-container {
                 grid-template-columns: 1fr !important;
                 height: auto !important;
+                /* Allow growing */
+                min-height: 100vh !important;
                 padding: 0.5rem !important;
                 margin: 0 !important;
                 width: 100% !important;
+                border: none !important;
                 border-radius: 0 !important;
                 box-shadow: none !important;
-                display: flex !important;
-                flex-direction: column;
+                display: block !important;
+                /* Stacking simply */
+                overflow: visible !important;
+                /* UNLOCK SCROLL */
             }
 
             .sidebar {
@@ -362,6 +367,9 @@
             .main-content {
                 box-shadow: none !important;
                 padding: 0.5rem !important;
+                height: auto !important;
+                /* Allow growing */
+                overflow: visible !important;
             }
 
             /* Mobile Sidebar Toggle - FORCE HIDDEN */
