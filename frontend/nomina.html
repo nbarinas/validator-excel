@@ -185,6 +185,25 @@
                 text-align: left;
             }
 
+            /* Period List Items */
+            #periodsListContent>div {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+            }
+
+            .actions-wrapper {
+                margin-top: 10px;
+                width: 100%;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .actions-wrapper button {
+                flex: 1;
+                /* Grow to fill */
+                text-align: center;
+            }
+
             /* Modals */
             .modal-content {
                 width: 95% !important;
@@ -1362,7 +1381,7 @@
                     <div style="display: flex; align-items: center;">
                         ${checkboxHtml}
                         <div>
-                            <div style="font-weight:bold; font-size:1.1rem; display:flex; align-items:center; gap:10px;">
+                            <div style="font-weight:bold; font-size:1.1rem; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                                 ${p.name} 
                                 <span style="font-size:0.8rem; background:#0f172a; padding:2px 6px; border-radius:4px;">${p.study_code || 'S/C'}</span>
                                 <span style="font-size:0.75rem; background:${stateColor}; padding:2px 8px; border-radius:10px; color:white;">${stateLabel}</span>
@@ -1373,7 +1392,7 @@
                             </div>
                         </div>
                     </div>
-                    <div style="display:flex; align-items:center;">
+                    <div class="actions-wrapper">
                         ${actionsHtml}
                     </div>
                 `;
