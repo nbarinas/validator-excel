@@ -278,6 +278,92 @@
         .multiselect-content.show {
             display: block;
         }
+
+        @media (max-width: 768px) {
+
+            /* 1. Superuser Landing (Card Grid) */
+            #superuserLanding {
+                height: auto !important;
+                /* Allow scrolling */
+                padding: 1rem !important;
+                overflow-y: auto !important;
+            }
+
+            /* Header Layout */
+            #superuserLanding>div:first-child {
+                flex-direction: column;
+                gap: 1rem;
+                margin-bottom: 1.5rem !important;
+            }
+
+            #superuserLanding>div:first-child>div {
+                width: 100%;
+                display: flex;
+                justify-content: center !important;
+                text-align: center !important;
+            }
+
+            #superuserLanding h1 {
+                font-size: 1.5rem !important;
+            }
+
+            /* Cards Container */
+            #superuserLanding>div:nth-child(2) {
+                flex-direction: column;
+                /* Stack buttons */
+                height: auto !important;
+                gap: 1rem !important;
+                align-items: stretch !important;
+                /* Full width */
+            }
+
+            /* Card Buttons */
+            #superuserLanding button {
+                width: 100% !important;
+                height: auto !important;
+                min-height: 80px;
+                padding: 1.5rem !important;
+                font-size: 1.1rem !important;
+                display: flex !important;
+                align-items: center;
+                /* Row layout for icon + text */
+                flex-direction: row;
+                justify-content: flex-start;
+                text-align: left;
+            }
+
+            #superuserLanding button i {
+                font-size: 2rem !important;
+                margin-bottom: 0 !important;
+                margin-right: 1.5rem !important;
+                /* Space between icon and text */
+            }
+
+            /* 2. CRM Interface (Sidebar + Content) */
+            .crm-container {
+                grid-template-columns: 1fr !important;
+                height: auto !important;
+                padding: 0.5rem !important;
+                margin: 0 !important;
+                width: 100% !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                display: flex !important;
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+            }
+
+            /* Compact specific elements */
+            .main-content {
+                box-shadow: none !important;
+                padding: 0.5rem !important;
+            }
+        }
     </style>
 </head>
 
