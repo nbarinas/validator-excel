@@ -364,9 +364,15 @@
                 padding: 0.5rem !important;
             }
 
-            /* Mobile Sidebar Toggle */
+            /* Mobile Sidebar Toggle - FORCE HIDDEN */
             #mobileFilterBtn {
-                display: block !important;
+                display: none !important;
+            }
+
+            /* Removing old button style */
+            #mobileToolbar {
+                display: flex !important;
+                /* Show new toolbar */
             }
 
             .sidebar {
@@ -379,32 +385,55 @@
                 /* Force show */
             }
 
-            /* Header Compact */
-            .main-content>div:first-child {
+            /* Header Compact & Collapsible */
+            .header-collapsible {
+                display: none !important;
+                /* Hide header by default on mobile */
+            }
+
+            .header-collapsible.active {
+                display: block !important;
+            }
+
+            .header-collapsible>div {
                 flex-direction: column !important;
                 gap: 0.5rem !important;
                 padding-bottom: 0.5rem !important;
                 margin-bottom: 0.5rem !important;
             }
 
-            .main-content>div:first-child h1 {
+            .header-collapsible h1 {
                 font-size: 1.2rem !important;
                 margin: 0 !important;
             }
 
-            .main-content>div:first-child>div {
+            .header-collapsible>div>div {
                 justify-content: center !important;
                 width: 100%;
             }
 
-            .main-content>div:first-child a {
+            .header-collapsible a {
                 font-size: 0.9rem !important;
+            }
+
+            /* Bulk Actions Collapsible */
+            #bulkActions {
+                display: none !important;
+            }
+
+            #bulkActions.active {
+                display: block !important;
             }
         }
     </style>
     <script>
         function toggleSidebar() {
             document.getElementById('crmSidebar').classList.toggle('active');
+        }
+        function toggleHeaderOptions() {
+            document.getElementById('mobileHeaderCollapsible').classList.toggle('active');
+            const bulk = document.getElementById('bulkActions');
+            if (bulk) bulk.classList.toggle('active');
         }
     </script>
 </head>
@@ -602,11 +631,17 @@
     </div>
 
     <div class="crm-container" id="crmInterface">
-        <!-- MOBILE TOGGLE BUTTON -->
-        <button id="mobileFilterBtn" onclick="toggleSidebar()"
-            style="display:none; background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; margin-bottom:10px; width:100%; text-align:left; font-weight:bold;">
-            <i class="fas fa-filter"></i> Mostrar/Ocultar Filtros
-        </button>
+        <!-- MOBILE TOOLBAR (Visible only on mobile) -->
+        <div id="mobileToolbar" style="display:none; gap: 10px; margin-bottom: 10px;">
+            <button onclick="toggleSidebar()"
+                style="flex: 1; background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
+                <i class="fas fa-filter"></i> Filtros
+            </button>
+            <button onclick="toggleHeaderOptions()"
+                style="flex: 1; background:#64748b; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
+                <i class="fas fa-cog"></i> Opciones
+            </button>
+        </div>
 
         <!-- SIDEBAR: Selection & Search -->
         <div class="sidebar" id="crmSidebar" style="height: 100%; border-radius: 0;">
@@ -642,27 +677,31 @@
         <!-- MAIN CONTENT: Grid & Detail -->
         <div class="main-content" style="position: relative;">
 
-            <!-- Context Header (Moved from Top) -->
-            <div
-                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee;">
-                <!-- Left: Back Button -->
-                <div style="flex: 1; display: flex; justify-content: flex-start;">
-                    <a href="/"
-                        style="text-decoration: none; color: #1a73e8; font-weight: bold; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
-                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
-                    </a>
-                </div>
-
-                <!-- Center: Title -->
+            <!-- Context Header (Collapsible on Mobile) -->
+            <div id="mobileHeaderCollapsible" class="header-collapsible">
                 <div
-                    style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                    <h1 style="margin: 0; font-size: 1.5rem; color: #1e293b; text-align: center;">Call Center CRM</h1>
-                </div>
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee;">
+                    <!-- Left: Back Button -->
+                    <div style="flex: 1; display: flex; justify-content: flex-start;">
+                        <a href="/"
+                            style="text-decoration: none; color: #1a73e8; font-weight: bold; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                        </a>
+                    </div>
 
-                <!-- Right: User Info -->
-                <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
-                    <div id="userInfoDisplay"
-                        style="color: #334155; font-size: 1rem; display: flex; align-items: center; gap: 10px;"></div>
+                    <!-- Center: Title -->
+                    <div
+                        style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <h1 style="margin: 0; font-size: 1.5rem; color: #1e293b; text-align: center;">Call Center CRM
+                        </h1>
+                    </div>
+
+                    <!-- Right: User Info -->
+                    <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                        <div id="userInfoDisplay"
+                            style="color: #334155; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
+                        </div>
+                    </div>
                 </div>
             </div>
 
