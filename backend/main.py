@@ -142,30 +142,34 @@ class UserCreate(BaseModel):
     photo_base64: Optional[str] = None
 
 # --- DEBUG ENDPOINTS ---
-@app.get("/debug/reset-admin")
-def debug_reset_admin(db: Session = Depends(database.get_db)):
-    try:
-        user = db.query(models.User).filter(models.User.username == "admin").first()
-        hashed = auth.get_password_hash("admin123")
-        if not user:
-             user = models.User(username="admin", hashed_password=hashed, role="superuser")
-             db.add(user)
-             msg = "Created admin user"
-        else:
-             user.hashed_password = hashed
-             user.role = "superuser"
-             msg = "Updated admin user"
-        db.commit()
-        return {"status": "success", "message": f"{msg}: Password set to 'admin123'"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
+# --- DEBUG ENDPOINTS (DISABLED FOR SECURITY) ---
+# @app.get("/debug/reset-admin")
+# def debug_reset_admin(db: Session = Depends(database.get_db)):
+#     try:
+#         user = db.query(models.User).filter(models.User.username == "admin").first()
+#         hashed = auth.get_password_hash("admin123")
+#         if not user:
+#              user = models.User(username="admin", hashed_password=hashed, role="superuser")
+#              db.add(user)
+#              msg = "Created admin user"
+#         else:
+#              user.hashed_password = hashed
+#              user.role = "superuser"
+#              msg = "Updated admin user"
+#         db.commit()
+#         return {"status": "success", "message": f"{msg}: Password set to 'admin123'"}
+#     except Exception as e:
+#         return {"status": "error", "message": str(e)}
 
-@app.get("/debug/migrate-db")
-def debug_migrate_db(db: Session = Depends(database.get_db)):
-    """
-    Manually add missing columns to users table if they don't exist.
-    Specific for MySQL/Postgres where auto-migration didn't run.
-    """
+# @app.get("/debug/migrate-db")
+# def debug_migrate_db(db: Session = Depends(database.get_db)):
+#     """
+#     Manually add missing columns to users table if they don't exist.
+#     Specific for MySQL/Postgres where auto-migration didn't run.
+#     """
+#     return {"status": "error", "message": "Debug endpoint disabled"}
+#     # from sqlalchemy import text
+#     # ... (rest of function commented out)
     from sqlalchemy import text
     
     # Columns to check/add
@@ -482,77 +486,77 @@ def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(databa
         "photo_base64": u.photo_base64
     } for u in users]
 
-@app.get("/debug/user-count")
-def debug_user_count(db: Session = Depends(database.get_db)):
-    """Public endpoint to check if users were created"""
-    count = db.query(models.User).count()
-    users = db.query(models.User).all()
-    return {
-        "total_users": count,
-        "usernames": [u.username for u in users]
-    }
+# @app.get("/debug/user-count")
+# def debug_user_count(db: Session = Depends(database.get_db)):
+#     """Public endpoint to check if users were created"""
+#     count = db.query(models.User).count()
+#     users = db.query(models.User).all()
+#     return {
+#         "total_users": count,
+#         "usernames": [u.username for u in users]
+#     }
 
-@app.get("/debug/reset-admin")
-def debug_reset_admin(db: Session = Depends(database.get_db)):
-    """Temporary endpoint to force reset admin password"""
-    try:
-        user = db.query(models.User).filter(models.User.username == "admin").first()
-        hashed_pwd = "$2b$12$JGM4KHyZ5kQGg.4HejqX2Ov545baXJkLphOSmkPQCILbXokU0VdBG" # admin123
-        
-        if user:
-            user.hashed_password = hashed_pwd
-            user.role = "superuser"
-            action = "updated"
-        else:
-            user = models.User(username="admin", hashed_password=hashed_pwd, role="superuser")
-            db.add(user)
-            action = "created"
-            
-        db.commit()
-        return {"status": "success", "message": f"Admin user {action} successfully", "username": "admin"}
-    except Exception as e:
-        return {"status": "error", "message": f"Error: {str(e)}"}
+# @app.get("/debug/reset-admin")
+# def debug_reset_admin(db: Session = Depends(database.get_db)):
+#     """Temporary endpoint to force reset admin password"""
+#     try:
+#         user = db.query(models.User).filter(models.User.username == "admin").first()
+#         hashed_pwd = "$2b$12$JGM4KHyZ5kQGg.4HejqX2Ov545baXJkLphOSmkPQCILbXokU0VdBG" # admin123
+#         
+#         if user:
+#             user.hashed_password = hashed_pwd
+#             user.role = "superuser"
+#             action = "updated"
+#         else:
+#             user = models.User(username="admin", hashed_password=hashed_pwd, role="superuser")
+#             db.add(user)
+#             action = "created"
+#             
+#         db.commit()
+#         return {"status": "success", "message": f"Admin user {action} successfully", "username": "admin"}
+#     except Exception as e:
+#         return {"status": "error", "message": f"Error: {str(e)}"}
 
-@app.get("/debug/check-admin")
-def debug_check_admin(db: Session = Depends(database.get_db)):
-    """Check admin user details"""
-    try:
-        user = db.query(models.User).filter(models.User.username == "admin").first()
-        if user:
-            return {
-                "username": user.username,
-                "role": user.role,
-                "hash_length": len(user.hashed_password) if user.hashed_password else 0,
-                "hash_preview": user.hashed_password[:50] if user.hashed_password else None
-            }
-        return {"error": "Admin not found"}
-    except Exception as e:
-        return {"error": str(e)}
+# @app.get("/debug/check-admin")
+# def debug_check_admin(db: Session = Depends(database.get_db)):
+#     """Check admin user details"""
+#     try:
+#         user = db.query(models.User).filter(models.User.username == "admin").first()
+#         if user:
+#             return {
+#                 "username": user.username,
+#                 "role": user.role,
+#                 "hash_length": len(user.hashed_password) if user.hashed_password else 0,
+#                 "hash_preview": user.hashed_password[:50] if user.hashed_password else None
+#             }
+#         return {"error": "Admin not found"}
+#     except Exception as e:
+#         return {"error": str(e)}
 
-@app.get("/debug/test-verify")
-def debug_test_verify(db: Session = Depends(database.get_db)):
-    """Test password verification"""
-    try:
-        user = db.query(models.User).filter(models.User.username == "admin").first()
-        if not user:
-            return {"error": "Admin not found"}
-        
-        # Test verification
-        test_password = "admin123"
-        try:
-            result = auth.verify_password(test_password, user.hashed_password)
-            return {
-                "verification_result": result,
-                "password_tested": test_password,
-                "hash_used": user.hashed_password[:50]
-            }
-        except Exception as verify_error:
-            return {"verification_error": str(verify_error)}
-    except Exception as e:
-        return {"error": str(e)}
+# @app.get("/debug/test-verify")
+# def debug_test_verify(db: Session = Depends(database.get_db)):
+#     """Test password verification"""
+#     try:
+#         user = db.query(models.User).filter(models.User.username == "admin").first()
+#         if not user:
+#             return {"error": "Admin not found"}
+#         
+#         # Test verification
+#         test_password = "admin123"
+#         try:
+#             result = auth.verify_password(test_password, user.hashed_password)
+#             return {
+#                 "verification_result": result,
+#                 "password_tested": test_password,
+#                 "hash_used": user.hashed_password[:50]
+#             }
+#         except Exception as verify_error:
+#             return {"verification_error": str(verify_error)}
+#     except Exception as e:
+#         return {"error": str(e)}
 
-@app.get("/debug/migrate-db")
-def debug_migrate_db(db: Session = Depends(database.get_db)):
+# @app.get("/debug/migrate-db")
+# def debug_migrate_db(db: Session = Depends(database.get_db)):
     """Run migrations to add missing columns to users, studies, and calls tables"""
     from sqlalchemy import text, inspect
     try:
