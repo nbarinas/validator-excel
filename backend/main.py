@@ -2,13 +2,13 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, sta
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 import json
 import pandas as pd
 import io
 import os
 from typing import List, Optional, Dict
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel
 import re
 
@@ -1027,7 +1027,11 @@ def create_call(call: CallCreate, db: Session = Depends(database.get_db), curren
 @app.get("/calls")
 def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     # Join with Study to get status and name
-    query = db.query(models.Call).join(models.Study)
+    # OPTIMIZATION: Eager load Study and User to prevent N+1
+    query = db.query(models.Call).options(
+        joinedload(models.Call.study),
+        joinedload(models.Call.user)
+    ).join(models.Study)
     
     if study_id:
         query = query.filter(models.Call.study_id == study_id)
@@ -3332,3 +3336,62 @@ def delete_loan(loan_id: int, db: Session = Depends(database.get_db), current_us
 @app.get("/nomina-page")
 async def nomina_page():
     return FileResponse(os.path.join(FRONTEND_DIR, "nomina.html"))
+
+@app.get("/reports/daily-effectives")
+def get_daily_effectives(
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Get count of effective calls (managed/efectiva_campo) for TODAY.
+    Grouped by Study and Agent.
+    """
+    from sqlalchemy import text
+    
+    # PARAMETERIZED QUERY (Safe & Correct)
+    # Filter by realization_date
+    sql = text("""
+        SELECT 
+            s.name as study_name,
+            u.full_name as agent_name,
+            u.username as agent_username,
+            COUNT(*) as count
+        FROM calls c
+        JOIN users u ON c.user_id = u.id
+        JOIN studies s ON c.study_id = s.id
+        WHERE 
+            (c.status = 'managed' OR c.status = 'efectiva_campo')
+            AND c.realization_date >= :today_start
+            AND c.realization_date < :tomorrow_start
+        GROUP BY s.name, u.full_name, u.username
+        ORDER BY s.name, count DESC
+    """)
+    
+    start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    end = start + timedelta(days=1)
+    
+    result = db.execute(sql, {"today_start": start, "tomorrow_start": end}).fetchall()
+    
+    # Transform to nested structure
+    tree = {}
+    
+    for row in result:
+        # row: (study_name, agent_name, agent_username, count)
+        s_name = row[0]
+        a_name = row[1] or row[2]
+        cnt = row[3]
+        
+        if s_name not in tree:
+            tree[s_name] = []
+        
+        tree[s_name].append({"name": a_name, "count": cnt})
+        
+    output = []
+    for s_name, agents in tree.items():
+        output.append({
+            "study_name": s_name,
+            "agents": agents,
+            "total": sum(a['count'] for a in agents)
+        })
+        
+    return output

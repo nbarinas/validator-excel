@@ -1,4 +1,4 @@
-const token = localStorage.getItem('token');
+﻿const token = localStorage.getItem('token');
 if (!token) window.location.href = '/login';
 
 // Setup Auth Header
@@ -1414,9 +1414,29 @@ async function updateCallStatus(newStatus) {
 
         if (res.ok) {
             alert("Estado actualizado");
-            const sel = document.getElementById('studySelect');
-            if (sel.value) loadStudyData(sel.value);
-            else loadStudyData(null);
+
+            // LOCAL UPDATE ONLY
+            const callIndex = allCalls.findIndex(c => c.id === currentCallId);
+            if (callIndex !== -1) {
+                allCalls[callIndex].status = newStatus;
+
+                // VISIBILITY FIX: 
+                // If user is restricted (Agent/Supervisor) AND status is NOT pending/scheduled, remove from view immediately.
+                // Allowed roles to see everything: superuser, coordinator, auxiliar
+                const allowedRoles = ['superuser', 'coordinator', 'auxiliar'];
+
+                if (!allowedRoles.includes(currentUserRole)) {
+                    // Restricted User
+                    if (newStatus !== 'pending' && newStatus !== 'scheduled') {
+                        // Remove from array so it disappears from grid
+                        allCalls.splice(callIndex, 1);
+                    }
+                }
+            }
+
+            // Re-apply filters to update view (e.g. if filtering by status, call might disappear from view)
+            applyColumnFilters();
+
             showGridView();
         } else {
             const err = await res.json();
@@ -1479,6 +1499,7 @@ async function assignAgent() {
         return;
     }
 
+    // REFACTORED UPDATE LOGIC TO PREVENT FILTER RESET
     try {
         const res = await fetch(`/calls/${currentCallId}/assign`, {
             method: 'PUT',
@@ -1489,10 +1510,24 @@ async function assignAgent() {
         if (res.ok) {
             const data = await res.json();
             alert(`Llamada asignada a: ${data.agent}`);
-            // Return to grid automatically
-            const sel = document.getElementById('studySelect');
-            if (sel.value) loadStudyData(sel.value);
-            else loadStudyData(null);
+
+            // LOCAL UPDATE ONLY
+            const callIndex = allCalls.findIndex(c => c.id === currentCallId);
+            if (callIndex !== -1) {
+                // Update fields
+                allCalls[callIndex].agent_id = parseInt(userId);
+                // We need the agent name. The API returns it, or we find it in the list.
+                // data.agent contains the name according to backend response used in alert?
+                // The backend response for assign usually returns {"status":..., "agent": "Name"}
+                allCalls[callIndex].agent_name = data.agent;
+                allCalls[callIndex].status = 'pending'; // Reset status on assignment? Usually yes, or keeps 'pending'.
+            }
+
+            // Re-apply filters and render without reloading whole study
+            applyFilter(); // or searchCalls() if using search
+            // If using the new column filters:
+            applyColumnFilters();
+
             showGridView();
         } else {
             alert("Error al asignar");
@@ -1854,4 +1889,71 @@ async function saveStudyAssistants() {
             alert("Error al guardar");
         }
     } catch (e) { console.error(e); alert("asigna error"); }
+}
+
+
+
+// --- DAILY REPORT FEATURE ---
+async function showDailyReport() {
+    const modal = document.getElementById('dailyReportModal');
+    const content = document.getElementById('dailyReportContent');
+    modal.style.display = 'flex';
+    content.innerHTML = '<div style="text-align:center; padding: 2rem;">Cargando...</div>';
+
+    try {
+        const res = await fetch('/reports/daily-effectives', { headers });
+        if (res.ok) {
+            const data = await res.json();
+            
+            if (data.length === 0) {
+                content.innerHTML = '<div style="text-align:center; padding: 2rem; color: #64748b;">No hay efectividad registrada hoy.</div>';
+                return;
+            }
+
+            let html = '';
+            
+            data.forEach(study => {
+                let tableRows = '';
+                if (study.agents.length === 0) {
+                    tableRows = `<div style="padding: 0.5rem; color: #94a3b8; font-style: italic;">Sin productividad hoy</div>`;
+                } else {
+                    tableRows = `<table style="width: 100%; border-collapse: collapse;">`;
+                    study.agents.forEach(a => {
+                        tableRows += `
+                            <tr style="border-bottom: 1px solid #f1f5f9;">
+                                <td style="padding: 0.5rem; color: #475569;">${a.name || 'Desconocido'}</td>
+                                <td style="padding: 0.5rem; text-align: right; font-weight: bold; color: #0f172a;">${a.count}</td>
+                            </tr>
+                        `;
+                    });
+                    tableRows += `</table>`;
+                }
+
+                html += `
+                    <div style="margin-bottom: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                        <div style="background: #f8fafc; padding: 0.8rem; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #334155; display: flex; justify-content: space-between;">
+                            <span>${study.study_name}</span>
+                            <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">Total: ${study.total}</span>
+                        </div>
+                        <div style="padding: 0.5rem;">
+                            ${tableRows}
+                        </div>
+                    </div>
+                `;
+            });
+
+            content.innerHTML = html;
+
+        } else {
+            console.error(res);
+            content.innerHTML = '<div style="color:red; text-align:center;">Error al cargar reporte.</div>';
+        }
+    } catch (e) {
+        console.error(e);
+        content.innerHTML = '<div style="color:red; text-align:center;">Error de conexión.</div>';
+    }
+}
+
+function closeDailyReport() {
+    document.getElementById('dailyReportModal').style.display = 'none';
 }

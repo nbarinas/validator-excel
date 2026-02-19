@@ -337,6 +337,11 @@
                     <i class="fas fa-archive" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Estudios ya cerrados
                 </button>
+                <button onclick="showDailyReport()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #0ea5e9; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-chart-line" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Reporte Diario
+                </button>
             </div>
         </div>
 
@@ -369,6 +374,32 @@
                     <button onclick="closeManageStudies()"
                         style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cerrar</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DAILY REPORT MODAL -->
+    <div id="dailyReportModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; padding: 1.5rem; border-radius: 12px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2 style="margin: 0; color: #1e293b;">Efectividad Hoy</h2>
+                <button onclick="closeDailyReport()"
+                    style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Llamadas
+                Gestionadas/Efectivas hoy</p>
+
+            <div id="dailyReportContent">
+                <!-- Injected by JS -->
+                <div style="text-align:center;">Cargando...</div>
+            </div>
+
+            <div style="display: flex; justify-content: center; margin-top: 1.5rem;">
+                <button onclick="closeDailyReport()"
+                    style="background: #94a3b8; border: none; padding: 0.8rem 2rem; border-radius: 6px; color: white; cursor: pointer; font-size: 1rem;">Cerrar</button>
             </div>
         </div>
     </div>
@@ -996,7 +1027,7 @@
     </div>
     </div>
 
-    <script src="/static/call_center.js?v=16"></script>
+    <script src="/static/call_center.js?v=22"></script>
     <script>
         // Online Status Logic
         async function updateOnlineStatus() {
