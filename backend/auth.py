@@ -7,8 +7,9 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from . import models, database
 
+import os
 # SECRET KEY - In production, this should be in env vars
-SECRET_KEY = "azmarketing_super_secure_secret_key"
+SECRET_KEY = os.getenv("SECRET_KEY", "azmarketing_super_secure_secret_key") # Fallback for local dev if needed
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 hours
 

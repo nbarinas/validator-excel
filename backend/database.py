@@ -29,7 +29,7 @@ elif "mysql" in SQLALCHEMY_DATABASE_URL:
 
     engine_kwargs["pool_recycle"] = 280
 
-print(f"DEBUG: SQLALCHEMY_DATABASE_URL = {SQLALCHEMY_DATABASE_URL}")
+# print(f"DEBUG: SQLALCHEMY_DATABASE_URL = {SQLALCHEMY_DATABASE_URL}") # Security: Don't log credentials
 print(f"DEBUG: CWD = {os.getcwd()}")
 
 engine = create_engine(
