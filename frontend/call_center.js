@@ -1438,6 +1438,11 @@ async function updateCallStatus(newStatus) {
             applyColumnFilters();
 
             showGridView();
+        } else if (res.status === 401) {
+            // Handle session expiration specifically
+            alert("Tu sesión ha expirado por inactividad. Serás redirigido para iniciar sesión nuevamente.");
+            localStorage.removeItem('token');
+            window.location.href = '/login';
         } else {
             const err = await res.json();
             alert("Error: " + (err.detail || "Error al actualizar"));
@@ -1460,6 +1465,10 @@ async function loadAgents() {
             const sel = document.getElementById('agentSelect');
             const bulkSel = document.getElementById('bulkAgentSelect');
 
+            // Destroy existing TomSelect instances if they exist
+            if (sel.tomselect) sel.tomselect.destroy();
+            if (bulkSel.tomselect) bulkSel.tomselect.destroy();
+
             sel.innerHTML = '<option value="">Seleccionar Agente...</option>';
             bulkSel.innerHTML = '<option value="">Asignar a...</option>';
 
@@ -1476,12 +1485,28 @@ async function loadAgents() {
             const unassignOpt = document.createElement('option');
             unassignOpt.value = "UNASSIGN";
             unassignOpt.textContent = "Desasignar / Liberar";
-            unassignOpt.style.color = "red";
-            unassignOpt.style.fontWeight = "bold";
+            // TomSelect handles styling via classes/data attributes better, but we will leave this logic
             bulkSel.appendChild(unassignOpt);
 
             // Show Bulk Actions
             document.getElementById('bulkActions').style.display = 'block';
+
+            // Initialize TomSelect
+            new TomSelect(sel, {
+                create: false,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                }
+            });
+
+            new TomSelect(bulkSel, {
+                create: false,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                }
+            });
         }
     } catch (e) { console.error("Error loading users", e); }
 }
