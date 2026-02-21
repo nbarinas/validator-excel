@@ -3339,14 +3339,41 @@ async def nomina_page():
 
 @app.get("/reports/daily-effectives")
 def get_daily_effectives(
+    date: Optional[str] = None,
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user)
 ):
     """
-    Get count of effective calls (managed/efectiva_campo) for TODAY.
+    Get count of effective calls (managed/efectiva_campo) for a specific date or date range (defaults to Today).
     Grouped by Study and Agent.
     """
     from sqlalchemy import text
+    
+    # Set date range
+    if date:
+        try:
+            if ' to ' in date:
+                # Handle English Flatpickr range format "YYYY-MM-DD to YYYY-MM-DD"
+                parts = date.split(' to ')
+                start = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+                end_inclusive = datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+                end = end_inclusive + timedelta(days=1)
+            elif ' a ' in date:
+                # Handle Spanish Flatpickr range format "YYYY-MM-DD a YYYY-MM-DD"
+                parts = date.split(' a ')
+                start = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+                end_inclusive = datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+                end = end_inclusive + timedelta(days=1)
+            else:
+                # Handle single date
+                start = datetime.strptime(date, "%Y-%m-%d")
+                end = start + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD or YYYY-MM-DD a YYYY-MM-DD")
+    else:
+        # Default to today
+        start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
     
     # PARAMETERIZED QUERY (Safe & Correct)
     # Filter by realization_date
@@ -3361,16 +3388,13 @@ def get_daily_effectives(
         JOIN studies s ON c.study_id = s.id
         WHERE 
             (c.status = 'managed' OR c.status = 'efectiva_campo')
-            AND c.realization_date >= :today_start
-            AND c.realization_date < :tomorrow_start
+            AND c.realization_date >= :start_date
+            AND c.realization_date < :end_date
         GROUP BY s.name, u.full_name, u.username
         ORDER BY s.name, count DESC
     """)
     
-    start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-    end = start + timedelta(days=1)
-    
-    result = db.execute(sql, {"today_start": start, "tomorrow_start": end}).fetchall()
+    result = db.execute(sql, {"start_date": start, "end_date": end}).fetchall()
     
     # Transform to nested structure
     tree = {}
