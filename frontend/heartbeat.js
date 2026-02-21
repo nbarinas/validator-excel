@@ -24,12 +24,21 @@
         if (!token) return;
 
         try {
-            await fetch('/users/heartbeat', {
+            const res = await fetch('/users/heartbeat', {
                 method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token
                 }
             });
+
+            if (res.status === 401) {
+                // Token has expired
+                console.warn('Session expired. Redirecting to login.');
+                localStorage.removeItem(TOKEN_KEY);
+                window.location.href = '/login';
+                return;
+            }
+
             console.log('Heartbeat sent');
             isUserActive = false; // Reset flag until next activity
         } catch (e) {
