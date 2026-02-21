@@ -376,61 +376,61 @@
             </div>
 
             <div id="periodsListContent"></div>
+        </div>
 
-            <!-- DETAILS CARD (Initially Hidden) -->
-            <div class="card" id="periodDetailsCard"
-                style="margin-top: 2rem; display: none; border-top: 4px solid #f59e0b;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                    <div>
-                        <h3 id="detailsTitle" style="margin:0;">Detalle</h3>
-                        <p id="detailsSubtitle" style="color:#aaa; font-size:0.9rem; margin:0;"></p>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button onclick="openManualModal()"
-                            style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                            <i class="fas fa-user-plus"></i> Agregar Persona
-                        </button>
-
-                        <button id="editPeriodBtn" onclick="openConceptManager()"
-                            style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none;">
-                            <i class="fas fa-edit"></i> Editar Nómina
-                        </button>
-
-                        <div style="border-left: 1px solid #475569; margin: 0 5px;"></div>
-
-                        <button onclick="exportToExcel()"
-                            style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
-                            title="Descargar Excel">
-                            <i class="fas fa-file-excel"></i> Excel
-                        </button>
-                        <button onclick="exportToPDF()"
-                            style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
-                            title="Imprimir PDF">
-                            <i class="fas fa-file-pdf"></i> PDF
-                        </button>
-                        <button onclick="closeDetails()"
-                            style="background: transparent; color: white; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-                            <i class="fas fa-arrow-left"></i> Volver a Lista
-                        </button>
-                    </div>
+        <!-- DETAILS CARD (Initially Hidden) -->
+        <div class="card" id="periodDetailsCard"
+            style="margin-top: 2rem; display: none; border-top: 4px solid #f59e0b;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <div>
+                    <h3 id="detailsTitle" style="margin:0;">Detalle</h3>
+                    <p id="detailsSubtitle" style="color:#aaa; font-size:0.9rem; margin:0;"></p>
                 </div>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="openManualModal()"
+                        style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-user-plus"></i> Agregar Persona
+                    </button>
 
-                <div style="overflow-x: auto;">
-                    <table class="data-table">
-                        <thead>
-                            <tr>
-                                <th>Colaborador</th>
-                                <th>Efectivas</th>
-                                <th>Censos</th>
-                                <th>Total Pagar</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="periodDetailsBody"></tbody>
-                        <tfoot id="periodDetailsFoot" style="background: rgba(15, 23, 42, 0.8); font-weight: bold;">
-                        </tfoot>
-                    </table>
+                    <button id="editPeriodBtn" onclick="openConceptManager()"
+                        style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none;">
+                        <i class="fas fa-edit"></i> Editar Nómina
+                    </button>
+
+                    <div style="border-left: 1px solid #475569; margin: 0 5px;"></div>
+
+                    <button onclick="exportToExcel()"
+                        style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                        title="Descargar Excel">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </button>
+                    <button onclick="exportToPDF()"
+                        style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                        title="Imprimir PDF">
+                        <i class="fas fa-file-pdf"></i> PDF
+                    </button>
+                    <button onclick="closeDetails()"
+                        style="background: transparent; color: white; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                        <i class="fas fa-arrow-left"></i> Volver a Lista
+                    </button>
                 </div>
+            </div>
+
+            <div style="overflow-x: auto;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Colaborador</th>
+                            <th>Efectivas</th>
+                            <th>Censos</th>
+                            <th>Total Pagar</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="periodDetailsBody"></tbody>
+                    <tfoot id="periodDetailsFoot" style="background: rgba(15, 23, 42, 0.8); font-weight: bold;">
+                    </tfoot>
+                </table>
             </div>
         </div>
 
