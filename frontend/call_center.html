@@ -8,6 +8,11 @@
     <link rel="stylesheet" href="/static/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
     <style>
         .crm-container {
             display: grid;
@@ -556,6 +561,12 @@
 
             <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Llamadas
                 Gestionadas/Efectivas hoy</p>
+
+            <div
+                style="display: flex; justify-content: center; gap: 10px; margin-bottom: 1.5rem; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <input type="date" id="dailyReportDate" onchange="showDailyReport()"
+                    style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit;">
+            </div>
 
             <div id="dailyReportContent">
                 <!-- Injected by JS -->

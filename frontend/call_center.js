@@ -1894,24 +1894,60 @@ async function saveStudyAssistants() {
 
 
 // --- DAILY REPORT FEATURE ---
+let dailyReportFpInstance = null;
+
 async function showDailyReport() {
     const modal = document.getElementById('dailyReportModal');
     const content = document.getElementById('dailyReportContent');
+    const dateInput = document.getElementById('dailyReportDate');
+
     modal.style.display = 'flex';
+
+    // Initialize Flatpickr if not already done
+    if (dateInput && !dailyReportFpInstance) {
+        // Change type to text to prevent native date picker
+        dateInput.type = 'text';
+        dailyReportFpInstance = flatpickr(dateInput, {
+            mode: "range",
+            dateFormat: "Y-m-d",
+            locale: "es",
+            conjunction: " to ",
+            defaultDate: new Date(),
+            onChange: function (selectedDates, dateStr, instance) {
+                // Only refresh if a single date or a complete range is selected
+                if (selectedDates.length === 1 || selectedDates.length === 2) {
+                    fetchDailyReportData(dateStr);
+                }
+            }
+        });
+    }
+
+    // Initial load with current Flatpickr value or today
+    const currentDateVal = dateInput ? dateInput.value : '';
+    fetchDailyReportData(currentDateVal);
+}
+
+async function fetchDailyReportData(dateStr) {
+    const content = document.getElementById('dailyReportContent');
     content.innerHTML = '<div style="text-align:center; padding: 2rem;">Cargando...</div>';
 
     try {
-        const res = await fetch('/reports/daily-effectives', { headers });
+        let url = '/reports/daily-effectives';
+        if (dateStr) {
+            url += `?date=${encodeURIComponent(dateStr)}`;
+        }
+
+        const res = await fetch(url, { headers });
         if (res.ok) {
             const data = await res.json();
-            
+
             if (data.length === 0) {
                 content.innerHTML = '<div style="text-align:center; padding: 2rem; color: #64748b;">No hay efectividad registrada hoy.</div>';
                 return;
             }
 
             let html = '';
-            
+
             data.forEach(study => {
                 let tableRows = '';
                 if (study.agents.length === 0) {
