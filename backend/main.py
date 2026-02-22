@@ -3382,16 +3382,18 @@ def get_daily_effectives(
             s.name as study_name,
             u.full_name as agent_name,
             u.username as agent_username,
-            COUNT(*) as count
+            SUM(CASE WHEN c.status IN ('managed', 'efectiva_campo') THEN 1 ELSE 0 END) as count_effective,
+            SUM(CASE WHEN c.status IN ('caida_desempeno', 'caida_desempeno_campo') THEN 1 ELSE 0 END) as count_desempeno,
+            SUM(CASE WHEN c.status IN ('caida_logistica', 'caida_logistico_campo') THEN 1 ELSE 0 END) as count_logistico
         FROM calls c
         JOIN users u ON c.user_id = u.id
         JOIN studies s ON c.study_id = s.id
         WHERE 
-            (c.status = 'managed' OR c.status = 'efectiva_campo')
+            c.status IN ('managed', 'efectiva_campo', 'caida_desempeno', 'caida_desempeno_campo', 'caida_logistica', 'caida_logistico_campo')
             AND c.realization_date >= :start_date
             AND c.realization_date < :end_date
         GROUP BY s.name, u.full_name, u.username
-        ORDER BY s.name, count DESC
+        ORDER BY s.name, count_effective DESC, count_desempeno DESC, count_logistico DESC
     """)
     
     result = db.execute(sql, {"start_date": start, "end_date": end}).fetchall()
@@ -3400,22 +3402,31 @@ def get_daily_effectives(
     tree = {}
     
     for row in result:
-        # row: (study_name, agent_name, agent_username, count)
+        # row: (study_name, agent_name, agent_username, count_effective, count_desempeno, count_logistico)
         s_name = row[0]
         a_name = row[1] or row[2]
-        cnt = row[3]
+        cnt_eff = row[3] or 0
+        cnt_des = row[4] or 0
+        cnt_log = row[5] or 0
         
         if s_name not in tree:
             tree[s_name] = []
         
-        tree[s_name].append({"name": a_name, "count": cnt})
+        tree[s_name].append({
+            "name": a_name, 
+            "count_effective": cnt_eff,
+            "count_desempeno": cnt_des,
+            "count_logistico": cnt_log
+        })
         
     output = []
     for s_name, agents in tree.items():
         output.append({
             "study_name": s_name,
             "agents": agents,
-            "total": sum(a['count'] for a in agents)
+            "total_effective": sum(a['count_effective'] for a in agents),
+            "total_desempeno": sum(a['count_desempeno'] for a in agents),
+            "total_logistico": sum(a['count_logistico'] for a in agents)
         })
         
     return output

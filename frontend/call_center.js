@@ -1978,25 +1978,40 @@ async function fetchDailyReportData(dateStr) {
                 if (study.agents.length === 0) {
                     tableRows = `<div style="padding: 0.5rem; color: #94a3b8; font-style: italic;">Sin productividad hoy</div>`;
                 } else {
-                    tableRows = `<table style="width: 100%; border-collapse: collapse;">`;
+                    tableRows = `<table style="width: 100%; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
+                                <th style="padding: 0.5rem;">Agente</th>
+                                <th style="padding: 0.5rem; text-align: center;">Efectivas</th>
+                                <th style="padding: 0.5rem; text-align: center;">Desempeño</th>
+                                <th style="padding: 0.5rem; text-align: center;">Logístico</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
                     study.agents.forEach(a => {
                         tableRows += `
                             <tr style="border-bottom: 1px solid #f1f5f9;">
                                 <td style="padding: 0.5rem; color: #475569;">${a.name || 'Desconocido'}</td>
-                                <td style="padding: 0.5rem; text-align: right; font-weight: bold; color: #0f172a;">${a.count}</td>
+                                <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #22c55e;">${a.count_effective}</td>
+                                <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #ef4444;">${a.count_desempeno}</td>
+                                <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #f59e0b;">${a.count_logistico}</td>
                             </tr>
                         `;
                     });
-                    tableRows += `</table>`;
+                    tableRows += `</tbody></table>`;
                 }
 
                 html += `
                     <div style="margin-bottom: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-                        <div style="background: #f8fafc; padding: 0.8rem; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #334155; display: flex; justify-content: space-between;">
+                        <div style="background: #f8fafc; padding: 0.8rem; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #334155; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem;">
                             <span>${study.study_name}</span>
-                            <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">Total: ${study.total}</span>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">Efec: ${study.total_effective}</span>
+                                <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">Desp: ${study.total_desempeno}</span>
+                                <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">Log: ${study.total_logistico}</span>
+                            </div>
                         </div>
-                        <div style="padding: 0.5rem;">
+                        <div style="padding: 0.5rem; overflow-x: auto;">
                             ${tableRows}
                         </div>
                     </div>
