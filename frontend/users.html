@@ -460,8 +460,7 @@
                     <!-- Logo -->
                     <div
                         style="width: 100px; height: 60px; margin-bottom: 15px; display:flex; align-items:center; justify-content:center;">
-                        <img src="/static/logo.png"
-                            onerror="this.src='https://via.placeholder.com/100x50?text=AZ+Marketing'" alt="AZ Marketing"
+                        <img src="/static/logo.png" onerror="this.style.display='none'" alt="AZ Marketing"
                             style="max-width: 100%; max-height: 100%;">
                     </div>
 
@@ -495,16 +494,34 @@
 
                 <!-- BACK -->
                 <div id="cardBack"
-                    style="display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; justify-content: center; background: #1e293b; color: white; padding: 20px; text-align: center;">
-                    <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 10px;">AZ MARKETING</div>
-                    <p style="margin: 5px 0; color: #94a3b8;">NIT: 900.123.456-7</p>
-                    <p style="margin: 5px 0;">Armando Zarate</p>
-                    <p style="font-size: 1.2rem; font-weight: bold; color: #4ade80; margin-top: 10px;">323 496 8972</p>
-
-                    <div
-                        style="margin-top: 30px; font-size: 0.8rem; color: #64748b; padding-top: 20px; border-top: 1px solid #334155; width: 100%;">
-                        Esta tarjeta es personal e intransferible.
-                        En caso de pérdida, favor comunicar al número indicado.
+                    style="display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; background: white; color: #333; padding: 15px; justify-content: space-around;">
+                    <img src="/static/logo.png" onerror="this.style.display='none'"
+                        style="max-height: 40px; margin-bottom: 5px;">
+                    <div style="font-size: 8px; text-align: center; line-height: 1.2;">
+                        Este documento es personal e<br>
+                        intransferible, y lo acredita como<br>
+                        personal de recolección de par, a<br>
+                        estudio de opinión con fines estadísticos<br>
+                        no es valido para transacciones<br>
+                        comerciales
+                    </div>
+                    <div style="width: 80%; border-top: 1px solid #000; margin: 10px 0 5px 0;"></div>
+                    <div style="font-size: 8px; text-align: center; margin-bottom: 5px;">
+                        Firma de autorizado<br>
+                        Cualquier comentario o sugerencia<br>
+                        comuníquese al<br>
+                        3234968972 - 5757735 Bogotá D.C.<br>
+                        EMail: azarate@az-marketing.com.co
+                    </div>
+                    <div style="font-size: 8px; text-align: center; width: 100%;">
+                        <div
+                            style="display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 2px;">
+                            <span>Fecha de expedición <span id="previewExpedicion">-</span></span>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 2px; margin-top: 2px;">
+                            <span>Fecha de vencimiento <span id="previewVencimiento">-</span></span>
+                        </div>
                     </div>
                 </div>
 
@@ -886,6 +903,24 @@
                     placeholder.style.display = 'flex';
                 }
 
+                // Calculate dates
+                const today = new Date();
+                const expDate = new Date();
+                expDate.setMonth(expDate.getMonth() + 6);
+
+                const formatDate = (date) => {
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    return `${day} / ${month} / ${year}`;
+                };
+
+                const elemExp = document.getElementById('previewExpedicion');
+                if (elemExp) elemExp.textContent = formatDate(today);
+
+                const elemVenc = document.getElementById('previewVencimiento');
+                if (elemVenc) elemVenc.textContent = formatDate(expDate);
+
                 // Reset View
                 flipCard(false);
                 document.getElementById('carnetModal').style.display = 'flex';
@@ -949,6 +984,21 @@
         }
 
         function printCarnet() {
+            // Calculate dates
+            const today = new Date();
+            const expDate = new Date();
+            expDate.setMonth(expDate.getMonth() + 6);
+
+            const formatDate = (date) => {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day} / ${month} / ${year}`;
+            };
+
+            const strExpedicion = formatDate(today);
+            const strVencimiento = formatDate(expDate);
+
             // Open print window
             const win = window.open('', '', 'width=600,height=800');
             const content = `
@@ -966,46 +1016,91 @@
 
                         @media print {
                             .no-print { display: none; }
-                            body { padding: 0; margin: 0; }
-                            .card { border: none; margin: 0; }
+                            body { padding: 0; margin: 0; display: flex; align-items: flex-start; justify-content: flex-start; }
+                            .print-container { 
+                                width: 5.4cm; 
+                                flex-direction: column; 
+                                border: none; 
+                                margin: 0; 
+                                padding: 0.5cm; /* Adjust padding if needed to center on physical paper */
+                            }
+                            .card-wrapper {
+                                border: 1px solid #000;
+                            }
                         }
                     </style>
                 </head>
                 <body>
                     <div class="no-print" style="margin-bottom: 20px;">
-                        <button onclick="window.print()">IMPRIMIR</button>
+                        <button onclick="window.print()" style="padding: 10px 20px; font-weight: bold; cursor: pointer;">IMPRIMIR</button>
                     </div>
 
-                    <!-- Front Render -->
-                    <div class="card front">
-                        <div style="width: 80px; height: 40px; margin-bottom: 5px;">
-                            <img src="/static/logo.png" onerror="this.style.display='none'" style="max-width: 100%; max-height: 100%;">
-                        </div>
-                        <div style="width: 80px; height: 95px; background: #eee; border: 2px solid #3b82f6; border-radius: 4px; overflow: hidden; margin-bottom: 5px;">
-                            <img src="${document.getElementById('carnetPhotoImg').src}" style="width:100%; height:100%; object-fit:cover;">
-                        </div>
-                        <div style="font-weight: bold; font-size: 14px; color: #0f172a; text-transform: uppercase;">${document.getElementById('carnetName').textContent}</div>
-                        <div style="font-size: 12px; color: #475569; font-weight: bold; margin-bottom: 5px;">${document.getElementById('carnetCC').textContent}</div>
-                        
-                        <div style="background: #3b82f6; color: white; padding: 2px 10px; border-radius: 10px; font-weight: bold; font-size: 10px; margin-bottom: auto;">${document.getElementById('carnetRole').textContent}</div>
-                        
-                        <div style="width: 100%; display: flex; justify-content: space-between; align-items: flex-end; font-size: 10px; color: #64748b;">
-                            <div>RH: <b>${document.getElementById('carnetRh').textContent}</b></div>
-                        </div>
-                    </div>
+                    <div class="print-container" style="display: flex; flex-direction: column; width: 5.4cm;">
+                        <!-- TOP: Front Vertical -->
+                        <div class="card-wrapper" style="width: 5.4cm; height: 8.6cm; border: 1px solid #000; border-bottom: none; box-sizing: border-box; background: white; display: flex; flex-direction: column; align-items: center; padding: 10px; position: relative;">
+                            
+                            <div style="width: 100%; display: flex; align-items: flex-start; justify-content: flex-start; margin-bottom: 5px;">
+                                <img src="/static/logo.png" onerror="this.style.display='none'" style="max-height: 25px;">
+                            </div>
+                            
+                            <div style="width: 100%; display: flex; align-items: flex-start; justify-content: center; position: relative; margin-bottom: 15px;">
+                                <div style="position: absolute; left: 0px; top: 0px; transform: translateX(-100%) rotate(-90deg); transform-origin: top right; font-weight: bold; font-size: 14px; color: #fbbf24; white-space: nowrap;">
+                                    ${document.getElementById('carnetRole').textContent}
+                                </div>
+                                <div style="width: 3.5cm; height: 4.5cm; border: 1px solid #ccc; overflow: hidden; background: #eee;">
+                                    <img src="${document.getElementById('carnetPhotoImg').src}" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                            </div>
 
-                    <div style="height: 20px;"></div>
+                            <div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 2px;">
+                                Nombre: ${document.getElementById('carnetName').textContent}
+                            </div>
+                            <div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 2px;">
+                                CC. ${document.getElementById('carnetCC').textContent.replace('CC. ', '')}
+                            </div>
+                            <div style="text-align: center; font-weight: bold; font-size: 14px;">
+                                RH: ${document.getElementById('carnetRh').textContent}
+                            </div>
 
-                    <!-- Back Render -->
-                    <div class="card back">
-                        <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">AZ MARKETING</div>
-                        <p style="margin: 2px 0; font-size: 10px; color: #cbd5e1;">NIT: 900.123.456-7</p>
-                        <p style="margin: 2px 0; font-size: 12px;">Armando Zarate</p>
-                        <p style="font-size: 14px; font-weight: bold; color: #4ade80; margin-top: 5px;">323 496 8972</p>
+                        </div>
+
+                        <!-- BOTTOM: Back Rotated 180 degrees -->
+                        <div class="card-wrapper" style="width: 5.4cm; height: 8.6cm; border: 1px solid #000; box-sizing: border-box; background: white; display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 10px; transform: rotate(180deg);">
+                            <img src="/static/logo.png" onerror="this.style.display='none'" style="max-height: 35px; margin-bottom: 0;">
+                            
+                            <div style="font-size: 9px; text-align: center; line-height: 1.3;">
+                                Este documento es personal e<br>
+                                intransferible, y lo acredita como<br>
+                                personal de recolección de par, a<br>
+                                estudio de opinión con fines estadísticos<br>
+                                no es valido para transacciones<br>
+                                comerciales
+                            </div>
+                            
+                            <div style="width: 80%; border-top: 1px solid #000; margin: 10px 0 5px 0;"></div>
+                            
+                            <div style="font-size: 9px; text-align: center; margin-bottom: 5px;">
+                                Firma de autorizado<br>
+                                Cualquier comentario o sugerencia<br>
+                                comuníquese al<br>
+                                3234968972 - 5757735 Bogotá D.C.<br>
+                                EMail: azarate@az-marketing.com.co
+                            </div>
+                            
+                            <div style="font-size: 9px; text-align: center; width: 100%;">
+                                <div style="display: flex; flex-direction: column; border-top: 1px solid #ddd; padding-top: 5px; margin-bottom: 5px;">
+                                    <span>Fecha de expedición ${strExpedicion}</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; border-top: 1px solid #ddd; padding-top: 5px;">
+                                    <span>Fecha de vencimiento ${strVencimiento}</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </body>
+
                 </html>
-            `;
+`;
             win.document.write(content);
             win.document.close();
         }
