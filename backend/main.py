@@ -2685,6 +2685,9 @@ def create_period(
     effective_rate: int = Form(10000),
     initial_concepts: str = Form(None), # JSON String of initial concepts
     supervisor_ids: str = Form(None), # JSON String of user IDs
+    billed_amount: int = Form(0),
+    prestaciones_percent: float = Form(2.0),
+    other_expenses_json: str = Form(None),
     db: Session = Depends(database.get_db)
 ):
     # Handle Dates
@@ -2730,6 +2733,9 @@ def create_period(
             start_date=s_date,
             end_date=en_date,
             rates_snapshot=json.dumps(rates),
+            billed_amount=billed_amount,
+            prestaciones_percent=prestaciones_percent,
+            other_expenses_json=other_expenses_json,
             status="open",
             is_visible=True
         )
@@ -2893,9 +2899,42 @@ def get_periods(
             "rates": json.loads(p.rates_snapshot) if p.rates_snapshot else {},
             "status": p.status,
             "is_visible": p.is_visible if p.is_visible is not None else True,
+            "billed_amount": p.billed_amount or 0,
+            "prestaciones_percent": p.prestaciones_percent or 2.0,
+            "other_expenses_json": p.other_expenses_json,
+            "total_spent": sum(r.total_amount for r in p.records) if p.records else 0,
             "concepts": [{"id": c.id, "name": c.name, "rate": c.rate} for c in p.concepts]
         })
     return res
+
+class PayrollPLUpdate(BaseModel):
+    billed_amount: Optional[int] = None
+    prestaciones_percent: Optional[float] = None
+    other_expenses_json: Optional[str] = None
+
+@app.put("/payroll/periods/{period_id}/pl")
+def update_period_pl(
+    period_id: int,
+    data: PayrollPLUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.id != 1:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    p = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
+    if not p: raise HTTPException(404, "Period not found")
+    
+    if data.billed_amount is not None:
+        p.billed_amount = data.billed_amount
+    if data.prestaciones_percent is not None:
+        p.prestaciones_percent = data.prestaciones_percent
+    if data.other_expenses_json is not None:
+        p.other_expenses_json = data.other_expenses_json
+        
+    db.commit()
+    db.refresh(p)
+    return {"status": "ok", "period_id": p.id}
 
 @app.post("/payroll/generate/{period_id}")
 def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
@@ -3236,6 +3275,7 @@ def get_active_payroll_users(db: Session = Depends(database.get_db), current_use
     users = db.query(models.User).join(models.PayrollRecord).join(models.PayrollPeriod).filter(models.PayrollPeriod.is_visible == True).distinct().all()
     
     return [{"id": u.id, "full_name": u.full_name, "username": u.username} for u in users]
+
 
 @app.get("/loans/all/active")
 def get_all_active_loans(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
