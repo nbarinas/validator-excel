@@ -3237,6 +3237,25 @@ def get_active_payroll_users(db: Session = Depends(database.get_db), current_use
     
     return [{"id": u.id, "full_name": u.full_name, "username": u.username} for u in users]
 
+@app.get("/loans/all/active")
+def get_all_active_loans(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role not in ['superuser', 'admin', 'coordinator']:
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    loans = db.query(models.Loan).filter(models.Loan.status == "active").all()
+    res = []
+    for l in loans:
+        res.append({
+            "id": l.id,
+            "user_id": l.user_id,
+            "user_name": l.user.full_name or l.user.username,
+            "amount": l.amount,
+            "balance": l.balance,
+            "description": l.description,
+            "created_at": l.created_at
+        })
+    return res
+
 class LoanCreate(BaseModel):
     user_id: int
     amount: int
