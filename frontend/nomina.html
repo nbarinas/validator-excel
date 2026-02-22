@@ -709,6 +709,7 @@
                     document.getElementById('adminView').style.display = 'block';
                     loadPeriods();
                     loadUsersForDropdown();
+                    loadSupervisorsForAssignment();
                 } else {
                     document.getElementById('agentView').style.display = 'block';
                     loadMyPayments();
@@ -952,6 +953,337 @@
             }
 
             window.print();
+        }
+
+        async function printAllNominas() {
+            // Fetch all active periods
+            const resPeriods = await fetch('/payroll/periods', { headers: { 'Authorization': 'Bearer ' + token } });
+            const periods = await resPeriods.json();
+            const activePeriods = periods.filter(p => p.is_visible !== false);
+
+            if (activePeriods.length === 0) return alert("No hay nóminas activas.");
+
+            const win = window.open('', '', 'width=1100,height=800');
+            const dateStr = new Date().toLocaleDateString();
+
+            win.document.write(`
+                <html>
+                <head>
+                    <title>Todas las Nóminas Activas</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 20px; color: #333; }
+                        h2 { text-align: center; color: #1e293b; margin-bottom: 5px; }
+                        .subtitle { text-align: center; color: #64748b; margin-bottom: 30px; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
+                        th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
+                        th { background: #f8fafc; color: #475569; font-weight: bold; }
+                        .text-center { text-align: center; }
+                        .text-right { text-align: right; }
+                        .page-break { page-break-after: always; }
+                    </style>
+                </head>
+                <body>
+            `);
+
+            for (let i = 0; i < activePeriods.length; i++) {
+                const period = activePeriods[i];
+                const resRecords = await fetch(`/payroll/records/${period.id}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const records = await resRecords.json();
+
+                if (records.length === 0) continue;
+
+                // Concepts Configuration
+                let periodConcepts = period.concepts || [];
+                if (periodConcepts.length === 0 && period.rates) {
+                    if (period.rates.census) periodConcepts.push({ id: 'census', name: 'Censos', rate: period.rates.census });
+                    if (period.rates.effective) periodConcepts.push({ id: 'effective', name: 'Encuestas Efectivas', rate: period.rates.effective });
+                }
+                periodConcepts.sort((a, b) => a.name.localeCompare(b.name));
+
+                // Header
+                win.document.write(`<h2>AZ MARKETING</h2>`);
+                win.document.write(`<div class="subtitle">Resumen de Nómina: ${period.name} ${period.study_code ? '(' + period.study_code + ')' : ''} | Fecha: ${dateStr}</div>`);
+
+                // Table
+                win.document.write(`<table><thead><tr><th>Colaborador</th>`);
+                periodConcepts.forEach(c => {
+                    win.document.write(`<th style="text-align:center;">${c.name} <br><small style="color:#94a3b8; font-weight:normal;">$${c.rate.toLocaleString()}</small></th>`);
+                });
+                win.document.write(`<th>Total Pagar</th></tr></thead><tbody>`);
+
+                let grandTotal = 0;
+                records.forEach(r => {
+                    const user = window.allUsersMap[r.user_id] || { full_name: 'Unknown', username: r.user_id };
+                    grandTotal += r.total_amount;
+
+                    let details = [];
+                    try { details = JSON.parse(r.details_json); } catch (e) { }
+
+                    // Apply heuristics exactly as in loadRecords()
+                    if (details.length === 0 && r.total_amount > 0 && periodConcepts.length === 1) {
+                        const c = periodConcepts[0];
+                        const qty = c.rate > 0 ? Math.floor(r.total_amount / c.rate) : 1;
+                        details.push({ concept_id: c.id, concept: c.name, qty: qty, rate: c.rate, total: r.total_amount });
+                    } else if (details.length === 0 && r.total_amount > 0 && periodConcepts.length > 1) {
+                        const matches = periodConcepts.filter(c => c.rate > 0 && (r.total_amount % c.rate === 0) && (r.total_amount >= c.rate));
+                        if (matches.length === 1) {
+                            const c = matches[0];
+                            const qty = Math.floor(r.total_amount / c.rate);
+                            details.push({ concept_id: c.id, concept: c.name, qty: qty, rate: c.rate, total: r.total_amount });
+                        }
+                    }
+
+                    // Map details to columns
+                    let rMap = {};
+                    details.forEach(d => {
+                        const match = findMatchingConcept(d, periodConcepts);
+                        if (match) {
+                            if (!rMap[match.id]) rMap[match.id] = { qty: 0, total: 0 };
+                            rMap[match.id].qty += (d.qty || 0);
+                            rMap[match.id].total += (d.total || 0);
+                        }
+                    });
+
+                    let userHtml = `<tr>
+                        <td>
+                            <div style="font-weight:bold;">${user.full_name || user.username}</div>
+                            <div style="font-size:0.8rem; color:#aaa;">CC: ${user.username}</div>
+                        </td>`;
+
+                    periodConcepts.forEach(c => {
+                        const item = rMap[c.id];
+                        const qty = item ? item.qty : 0;
+                        const money = item ? item.total : 0;
+                        if (qty > 0) {
+                            userHtml += `<td style="text-align:center;">
+                                <div style="font-weight:bold;">${qty}</div>
+                                <div style="font-size:0.75rem; color:#aaa;">$${money.toLocaleString()}</div>
+                            </td>`;
+                        } else {
+                            userHtml += `<td style="text-align:center; color:#94a3b8;">-</td>`;
+                        }
+                    });
+
+                    userHtml += `<td style="color:#059669; font-weight:bold;">$${r.total_amount.toLocaleString()}</td></tr>`;
+                    win.document.write(userHtml);
+                });
+
+                win.document.write(`</tbody><tfoot>
+                    <tr style="background: #f1f5f9; font-weight: bold;">
+                        <td colspan="${periodConcepts.length + 1}" style="text-align: right;">TOTAL NÓMINA:</td>
+                        <td style="color:#059669;">$${grandTotal.toLocaleString()}</td>
+                    </tr>
+                </tfoot></table>`);
+
+                win.document.write(`
+                    <div style="margin-top: 50px; display: flex; justify-content: space-around;">
+                        <div style="border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px;">Revisado por</div>
+                        <div style="border-top: 1px solid #000; width: 200px; text-align: center; padding-top: 5px;">Autorizado por</div>
+                    </div>
+                `);
+
+                // Add page break except for last item
+                if (i < activePeriods.length - 1) {
+                    win.document.write(`<div class="page-break"></div>`);
+                }
+            }
+
+            win.document.write(`
+                <script>
+                    setTimeout(() => { window.print(); window.close(); }, 1500);
+                <\/script>
+                </body></html>
+            `);
+            win.document.close();
+        }
+
+        async function printAllPagos() {
+            const resPeriods = await fetch('/payroll/periods', { headers: { 'Authorization': 'Bearer ' + token } });
+            const allPeriods = await resPeriods.json();
+            const activePeriods = allPeriods.filter(p => p.is_visible !== false);
+            const activePeriodIds = new Set(activePeriods.map(p => p.id));
+
+            if (activePeriodIds.size === 0) return alert("No hay nóminas activas.");
+
+            // 1. We need every user's total active balance.
+            // Optimal approach: Since we don't have an endpoint for ALL records at once, we iterate through active periods and gather records.
+            const userRecordsMap = {}; // user_id -> list of records
+
+            for (let pid of activePeriodIds) {
+                const resRecords = await fetch(`/payroll/records/${pid}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                const records = await resRecords.json();
+
+                records.forEach(r => {
+                    if (r.total_amount > 0) {
+                        if (!userRecordsMap[r.user_id]) userRecordsMap[r.user_id] = [];
+
+                        // We need the period name/code for printing
+                        const periodMeta = activePeriods.find(p => p.id === pid);
+                        r.period_name = periodMeta.name;
+                        r.study_code = periodMeta.study_code;
+                        r.period_id = pid;
+
+                        userRecordsMap[r.user_id].push(r);
+                    }
+                });
+            }
+
+            const userIdsWithBalance = Object.keys(userRecordsMap).filter(uid => userRecordsMap[uid].length > 0);
+            if (userIdsWithBalance.length === 0) return alert("No hay colaboradores con saldo por pagar en las nóminas activas.");
+
+            // Fetch ALL active loans in one go to deduct automatically if necessary
+            // Or skip loans if it's too complex for bulk print. However, the requirement is unified accounts.
+            // Let's inform the user that bulk unified print ignores the interactive loan deduction prompt.
+            confirm("Nota: La impresión masiva de pagos generará las cuentas de cobro de todos. Si tienen préstamos activos, NO se le preguntará interactivamente sobre generar el abono para cada uno (saldrán con el valor neto total generado por las actividades). Deducir prestamos requiere hacerlo uno a uno.");
+
+            const win = window.open('', '', 'width=1100,height=800');
+            const dateStr = new Date().toLocaleDateString();
+
+            win.document.write(`
+                <html>
+                <head>
+                    <title>Cuentas de Cobro Unificadas</title>
+                    <style>
+                        body { font-family: sans-serif; padding: 20px; color: #333; margin: 0; }
+                        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 0.9rem; }
+                        th, td { border: 1px solid transparent; padding: 8px; text-align: left; }
+                        .table-borders th, .table-borders td { border: 1px solid #000; }
+                        .table-borders th { background: #f1f5f9; }
+                        th { background: #f1f5f9; }
+                        .page-break { page-break-after: always; }
+                        @media print {
+                            @page { margin: 1cm; }
+                        }
+                    </style>
+                </head>
+                <body>
+            `);
+
+            for (let i = 0; i < userIdsWithBalance.length; i++) {
+                const uid = userIdsWithBalance[i];
+                const u = window.allUsersMap[uid] || { username: uid, full_name: 'Unknown User ' + uid };
+                const records = userRecordsMap[uid];
+
+                let total = 0;
+
+                win.document.write(`
+                    <table style="width: 100%; margin-bottom: 20px; border-collapse: collapse;">
+                        <tr>
+                            <td style="width: 50%; vertical-align: top; border:none;">
+                                <div style="font-weight:bold; font-size:1.5rem; color:#444;">AZ MARKETING</div>
+                                <p style="margin:5px 0;">NIT: 900.123.456-7</p>
+                            </td>
+                            <td style="width: 50%; text-align: right; vertical-align: top; border:none;">
+                                <h1 style="margin: 0; font-size:1.5rem;">CUENTA DE COBRO</h1>
+                                <h3 style="margin: 5px 0;">CUENTA DE COBRO UNIFICADA</h3>
+                                <p>${dateStr}</p>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div style="border-top: 2px solid #000; border-bottom: 2px solid #000; padding: 15px 0; margin-bottom: 30px;">
+                        <table style="width: 100%; border:none;">
+                            <tr>
+                                <td style="border:none;"><strong>NOMBRE:</strong> ${u.full_name || u.username}</td>
+                                <td style="border:none;"><strong>CC:</strong> ${u.account_holder_cc || u.username}</td>
+                            </tr>
+                            <tr>
+                                <td colspan="2" style="border:none;"><strong>CUENTA:</strong> ${u.bank || 'Banco No Reg.'} - ${u.account_type || ''} - ${u.account_number || 'N/A'}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <table class="table-borders" style="width: 100%; border-collapse: collapse; margin-bottom: 40px;" border="1" cellpadding="8">
+                        <thead>
+                            <tr style="background: #f1f5f9;">
+                                <th>Concepto / Actividad</th>
+                                <th style="text-align:center;">Cantidad</th>
+                                <th style="text-align:right;">Valor Unitario</th>
+                                <th style="text-align:right;">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `);
+
+                // Group by Period exactly like printGlobal() does
+                const groups = {};
+                records.forEach(r => {
+                    const key = r.period_id;
+                    if (!groups[key]) groups[key] = { name: r.period_name, code: r.study_code, total: 0, items: [] };
+                    groups[key].items.push(r);
+                    groups[key].total += r.total_amount;
+                });
+
+                Object.values(groups).forEach(g => {
+                    total += g.total;
+                    win.document.write(`
+                        <tr style="background: #e2e8f0;">
+                           <td colspan="4" style="font-weight:bold; font-size: 0.95rem; text-transform:uppercase;">
+                               ${g.name} ${g.code ? '- EST ' + g.code : ''}
+                           </td>
+                        </tr>
+                    `);
+
+                    g.items.forEach(r => {
+                        let details = [];
+                        try { details = JSON.parse(r.details_json); } catch (e) { }
+
+                        if (details.length === 0) {
+                            win.document.write(`
+                                <tr>
+                                   <td style="padding-left:20px;">Pago General</td>
+                                   <td style="text-align:center;">-</td>
+                                   <td style="text-align:right;">-</td>
+                                   <td style="text-align:right;">$${r.total_amount.toLocaleString()}</td>
+                                 </tr>
+                            `);
+                        } else {
+                            details.forEach(d => {
+                                win.document.write(`
+                                    <tr>
+                                       <td style="padding-left:20px;">${d.concept}</td>
+                                       <td style="text-align:center;">${d.qty}</td>
+                                       <td style="text-align:right;">$${d.rate.toLocaleString()}</td>
+                                       <td style="text-align:right;">$${d.total.toLocaleString()}</td>
+                                   </tr>
+                                `);
+                            });
+                        }
+                    });
+                });
+
+                win.document.write(`
+                        </tbody>
+                        <tfoot>
+                            <tr style="background: #f1f5f9; font-weight: bold;">
+                                <td colspan="3" style="text-align: right;">NETO A PAGAR:</td>
+                                <td style="text-align:right;">$${total.toLocaleString()}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <div style="margin-top: 80px; display: flex; justify-content: space-between;">
+                        <div style="border-top: 1px solid black; width: 40%; text-align: center; padding-top: 5px;">
+                            Firma Beneficiario
+                        </div>
+                        <div style="border-top: 1px solid black; width: 40%; text-align: center; padding-top: 5px;">
+                            Aprobado AZ Marketing
+                        </div>
+                    </div>
+                `);
+
+                if (i < userIdsWithBalance.length - 1) {
+                    win.document.write(`<div class="page-break"></div>`);
+                }
+            }
+
+            win.document.write(`
+                <script>
+                    setTimeout(() => { window.print(); window.close(); }, 1500);
+                <\/script>
+                </body></html>
+            `);
+            win.document.close();
         }
 
         // --- LOAN LOGIC ---
@@ -2978,6 +3310,10 @@
                     <input type="hidden" id="globalAccountUserId">
 
                     <button onclick="loadGlobalAccount()" class="btn-primary" style="margin:0;">Consultar</button>
+                    <button onclick="printAllNominas()" class="btn-primary"
+                        style="margin:0; background:#10b981;">Nóminas</button>
+                    <button onclick="printAllPagos()" class="btn-primary" style="margin:0; background:#8b5cf6;">Todos
+                        los Pagos</button>
                 </div>
             </div>
 
