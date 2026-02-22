@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import datetime
@@ -258,6 +258,12 @@ class PayrollPeriod(Base):
     end_date = Column(DateTime, nullable=True)
     is_visible = Column(Boolean, default=True) # Visibility toggle
     status = Column(String(20), default="open")
+    
+    
+    billed_amount = Column(Integer, default=0)
+    prestaciones_percent = Column(Float, default=2.0)
+    other_expenses_json = Column(Text, nullable=True) # JSON like [{"item": "Copias", "amount": 5000}, ...]
+
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     records = relationship("PayrollRecord", back_populates="period")

@@ -239,6 +239,7 @@
             <div id="rolDisplay"></div>
         </header>
 
+
         <!-- ADMIN VIEW -->
         <div id="adminView" style="display: none;">
 
@@ -251,6 +252,19 @@
                 <button onclick="openGlobalAccountModal()"
                     style="background: #8b5cf6; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer;">
                     <i class="fas fa-print"></i> Consultar Pagos / Imprimir Cuenta Global
+                </button>
+            </div>
+
+            <!-- USER 1 TOGGLE HEADERS (PL DASHBOARD) -->
+            <div id="user1PLHeader"
+                style="display: none; margin-bottom: 1rem; border-bottom: 2px solid #334155; padding-bottom: 10px; gap: 15px;">
+                <button id="btnViewNomina" onclick="switchPLView('nomina')"
+                    style="background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-list-ul"></i> Nómina
+                </button>
+                <button id="btnViewPL" onclick="switchPLView('pl')"
+                    style="background: transparent; color: #94a3b8; border: 1px solid #334155; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                    <i class="fas fa-chart-line"></i> Ganancias y Pérdidas
                 </button>
             </div>
 
@@ -358,88 +372,90 @@
             </style>
 
             <div id="periodsList"></div>
-        </div>
 
-        <div class="card" id="listCard" style="margin-top: 2rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <h3 style="margin:0;">Historial de Nóminas</h3>
+
+            <div class="card" id="listCard" style="margin-top: 2rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <h3 style="margin:0;">Historial de Nóminas</h3>
+                    </div>
+                </div>
+
+                <!-- TABS -->
+                <div
+                    style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
+                    <button id="tabActive" onclick="switchTab('active')"
+                        style="background: transparent; border: none; color: white; font-weight: bold; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid #3b82f6;">
+                        <i class="fas fa-play-circle" style="color:#22c55e;"></i> Nóminas Activas
+                    </button>
+                    <button id="tabClosed" onclick="switchTab('closed')"
+                        style="background: transparent; border: none; color: #94a3b8; font-weight: normal; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent;">
+                        <i class="fas fa-archive" style="color:#64748b;"></i> Nóminas Cerradas
+                    </button>
+                </div>
+
+                <div id="periodsListContent"></div>
+            </div>
+
+            <!-- DETAILS CARD (Initially Hidden) -->
+            <div class="card" id="periodDetailsCard"
+                style="margin-top: 2rem; display: none; border-top: 4px solid #f59e0b;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <div>
+                        <h3 id="detailsTitle" style="margin:0;">Detalle</h3>
+                        <p id="detailsSubtitle" style="color:#aaa; font-size:0.9rem; margin:0;"></p>
+                    </div>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="openManualModal()"
+                            style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
+                            <i class="fas fa-user-plus"></i> Agregar Persona
+                        </button>
+
+                        <button id="editPeriodBtn" onclick="openConceptManager()"
+                            style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none;">
+                            <i class="fas fa-edit"></i> Editar Nómina
+                        </button>
+
+                        <div style="border-left: 1px solid #475569; margin: 0 5px;"></div>
+
+                        <button onclick="exportToExcel()"
+                            style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                            title="Descargar Excel">
+                            <i class="fas fa-file-excel"></i> Excel
+                        </button>
+                        <button onclick="exportToPDF()"
+                            style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
+                            title="Imprimir PDF">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                        <button onclick="closeDetails()"
+                            style="background: transparent; color: white; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                            <i class="fas fa-arrow-left"></i> Volver a Lista
+                        </button>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Colaborador</th>
+                                <th>Efectivas</th>
+                                <th>Censos</th>
+                                <th>Total Pagar</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="periodDetailsBody"></tbody>
+                        <tfoot id="periodDetailsFoot" style="background: rgba(15, 23, 42, 0.8); font-weight: bold;">
+                        </tfoot>
+                    </table>
                 </div>
             </div>
 
-            <!-- TABS -->
-            <div
-                style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 10px;">
-                <button id="tabActive" onclick="switchTab('active')"
-                    style="background: transparent; border: none; color: white; font-weight: bold; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid #3b82f6;">
-                    <i class="fas fa-play-circle" style="color:#22c55e;"></i> Nóminas Activas
-                </button>
-                <button id="tabClosed" onclick="switchTab('closed')"
-                    style="background: transparent; border: none; color: #94a3b8; font-weight: normal; padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent;">
-                    <i class="fas fa-archive" style="color:#64748b;"></i> Nóminas Cerradas
-                </button>
-            </div>
 
-            <div id="periodsListContent"></div>
-        </div>
-
-        <!-- DETAILS CARD (Initially Hidden) -->
-        <div class="card" id="periodDetailsCard"
-            style="margin-top: 2rem; display: none; border-top: 4px solid #f59e0b;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <div>
-                    <h3 id="detailsTitle" style="margin:0;">Detalle</h3>
-                    <p id="detailsSubtitle" style="color:#aaa; font-size:0.9rem; margin:0;"></p>
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <button onclick="openManualModal()"
-                        style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;">
-                        <i class="fas fa-user-plus"></i> Agregar Persona
-                    </button>
-
-                    <button id="editPeriodBtn" onclick="openConceptManager()"
-                        style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; display: none;">
-                        <i class="fas fa-edit"></i> Editar Nómina
-                    </button>
-
-                    <div style="border-left: 1px solid #475569; margin: 0 5px;"></div>
-
-                    <button onclick="exportToExcel()"
-                        style="background: #10b981; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
-                        title="Descargar Excel">
-                        <i class="fas fa-file-excel"></i> Excel
-                    </button>
-                    <button onclick="exportToPDF()"
-                        style="background: #ef4444; color: white; border: none; padding: 8px 12px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px;"
-                        title="Imprimir PDF">
-                        <i class="fas fa-file-pdf"></i> PDF
-                    </button>
-                    <button onclick="closeDetails()"
-                        style="background: transparent; color: white; border: 1px solid #cbd5e1; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
-                        <i class="fas fa-arrow-left"></i> Volver a Lista
-                    </button>
-                </div>
-            </div>
-
-            <div style="overflow-x: auto;">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Colaborador</th>
-                            <th>Efectivas</th>
-                            <th>Censos</th>
-                            <th>Total Pagar</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody id="periodDetailsBody"></tbody>
-                    <tfoot id="periodDetailsFoot" style="background: rgba(15, 23, 42, 0.8); font-weight: bold;">
-                    </tfoot>
-                </table>
-            </div>
-        </div>
-
-        <!-- AGENT VIEW -->
+            <!-- AGENT VIEW -->
+        </div> <!-- END adminView -->
         <div id="agentView" style="display: none;">
             <div class="card">
                 <h3>Mis Pagos Disponibles</h3>
@@ -562,7 +578,70 @@
             </div>
         </div>
 
-        <!-- Loan Deduction Modal -->
+        <!-- PL DASHBOARD (Initially Hidden) -->
+        <div id="plDashboard" style="display: none;">
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                    <h3><i class="fas fa-balance-scale"></i> Estado de Resultados (AZ Marketing)</h3>
+                    <div style="font-size: 0.9rem; color: #94a3b8;">* Prestaciones se calcula sobre el 2% de la nómina
+                        por defecto</div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nómina / Proyecto</th>
+                                <th style="text-align: right;">Facturado</th>
+                                <th style="text-align: right;">Nómina (Gasto)</th>
+                                <th style="text-align: right;">Prestaciones (2%)</th>
+                                <th style="text-align: right;">Otros Gastos</th>
+                                <th style="text-align: right;">Resultado</th>
+                                <th style="text-align: right;">%</th>
+                                <th style="text-align: center;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="plTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- PL Edit Modal -->
+        <div id="plEditModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closePLEditModal()">&times;</span>
+                <h3>Editar Datos Financieros</h3>
+                <p id="plPeriodName" style="color: #94a3b8; margin-bottom: 1rem; font-weight: bold;"></p>
+
+                <input type="hidden" id="plPeriodId">
+                <div class="form-group">
+                    <label>Monto Facturado ($)</label>
+                    <input type="number" id="plBilledAmount" class="form-input" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label>% Prestaciones (Normalmente 2%)</label>
+                    <input type="number" step="0.1" id="plPrestacionesPercent" class="form-input" placeholder="2.0">
+                </div>
+
+                <hr style="border: 0.5px solid #334155; margin: 1.5rem 0;">
+
+                <label style="display: block; margin-bottom: 10px;">Otros Gastos (Copias, Vinipel, etc.)</label>
+                <div id="plOtherExpensesList" style="margin-bottom: 10px;"></div>
+
+                <div style="display: flex; gap: 5px; margin-bottom: 1.5rem;">
+                    <input type="text" id="plNewExpenseItem" class="form-input" placeholder="Descripción"
+                        style="flex: 2;">
+                    <input type="number" id="plNewExpenseAmount" class="form-input" placeholder="Costo"
+                        style="flex: 1;">
+                    <button onclick="addPLOtherExpense()"
+                        style="background: #3b82f6; border: none; color: white; padding: 0 15px; border-radius: 6px; cursor: pointer;">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+
+                <button class="btn-submit" onclick="savePLData()">Guardar Cambios</button>
+            </div>
+        </div>
         <div id="loanDeductionModal" class="modal">
             <div class="modal-content" style="max-width: 400px;">
                 <!-- <span class="close" onclick="closeLoanModal()">&times;</span> -->
@@ -598,6 +677,7 @@
                 </div>
             </div>
         </div>
+
 
     </div>
 
@@ -710,11 +790,16 @@
 
                 document.getElementById('rolDisplay').textContent = `Usuario: ${currentUser.username} (${currentUser.role})`;
 
+
                 if (['superuser', 'coordinator', 'supervisor'].includes(currentUser.role)) {
                     document.getElementById('adminView').style.display = 'block';
                     loadPeriods();
                     loadUsersForDropdown();
                     loadSupervisorsForAssignment();
+
+                    if (currentUser.id === 1) {
+                        document.getElementById('user1PLHeader').style.display = 'flex';
+                    }
                 } else {
                     document.getElementById('agentView').style.display = 'block';
                     loadMyPayments();
@@ -727,6 +812,165 @@
 
             } catch (e) { console.error(e); }
         }
+
+        // --- PL DASHBOARD LOGIC ---
+        function switchPLView(view) {
+            const btnNomina = document.getElementById('btnViewNomina');
+            const btnPL = document.getElementById('btnViewPL');
+            const creationCard = document.getElementById('creationCard');
+            const listCard = document.getElementById('listCard');
+            const periodDetailsCard = document.getElementById('periodDetailsCard');
+            const plDashboard = document.getElementById('plDashboard');
+
+            if (view === 'pl') {
+                btnPL.style.background = '#3b82f6';
+                btnPL.style.color = 'white';
+                btnPL.style.border = 'none';
+                btnNomina.style.background = 'transparent';
+                btnNomina.style.color = '#94a3b8';
+                btnNomina.style.border = '1px solid #334155';
+
+                creationCard.style.display = 'none';
+                listCard.style.display = 'none';
+                periodDetailsCard.style.display = 'none';
+                plDashboard.style.display = 'block';
+                loadPLDashboard();
+            } else {
+                btnNomina.style.background = '#3b82f6';
+                btnNomina.style.color = 'white';
+                btnNomina.style.border = 'none';
+                btnPL.style.background = 'transparent';
+                btnPL.style.color = '#94a3b8';
+                btnPL.style.border = '1px solid #334155';
+
+                creationCard.style.display = 'block';
+                listCard.style.display = 'block';
+                plDashboard.style.display = 'none';
+            }
+        }
+
+        async function loadPLDashboard() {
+            const res = await fetch('/payroll/periods', { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) return;
+            const periods = await res.json();
+
+            const tbody = document.getElementById('plTableBody');
+            tbody.innerHTML = '';
+
+            periods.forEach(p => {
+                const billed = p.billed_amount || 0;
+                const spent = p.total_spent || 0;
+                const pPerc = p.prestaciones_percent || 2.0;
+                const prestaciones = spent * (pPerc / 100);
+
+                let otherCosts = 0;
+                try {
+                    const others = JSON.parse(p.other_expenses_json || '[]');
+                    otherCosts = others.reduce((sum, item) => sum + item.amount, 0);
+                } catch (e) { }
+
+                const result = billed - spent - prestaciones - otherCosts;
+                const resultPerc = billed > 0 ? (result / billed * 100) : 0;
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>
+                        <div style="font-weight:bold;">${p.name}</div>
+                        <small style="color:#aaa;">${p.study_code || ''}</small>
+                    </td>
+                    <td style="text-align:right;">$${billed.toLocaleString()}</td>
+                    <td style="text-align:right;">$${spent.toLocaleString()}</td>
+                    <td style="text-align:right;">$${prestaciones.toLocaleString()} <small>(${pPerc}%)</small></td>
+                    <td style="text-align:right;">$${otherCosts.toLocaleString()}</td>
+                    <td style="text-align:right; font-weight:bold; color:${result >= 0 ? '#4ade80' : '#f87171'};">$${result.toLocaleString()}</td>
+                    <td style="text-align:right; font-weight:bold; color:${result >= 0 ? '#4ade80' : '#f87171'};">${resultPerc.toFixed(1)}%</td>
+                    <td style="text-align:center;">
+                        <button onclick='openPLEditModal(${JSON.stringify(p)})' style="background:#f59e0b; color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openPLEditModal(p) {
+            document.getElementById('plEditModal').style.display = 'block';
+            document.getElementById('plPeriodId').value = p.id;
+            document.getElementById('plPeriodName').textContent = p.name;
+            document.getElementById('plBilledAmount').value = p.billed_amount || 0;
+            document.getElementById('plPrestacionesPercent').value = p.prestaciones_percent || 2.0;
+
+            currentPLExpenses = [];
+            try {
+                currentPLExpenses = JSON.parse(p.other_expenses_json || '[]');
+            } catch (e) { }
+
+            renderPLExpenses();
+        }
+
+        let currentPLExpenses = [];
+
+        function renderPLExpenses() {
+            const list = document.getElementById('plOtherExpensesList');
+            list.innerHTML = '';
+            currentPLExpenses.forEach((exp, idx) => {
+                const div = document.createElement('div');
+                div.style = "display:flex; justify-content:space-between; background:rgba(0,0,0,0.2); padding:5px 10px; border-radius:4px; margin-bottom:5px; font-size:0.9rem;";
+                div.innerHTML = `
+                    <span>${exp.item}: <strong>$${exp.amount.toLocaleString()}</strong></span>
+                    <i class="fas fa-trash" onclick="removePLExpense(${idx})" style="color:#ef4444; cursor:pointer;"></i>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function addPLOtherExpense() {
+            const item = document.getElementById('plNewExpenseItem').value.trim();
+            const amount = parseInt(document.getElementById('plNewExpenseAmount').value);
+            if (!item || isNaN(amount)) return;
+
+            currentPLExpenses.push({ item, amount });
+            renderPLExpenses();
+
+            document.getElementById('plNewExpenseItem').value = '';
+            document.getElementById('plNewExpenseAmount').value = '';
+        }
+
+        function removePLExpense(idx) {
+            currentPLExpenses.splice(idx, 1);
+            renderPLExpenses();
+        }
+
+        function closePLEditModal() {
+            document.getElementById('plEditModal').style.display = 'none';
+        }
+
+        async function savePLData() {
+            const id = document.getElementById('plPeriodId').value;
+            const billed = parseInt(document.getElementById('plBilledAmount').value) || 0;
+            const perc = parseFloat(document.getElementById('plPrestacionesPercent').value) || 0;
+
+            const data = {
+                billed_amount: billed,
+                prestaciones_percent: perc,
+                other_expenses_json: JSON.stringify(currentPLExpenses)
+            };
+
+            const res = await fetch(`/payroll/periods/${id}/pl`, {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (res.ok) {
+                closePLEditModal();
+                loadPLDashboard();
+            } else {
+                alert("Error guardando datos");
+            }
+        }
+
 
         async function loadUsersForDropdown() {
             // Fetch ALL users (no filters) to allow user to decide who to add
@@ -3332,7 +3576,8 @@
         <div class="modal-content" style="max-width: 600px;">
             <span class="close" onclick="closeConceptManager()">&times;</span>
             <h3 style="color:#3b82f6; margin-bottom:15px;"><i class="fas fa-tags"></i> Gestionar Conceptos</h3>
-            <p style="color:#cbd5e1; margin-bottom:20px;">Edite los nombres o valores de los conceptos de esta nómina.
+            <p style="color:#cbd5e1; margin-bottom:20px;">Edite los nombres o valores de los conceptos de esta
+                nómina.
             </p>
 
             <div
@@ -3372,7 +3617,8 @@
     <div id="globalAccountModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <span class="close" onclick="closeGlobalAccountModal()">&times;</span>
-            <h3 style="color:#3b82f6; margin-bottom:15px;"><i class="fas fa-file-invoice-dollar"></i> Cuenta de Cobro
+            <h3 style="color:#3b82f6; margin-bottom:15px;"><i class="fas fa-file-invoice-dollar"></i> Cuenta de
+                Cobro
                 Unificada</h3>
             <p style="color:#cbd5e1; margin-bottom:20px;">Consulte y genere la cuenta de cobro global para un
                 colaborador.</p>
@@ -3402,7 +3648,8 @@
     <div id="loansModal" class="modal">
         <div class="modal-content" style="max-width: 900px; display:flex; flex-direction:column; gap:20px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h3 style="color:#eab308; margin:0;"><i class="fas fa-hand-holding-usd"></i> Gestión de Préstamos</h3>
+                <h3 style="color:#eab308; margin:0;"><i class="fas fa-hand-holding-usd"></i> Gestión de Préstamos
+                </h3>
                 <span class="close" onclick="closeLoansModal()">&times;</span>
             </div>
 
@@ -3433,7 +3680,8 @@
                     <div id="loanSummaryArea" style="flex:1; flex-direction:column; display:none;">
                         <div
                             style="background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.2); padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                            <span style="font-weight:bold; color:#4ade80; font-size:1.1rem;">TOTAL POR COBRAR (Saldos
+                            <span style="font-weight:bold; color:#4ade80; font-size:1.1rem;">TOTAL POR COBRAR
+                                (Saldos
                                 Activos):</span>
                             <span id="loanGrandTotal"
                                 style="font-weight:bold; color:#4ade80; font-size:1.5rem;">$0</span>
