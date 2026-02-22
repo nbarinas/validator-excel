@@ -221,6 +221,11 @@
                 margin-top: 0.5rem;
             }
         }
+
+        .hover-row:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            transition: background 0.2s;
+        }
     </style>
 </head>
 
@@ -3424,6 +3429,30 @@
                     <h4 id="loanUserName" style="margin-top:0; border-bottom:1px solid #334155; padding-bottom:10px;">
                         Seleccione un usuario</h4>
 
+                    <!-- Dashboard Summary Area -->
+                    <div id="loanSummaryArea" style="flex:1; flex-direction:column; display:none;">
+                        <div
+                            style="background:rgba(34, 197, 94, 0.1); border:1px solid rgba(34, 197, 94, 0.2); padding:15px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <span style="font-weight:bold; color:#4ade80; font-size:1.1rem;">TOTAL POR COBRAR (Saldos
+                                Activos):</span>
+                            <span id="loanGrandTotal"
+                                style="font-weight:bold; color:#4ade80; font-size:1.5rem;">$0</span>
+                        </div>
+                        <div style="flex:1; overflow-y:auto; min-height:300px;">
+                            <table class="data-table" style="font-size: 0.9rem; width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Colaborador</th>
+                                        <th>Descripción</th>
+                                        <th>Monto Inicial</th>
+                                        <th>Saldo Actual</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="loanSummaryTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <div id="loanDetailsArea" style="display:none; flex:1; flex-direction:column;">
                         <!-- Tabs -->
                         <div style="display:flex; gap:10px; margin-bottom:10px;">
@@ -3525,6 +3554,7 @@
         function openLoansModal() {
             document.getElementById('loansModal').style.display = 'block';
             resetLoanUI();
+            loadLoanSummary();
 
             // Populate datalist if empty
             const dl = document.getElementById('loanUserList');
@@ -3547,7 +3577,53 @@
             document.getElementById('loanUserId').value = '';
             document.getElementById('loanUserName').innerText = 'Seleccione un usuario';
             document.getElementById('loanDetailsArea').style.display = 'none';
+            document.getElementById('loanSummaryArea').style.display = 'none';
             document.getElementById('newLoanForm').style.display = 'none';
+        }
+
+        async function loadLoanSummary() {
+            try {
+                const res = await fetch('/loans/all/active', { headers: { 'Authorization': 'Bearer ' + token } });
+                const loans = await res.json();
+
+                document.getElementById('loanSummaryArea').style.display = 'flex';
+                document.getElementById('loanDetailsArea').style.display = 'none';
+                document.getElementById('newLoanForm').style.display = 'none';
+                document.getElementById('loanUserName').innerText = 'Resumen de Préstamos Activos';
+
+                const tbody = document.getElementById('loanSummaryTableBody');
+                tbody.innerHTML = '';
+
+                let grandTotal = 0;
+
+                if (loans.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:#aaa;">No hay préstamos activos en el sistema.</td></tr>';
+                    document.getElementById('loanGrandTotal').innerText = '$0';
+                    return;
+                }
+
+                loans.forEach(l => {
+                    grandTotal += l.balance;
+                    const tr = document.createElement('tr');
+                    tr.style.cursor = 'pointer';
+                    tr.className = 'hover-row'; // Custom styling
+                    tr.onclick = () => {
+                        document.getElementById('loanUserSearch').value = l.user_name;
+                        resolveLoanUser();
+                    };
+                    tr.innerHTML = `
+                        <td style="font-weight:bold;">${l.user_name}</td>
+                        <td>${l.description}</td>
+                        <td style="color:#aaa;">$${l.amount.toLocaleString()}</td>
+                        <td style="font-weight:bold; color:#f87171;">$${l.balance.toLocaleString()}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                document.getElementById('loanGrandTotal').innerText = '$' + grandTotal.toLocaleString();
+            } catch (e) {
+                console.error(e);
+            }
         }
 
         function resolveLoanUser() {
@@ -3590,6 +3666,7 @@
             if (!userId) userId = document.getElementById('loanUserId').value;
             // Ensure UI shows loans
             document.getElementById('loanDetailsArea').style.display = 'flex';
+            document.getElementById('loanSummaryArea').style.display = 'none';
             document.getElementById('newLoanForm').style.display = 'none';
             document.getElementById('paymentArea').style.display = 'none'; // Hide by default
 
@@ -3645,6 +3722,8 @@
         function openNewLoanForm() {
             const userId = document.getElementById('loanUserId').value;
             const userName = document.getElementById('loanUserSearch').value;
+
+            document.getElementById('loanSummaryArea').style.display = 'none';
 
             if (!userId) return alert("Primero busque y seleccione un usuario");
 
