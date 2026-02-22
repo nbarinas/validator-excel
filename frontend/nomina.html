@@ -1123,6 +1123,14 @@
                         r.study_code = periodMeta.study_code;
                         r.period_id = pid;
 
+                        // Concepts Configuration for heuristic
+                        let periodConcepts = periodMeta.concepts || [];
+                        if (periodConcepts.length === 0 && periodMeta.rates) {
+                            if (periodMeta.rates.census) periodConcepts.push({ id: 'census', name: 'Censos', rate: periodMeta.rates.census });
+                            if (periodMeta.rates.effective) periodConcepts.push({ id: 'effective', name: 'Encuestas Efectivas', rate: periodMeta.rates.effective });
+                        }
+                        r.period_concepts = periodConcepts;
+
                         userRecordsMap[r.user_id].push(r);
                     }
                 });
@@ -1131,10 +1139,39 @@
             const userIdsWithBalance = Object.keys(userRecordsMap).filter(uid => userRecordsMap[uid].length > 0);
             if (userIdsWithBalance.length === 0) return alert("No hay colaboradores con saldo por pagar en las nóminas activas.");
 
-            // Fetch ALL active loans in one go to deduct automatically if necessary
-            // Or skip loans if it's too complex for bulk print. However, the requirement is unified accounts.
-            // Let's inform the user that bulk unified print ignores the interactive loan deduction prompt.
-            confirm("Nota: La impresión masiva de pagos generará las cuentas de cobro de todos. Si tienen préstamos activos, NO se le preguntará interactivamente sobre generar el abono para cada uno (saldrán con el valor neto total generado por las actividades). Deducir prestamos requiere hacerlo uno a uno.");
+            // Parallel Loan Check for Performance
+            console.log("Revisando préstamos para " + userIdsWithBalance.length + " colaboradores...");
+            const loanChecks = await Promise.all(userIdsWithBalance.map(async (uid) => {
+                try {
+                    const resLoan = await fetch(`/loans/active/${uid}`, { headers: { 'Authorization': 'Bearer ' + token } });
+                    if (!resLoan.ok) return { uid, has_loan: false };
+                    const data = await resLoan.json();
+                    return { uid, ...data };
+                } catch (e) {
+                    console.error("Error fetching loan for " + uid, e);
+                    return { uid, has_loan: false };
+                }
+            }));
+
+            const userDeductionsMap = {}; // uid -> amount
+            for (let check of loanChecks) {
+                if (check.has_loan) {
+                    const uid = check.uid;
+                    const u = window.allUsersMap[uid] || { username: uid, full_name: 'Colaborador ' + uid };
+
+                    // Wait for user interaction
+                    const amount = await new Promise((resolve) => {
+                        window.loanPromiseResolver = resolve;
+                        currentActiveLoan = check;
+                        // IMPORTANT: Set globalSelectedUser so modal behaves correctly
+                        globalSelectedUser = u;
+                        showLoanModal(check);
+                        // Ensure name is correct if showLoanModal used globalSelectedUser
+                        document.getElementById('loanUserDisplay').textContent = u.full_name || u.username;
+                    });
+                    if (amount > 0) userDeductionsMap[uid] = amount;
+                }
+            }
 
             const win = window.open('', '', 'width=1100,height=800');
             const dateStr = new Date().toLocaleDateString();
@@ -1228,29 +1265,49 @@
                         let details = [];
                         try { details = JSON.parse(r.details_json); } catch (e) { }
 
-                        if (details.length === 0) {
+                        // Apply heuristics if details are missing
+                        if (details.length === 0 && r.total_amount > 0 && r.period_concepts && r.period_concepts.length > 0) {
+                            const pConcepts = r.period_concepts;
+                            if (pConcepts.length === 1) {
+                                const c = pConcepts[0];
+                                const qty = c.rate > 0 ? Math.floor(r.total_amount / c.rate) : 1;
+                                details.push({ concept_id: c.id, concept: c.name, qty: qty, rate: c.rate, total: r.total_amount });
+                            } else {
+                                const matches = pConcepts.filter(c => c.rate > 0 && (r.total_amount % c.rate === 0) && (r.total_amount >= c.rate));
+                                if (matches.length === 1) {
+                                    const c = matches[0];
+                                    const qty = Math.floor(r.total_amount / c.rate);
+                                    details.push({ concept_id: c.id, concept: c.name, qty: qty, rate: c.rate, total: r.total_amount });
+                                }
+                            }
+                        }
+
+                        details.forEach(d => {
                             win.document.write(`
                                 <tr>
-                                   <td style="padding-left:20px;">Pago General</td>
-                                   <td style="text-align:center;">-</td>
-                                   <td style="text-align:right;">-</td>
-                                   <td style="text-align:right;">$${r.total_amount.toLocaleString()}</td>
-                                 </tr>
+                                   <td style="padding-left:20px;">${d.concept}</td>
+                                   <td style="text-align:center;">${d.qty}</td>
+                                   <td style="text-align:right;">$${d.rate.toLocaleString()}</td>
+                                   <td style="text-align:right;">$${d.total.toLocaleString()}</td>
+                               </tr>
                             `);
-                        } else {
-                            details.forEach(d => {
-                                win.document.write(`
-                                    <tr>
-                                       <td style="padding-left:20px;">${d.concept}</td>
-                                       <td style="text-align:center;">${d.qty}</td>
-                                       <td style="text-align:right;">$${d.rate.toLocaleString()}</td>
-                                       <td style="text-align:right;">$${d.total.toLocaleString()}</td>
-                                   </tr>
-                                `);
-                            });
-                        }
+                        });
                     });
                 });
+
+                // Add Deduction if exists
+                if (userDeductionsMap[uid]) {
+                    const deduct = userDeductionsMap[uid];
+                    total -= deduct;
+                    win.document.write(`
+                        <tr style="color: #ef4444; font-style: italic;">
+                           <td style="padding-left:20px;">(-) Deducción de Préstamo</td>
+                           <td style="text-align:center;">1</td>
+                           <td style="text-align:right;">$${deduct.toLocaleString()}</td>
+                           <td style="text-align:right;">-$${deduct.toLocaleString()}</td>
+                        </tr>
+                    `);
+                }
 
                 win.document.write(`
                         </tbody>
@@ -1288,6 +1345,7 @@
 
         // --- LOAN LOGIC ---
         let currentActiveLoan = null;
+        window.loanPromiseResolver = null;
 
         async function checkActiveLoan(userId) {
             try {
@@ -1336,8 +1394,14 @@
 
         function proceedPrintWithoutDeduction() {
             closeLoanModal();
-            window.skipLoanCheck = true;
-            printGlobal();
+            if (window.loanPromiseResolver) {
+                const resolve = window.loanPromiseResolver;
+                window.loanPromiseResolver = null;
+                resolve(0);
+            } else {
+                window.skipLoanCheck = true;
+                printGlobal();
+            }
         }
 
         async function confirmLoanDeduction() {
@@ -1363,8 +1427,14 @@
 
                 if (res.ok) {
                     closeLoanModal();
-                    // Proceed to print with deduction info
-                    printGlobal({ amount: amount });
+                    if (window.loanPromiseResolver) {
+                        const resolve = window.loanPromiseResolver;
+                        window.loanPromiseResolver = null;
+                        resolve(amount);
+                    } else {
+                        // Proceed to print with deduction info
+                        printGlobal({ amount: amount });
+                    }
                 } else {
                     const err = await res.json();
                     alert("Error: " + (err.detail || "No se pudo registrar el pago"));
