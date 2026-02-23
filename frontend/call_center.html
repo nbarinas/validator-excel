@@ -565,11 +565,26 @@
 
             <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Llamadas
                 Efectivas, de Desempeño y Logísticas hoy</p>
-
             <div
-                style="display: flex; justify-content: center; gap: 10px; margin-bottom: 1.5rem; background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 1.5rem; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
                 <input type="date" id="dailyReportDate" onchange="showDailyReport()"
-                    style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit;">
+                    style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; width: 100%; max-width: 250px;">
+
+                <div style="width: 100%; max-width: 400px; margin-top: 5px;">
+                    <label style="display: block; color: #475569; font-size: 0.85rem; margin-bottom: 5px;">Filtrar por
+                        Estudios (opcional):</label>
+                    <select id="dailyReportStudySelect" multiple placeholder="Todos los estudios..."
+                        style="width: 100%;">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <label
+                    style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #475569; font-size: 0.9rem; margin-top: 5px;">
+                    <input type="checkbox" id="dailyReportOpenOnly" onchange="refreshDailyReport()"
+                        style="cursor: pointer;">
+                    Solo estudios abiertos
+                </label>
             </div>
 
             <div id="dailyReportContent">

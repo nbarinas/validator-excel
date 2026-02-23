@@ -1920,17 +1920,16 @@ async function saveStudyAssistants() {
 
 // --- DAILY REPORT FEATURE ---
 let dailyReportFpInstance = null;
+let dailyReportStudyTS = null;
 
 async function showDailyReport() {
     const modal = document.getElementById('dailyReportModal');
-    const content = document.getElementById('dailyReportContent');
     const dateInput = document.getElementById('dailyReportDate');
 
     modal.style.display = 'flex';
 
     // Initialize Flatpickr if not already done
     if (dateInput && !dailyReportFpInstance) {
-        // Change type to text to prevent native date picker
         dateInput.type = 'text';
         dailyReportFpInstance = flatpickr(dateInput, {
             mode: "range",
@@ -1939,28 +1938,82 @@ async function showDailyReport() {
             conjunction: " to ",
             defaultDate: new Date(),
             onChange: function (selectedDates, dateStr, instance) {
-                // Only refresh if a single date or a complete range is selected
                 if (selectedDates.length === 1 || selectedDates.length === 2) {
-                    fetchDailyReportData(dateStr);
+                    refreshDailyReport();
                 }
             }
         });
     }
 
-    // Initial load with current Flatpickr value or today
-    const currentDateVal = dateInput ? dateInput.value : '';
-    fetchDailyReportData(currentDateVal);
+    // Initialize/Refresh Study Select
+    await initDailyReportStudySelect();
+
+    // Initial load
+    refreshDailyReport();
 }
 
-async function fetchDailyReportData(dateStr) {
+async function initDailyReportStudySelect() {
+    const sel = document.getElementById('dailyReportStudySelect');
+    if (!sel) return;
+
+    try {
+        const openOnly = document.getElementById('dailyReportOpenOnly').checked;
+        const res = await fetch('/studies', { headers });
+        let studies = await res.json();
+
+        if (openOnly) {
+            studies = studies.filter(s => (s.is_active === true || s.is_active === 1) && s.status === 'open');
+        }
+
+        if (dailyReportStudyTS) dailyReportStudyTS.destroy();
+
+        sel.innerHTML = '';
+        studies.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `${s.code} - ${s.name}`;
+            sel.appendChild(opt);
+        });
+
+        dailyReportStudyTS = new TomSelect(sel, {
+            plugins: ['remove_button'],
+            create: false,
+            placeholder: "Todos los estudios...",
+            onBlur: () => refreshDailyReport()
+        });
+
+    } catch (e) {
+        console.error("Error loading studies for report", e);
+    }
+}
+
+function refreshDailyReport() {
+    const dateInput = document.getElementById('dailyReportDate');
+    const dateStr = dateInput ? dateInput.value : '';
+    const openOnly = document.getElementById('dailyReportOpenOnly').checked;
+
+    let studyIds = null;
+    if (dailyReportStudyTS) {
+        studyIds = dailyReportStudyTS.getValue();
+        if (Array.isArray(studyIds)) studyIds = studyIds.join(',');
+    }
+
+    fetchDailyReportData(dateStr, openOnly, studyIds);
+}
+
+async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null) {
     const content = document.getElementById('dailyReportContent');
     content.innerHTML = '<div style="text-align:center; padding: 2rem;">Cargando...</div>';
 
     try {
+        let params = new URLSearchParams();
+        if (dateStr) params.append('date', dateStr);
+        if (openOnly) params.append('open_only', 'true');
+        if (studyIds) params.append('study_ids', studyIds);
+
         let url = '/reports/daily-effectives';
-        if (dateStr) {
-            url += `?date=${encodeURIComponent(dateStr)}`;
-        }
+        const qs = params.toString();
+        if (qs) url += '?' + qs;
 
         const res = await fetch(url, { headers });
         if (res.ok) {
