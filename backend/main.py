@@ -3399,6 +3399,8 @@ async def nomina_page():
 @app.get("/reports/daily-effectives")
 def get_daily_effectives(
     date: Optional[str] = None,
+    open_only: bool = False,
+    study_ids: Optional[str] = None,
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -3434,9 +3436,31 @@ def get_daily_effectives(
         start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         end = start + timedelta(days=1)
     
+    # Filters
+    filters = []
+    params = {"start_date": start, "end_date": end}
+
+    if open_only:
+        filters.append("s.status = 'open'")
+
+    if study_ids:
+        try:
+            # Expecting comma separated IDs: "1,2,3"
+            id_list = [int(x.strip()) for x in study_ids.split(",") if x.strip()]
+            if id_list:
+                filters.append(f"s.id IN ({','.join([':id'+str(i) for i in range(len(id_list))])})")
+                for i, val in enumerate(id_list):
+                    params[f"id{i}"] = val
+        except ValueError:
+            pass # Ignore malformed IDs
+
+    filter_sql = ""
+    if filters:
+        filter_sql = "AND " + " AND ".join(filters)
+
     # PARAMETERIZED QUERY (Safe & Correct)
     # Filter by realization_date
-    sql = text("""
+    sql = text(f"""
         SELECT 
             s.name as study_name,
             u.full_name as agent_name,
@@ -3451,11 +3475,12 @@ def get_daily_effectives(
             c.status IN ('managed', 'efectiva_campo', 'caida_desempeno', 'caida_desempeno_campo', 'caida_logistica', 'caida_logistico_campo')
             AND c.realization_date >= :start_date
             AND c.realization_date < :end_date
+            {filter_sql}
         GROUP BY s.name, u.full_name, u.username
         ORDER BY s.name, count_effective DESC, count_desempeno DESC, count_logistico DESC
     """)
     
-    result = db.execute(sql, {"start_date": start, "end_date": end}).fetchall()
+    result = db.execute(sql, params).fetchall()
     
     # Transform to nested structure
     tree = {}
