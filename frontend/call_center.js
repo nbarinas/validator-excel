@@ -194,47 +194,415 @@ async function updateTempInfo(callId, field, value) {
     }
 }
 
+let parsedUploadData = [];
+let uploadHeaders = [];
+let columnMappings = [];
+
+const STANDARD_FIELDS = [
+    { id: 'ignorar', label: '-- Ignorar esta columna --' },
+    { id: 'telefono', label: 'Teléfono / Celular' },
+    { id: 'nombre', label: 'Nombre' },
+    { id: 'ciudad', label: 'Ciudad' },
+    { id: 'observaciones', label: 'Observaciones' },
+    { id: 'hora de llamada', label: 'Hora de Llamada' },
+    { id: 'marca de producto', label: 'Marca de Producto' },
+    { id: 'otro numero', label: 'Teléfono Alterno' },
+    { id: 'cedula', label: 'Cédula / Documento' },
+    { id: 'nse', label: 'NSE / Estrato' },
+    { id: 'edad', label: 'Edad' },
+    { id: 'rango edad', label: 'Rango de Edad' },
+    { id: 'edad hijos', label: 'Edad Hijos' },
+    { id: 'whatsapp', label: 'WhatsApp' },
+    { id: 'barrio', label: 'Barrio' },
+    { id: 'direccion', label: 'Dirección' },
+    { id: 'descripcion vivienda', label: 'Descripción Vivienda' },
+    { id: 'encuestado', label: 'Persona Entrevistada' },
+    { id: 'supervisor', label: 'Supervisor' },
+    { id: 'fecha implantacion', label: 'Fecha Implantación' },
+    { id: 'fecha recoleccion', label: 'Fecha Recogida' },
+    { id: 'hora recoleccion', label: 'Hora Recogida' },
+    { id: 'censo', label: 'Censo / ID' },
+    { id: 'encuestador', label: 'Encuestador' },
+    { id: 'nombre del perro', label: 'Nombre Mascota' },
+    { id: 'marca de shampoo', label: 'Marca Shampoo' },
+    { id: 'variedad shampoo', label: 'Variedad Shampoo' },
+    { id: 'marca tratamiento', label: 'Marca Tratamiento' },
+    { id: 'variedad tratamiento', label: 'Variedad Tratamiento' },
+    { id: 'marca acondicionador', label: 'Marca Acondicionador' },
+    { id: 'variedad acondicionador', label: 'Variedad Acondicionador' },
+    { id: 'frecuencia de lavado', label: 'Frecuencia Lavado' },
+    { id: 'tipo de cabello', label: 'Tipo de Cabello' },
+    { id: 'forma de cabello', label: 'Forma de Cabello' },
+    { id: 'largo de cabello', label: 'Largo de Cabello' }
+];
+
+const CATEGORY_RULES = {
+    'cabello': {
+        expected: ['telefono', 'nombre', 'ciudad', 'marca'],
+        forbidden: ['perro', 'raza', 'mascota'],
+        hints: 'Recomendado para Cabello: Teléfono, Nombre, Ciudad, Marca Shampoo, Largo de Cabello. No incluya datos de mascotas.'
+    },
+    'mascotas': {
+        expected: ['telefono', 'nombre', 'ciudad', 'perro'],
+        forbidden: ['shampoo', 'cabello', 'acondicionador'],
+        hints: 'Recomendado para Mascotas: Teléfono, Nombre, Ciudad, Nombre del perro. No incluya datos de cabello.'
+    },
+    'general': {
+        expected: ['telefono', 'nombre', 'ciudad'],
+        forbidden: [],
+        hints: 'Recomendado: Teléfono, Nombre, Ciudad.'
+    }
+};
+
+function updateUploadHints() {
+    const cat = document.getElementById('uploadCategory').value;
+    const hintsEl = document.getElementById('uploadHints');
+    if (CATEGORY_RULES[cat]) {
+        hintsEl.textContent = CATEGORY_RULES[cat].hints;
+    }
+    // Re-validate if data exists
+    if (parsedUploadData.length > 0) {
+        validateParsedData();
+    }
+}
+
 function showUploadModal() {
     document.getElementById('uploadModal').style.display = 'flex';
+    document.getElementById('uploadStudyName').value = '';
+    document.getElementById('pasteArea').value = '';
+    document.getElementById('previewContainer').style.display = 'none';
+    document.getElementById('uploadAlertBox').style.display = 'none';
+    document.getElementById('uploadError').style.display = 'none';
+    document.getElementById('btnFinalUpload').style.opacity = '0.5';
+    document.getElementById('btnFinalUpload').disabled = true;
+    parsedUploadData = [];
+    uploadHeaders = [];
+    columnMappings = [];
+    updateUploadHints();
 }
 
 function closeUploadModal() {
     document.getElementById('uploadModal').style.display = 'none';
 }
 
-async function uploadCalls() {
-    const fileInput = document.getElementById('uploadFile');
-    const studyName = document.getElementById('uploadStudyName').value;
+function handlePasteData() {
+    const text = document.getElementById('pasteArea').value;
+    if (!text.trim()) {
+        document.getElementById('previewContainer').style.display = 'none';
+        document.getElementById('btnFinalUpload').disabled = true;
+        document.getElementById('btnFinalUpload').style.opacity = '0.5';
+        parsedUploadData = [];
+        return;
+    }
+
+    // Parse TSV gracefully handling quotes if copied from advanced Excel logic, but standard JS split usually works for simple pasting.
+    const rows = text.split('\n').map(row => row.split('\t'));
+
+    // First row is headers
+    if (rows.length < 2) return; // Need at least header and 1 row of data
+
+    uploadHeaders = rows[0].map(h => h.trim());
+    parsedUploadData = [];
+
+    for (let i = 1; i < rows.length; i++) {
+        if (rows[i].length === 1 && rows[i][0].trim() === '') continue; // skip empty rows
+        let rowObj = {};
+        for (let j = 0; j < uploadHeaders.length; j++) {
+            rowObj[uploadHeaders[j]] = (rows[i][j] || "").trim();
+        }
+        parsedUploadData.push(rowObj);
+    }
+
+    // Initialize mapping
+    columnMappings = uploadHeaders.map(h => {
+        if (isRecognizedColumn(h)) return h; // Keep original if it's already recognized
+        return ""; // Unrecognized
+    });
+
+    renderPreviewTable();
+    validateParsedData();
+}
+
+window.updateColumnMapping = function (index, value) {
+    columnMappings[index] = value;
+    validateParsedData();
+    renderPreviewTable();
+};
+
+const KNOWN_BACKEND_COLUMNS = [
+    "telefono", "teléfono", "celular", "numero", "movil", "ciudad", "city",
+    "codigo", "código", "cod", "id", "observaciones", "observacion", "observación", "obs",
+    "hora de llamada", "hora", "cita", "marca de producto", "marca", "otro numero", "otro telefono", "telefono 2",
+    "cedula", "cédula", "cc", "identificacion", "nombre", "cliente", "usuario", "nombre y apellido", "nombre completo",
+    "nse", "estrato", "nivel socioeconomico", "edad", "age", "rango edad", "rango de edad", "edad rango",
+    "edad hijos", "hijos", "edades hijos", "whatsapp", "wa", "celular wa",
+    "barrio", "neighborhood", "sector", "direccion", "dirección", "address", "dir", "ubicacion",
+    "descripcion vivienda", "descripción vivienda", "tipo vivienda", "vivienda",
+    "encuestado", "respondent", "persona entrevistada", "supervisor", "sup",
+    "fecha implantacion", "fecha implantación", "fecha imp",
+    "fecha recoleccion", "fecha recolección", "fecha recogida", "fecha de recogida", "fecha rec",
+    "hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec",
+    "censo", "identifier", "encuestador", "pollster", "nombre encuestador", "implantation_pollster",
+    "nombre del perro", "dog name", "mascota", "nombre de la mascota",
+    "marca de shampoo", "marca shampoo", "variedad shampoo", "variedad",
+    "marca tratamiento", "variedad tratamiento",
+    "marca acondicionador", "variedad acondicionador", "variedad tratamiento.1",
+    "frecuencia de lavado", "tipo de cabello", "forma de cabello",
+    "largo de cabello", "largo"
+];
+
+function isRecognizedColumn(header) {
+    const hl = header.toLowerCase().trim();
+    if (!hl) return false;
+    for (let known of KNOWN_BACKEND_COLUMNS) {
+        if (hl === known || (hl.length > 3 && known.includes(hl)) || (known.length > 3 && hl.includes(known))) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function renderPreviewTable() {
+    const thead = document.getElementById('previewThead');
+    const tbody = document.getElementById('previewTbody');
+    const countSpan = document.getElementById('previewCount');
+    const colCountSpan = document.getElementById('previewColCount');
+
+    thead.innerHTML = '';
+    tbody.innerHTML = '';
+    if (countSpan) countSpan.textContent = parsedUploadData.length;
+    if (colCountSpan) colCountSpan.textContent = uploadHeaders.length;
+    document.getElementById('previewContainer').style.display = 'flex';
+
+    // Headers
+    uploadHeaders.forEach((h, i) => {
+        const th = document.createElement('th');
+        th.style.padding = '8px';
+        th.style.border = '1px solid #cbd5e1';
+        th.style.textAlign = 'left';
+        th.style.color = '#1e293b';
+        th.style.verticalAlign = 'top';
+
+        const mapped = columnMappings[i];
+        if (mapped === h) {
+            th.innerHTML = `<div style="color:#15803d; font-weight:bold;"><i class="fas fa-check-circle"></i> ${h}</div>`;
+        } else if (mapped !== "" && mapped !== "ignorar") {
+            const label = STANDARD_FIELDS.find(f => f.id === mapped)?.label || mapped;
+            th.innerHTML = `
+                <div style="color:#2563eb; font-weight:bold;"><i class="fas fa-link"></i> ${h}</div>
+                <div style="font-size:0.75rem; color:#475569;">&rarr; ${label}</div>
+                <select style="width:100%; padding:2px; font-size:0.75rem; margin-top:4px; max-width: 150px;" onchange="window.updateColumnMapping(${i}, this.value)">
+                    <option value="">-- Cambiar --</option>
+                    ${STANDARD_FIELDS.map(s => `<option value="${s.id}">${s.label}</option>`).join('')}
+                </select>
+            `;
+        } else if (mapped === "ignorar") {
+            th.innerHTML = `<div style="color:#94a3b8; text-decoration:line-through;"><i class="fas fa-ban"></i> ${h}</div>
+                <select style="width:100%; padding:2px; font-size:0.75rem; margin-top:4px; max-width: 150px;" onchange="window.updateColumnMapping(${i}, this.value)">
+                    <option value="">-- Ignorar --</option>
+                    ${STANDARD_FIELDS.map(s => `<option value="${s.id}">${s.label}</option>`).join('')}
+                </select>
+            `;
+        } else {
+            // Unrecognized
+            const hl = h.toLowerCase();
+            let suggestions = STANDARD_FIELDS.filter(f => {
+                if (f.id === 'ignorar') return false;
+                const fl = f.label.toLowerCase();
+                return hl.includes(f.id) || f.id.includes(hl) || fl.includes(hl) || hl.includes(fl) ||
+                    (Math.abs(hl.length - f.id.length) <= 3 && hl.substring(0, 4) === f.id.substring(0, 4));
+            });
+
+            let html = `<div style="color:#b45309; font-weight:bold; margin-bottom:4px;"><i class="fas fa-exclamation-triangle"></i> ${h}</div>
+                <select style="width:100%; padding:4px; font-size:0.75rem; border:1px solid #f59e0b; border-radius:4px; max-width: 150px;" onchange="window.updateColumnMapping(${i}, this.value)">
+                    <option value="">-- Mapear Columna --</option>
+                    <option value="ignorar">❌ Ignorar</option>
+            `;
+            if (suggestions.length > 0) {
+                html += `<optgroup label="Sugerencias">`;
+                suggestions.forEach(s => html += `<option value="${s.id}">${s.label}</option>`);
+                html += `</optgroup>`;
+            }
+            html += `<optgroup label="Todas las columnas">`;
+            STANDARD_FIELDS.filter(f => f.id !== 'ignorar').forEach(s => html += `<option value="${s.id}">${s.label}</option>`);
+            html += `</optgroup></select>`;
+            th.innerHTML = html;
+        }
+        thead.appendChild(th);
+    });
+
+    // Rows (max 50 for preview performance)
+    const previewRows = parsedUploadData.slice(0, 50);
+    previewRows.forEach(row => {
+        const tr = document.createElement('tr');
+        uploadHeaders.forEach((h, i) => {
+            const td = document.createElement('td');
+            td.style.padding = '4px 8px';
+            td.style.border = '1px solid #cbd5e1';
+            td.style.color = '#334155';
+
+            if (columnMappings[i] === "ignorar" || columnMappings[i] === "") {
+                td.style.color = '#cbd5e1';
+                td.style.fontStyle = 'italic';
+            }
+            td.textContent = row[h] || '';
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+    });
+}
+
+function validateParsedData() {
+    const cat = document.getElementById('uploadCategory').value;
+    const rules = CATEGORY_RULES[cat];
+    const alertBox = document.getElementById('uploadAlertBox');
+    const btnSubmit = document.getElementById('btnFinalUpload');
+
+    // Identify mapped headers
+    let activeHeaders = columnMappings.filter(m => m !== "" && m !== "ignorar");
+    const normHeaders = activeHeaders.map(h => h.toLowerCase().trim());
+
+    let missing = [];
+    let forbiddenFound = [];
+    let recognizedCols = [];
+    let unrecognizedCols = [];
+    let ignoredColsCount = 0;
+
+    uploadHeaders.forEach((h, i) => {
+        if (!h.trim()) return;
+        const mapped = columnMappings[i];
+        if (mapped === "ignorar" || mapped === "") {
+            unrecognizedCols.push(h);
+            if (mapped === "ignorar") ignoredColsCount++;
+        } else {
+            recognizedCols.push(mapped);
+        }
+    });
+
+    // Check expected (based on category rules)
+    rules.expected.forEach(exp => {
+        let found = false;
+        for (let h of normHeaders) {
+            if (h.includes(exp) || exp.includes(h) || (exp === 'telefono' && h.includes('celular')) || (exp === 'nombre' && h.includes('cliente'))) {
+                found = true; break;
+            }
+        }
+        if (!found) missing.push(exp);
+    });
+
+    // Check forbidden
+    rules.forbidden.forEach(forb => {
+        let found = false;
+        for (let h of normHeaders) {
+            if (h.includes(forb) || forb.includes(h)) {
+                found = true; break;
+            }
+        }
+        if (found) forbiddenFound.push(forb);
+    });
+
+    let msgs = [];
+
+    // Database mapping count info
+    const unmappedCount = unrecognizedCols.length - ignoredColsCount;
+
+    if (unmappedCount > 0) {
+        msgs.push(`Se detectaron <b>${uploadHeaders.length} columnas</b>. Base de datos recibirá ${recognizedCols.length}. <br><span style="color:#b45309;">⚠️ Tienes <b>${unmappedCount}</b> columna(s) sin mapear. Por favor ignóralas o mapealas usando los selectores en la tabla de abajo: <i>${unrecognizedCols.filter(x => !columnMappings.includes(x)).join(', ')}</i>.</span>`);
+        alertBox.style.background = '#fffbeb'; // Yellowish warning
+        alertBox.style.borderColor = '#fde68a';
+    } else if (ignoredColsCount > 0) {
+        msgs.push(`Se detectaron <b>${uploadHeaders.length} columnas</b>. Base de datos recibirá ${recognizedCols.length} mapeadas correctamente. Se ignorarán ${ignoredColsCount} columna(s).`);
+        alertBox.style.background = '#f8fafc'; // Gray 
+        alertBox.style.borderColor = '#cbd5e1';
+    } else {
+        msgs.push(`<span style="color:#15803d; font-weight:bold;">¡Excelente! Todas las ${uploadHeaders.length} columnas están mapeadas y listas para cargar.</span>`);
+        alertBox.style.background = '#ecfdf5'; // Greenish success
+        alertBox.style.borderColor = '#a7f3d0';
+    }
+
+    if (missing.length > 0) {
+        msgs.push(`<b style="color:#b45309">Atención:</b> Tu categoría es <b>${cat}</b> y parece faltar: <i>${missing.join(', ')}</i>.`);
+    }
+    if (forbiddenFound.length > 0) {
+        msgs.push(`<b style="color:#dc2626">Cuidado:</b> Tu categoría es <b>${cat}</b> pero incluiste columnas de: <i>${forbiddenFound.join(', ')}</i>.`);
+        alertBox.style.background = '#fef2f2'; // Reddish danger
+        alertBox.style.borderColor = '#fecaca';
+    }
+
+    if (msgs.length > 0) {
+        alertBox.innerHTML = msgs.join('<br><br>');
+        alertBox.style.display = 'block';
+    } else {
+        alertBox.style.display = 'none';
+    }
+
+    const studyName = document.getElementById('uploadStudyName').value.trim();
+    if (parsedUploadData.length > 0 && unmappedCount === 0) {
+        btnSubmit.disabled = false;
+        btnSubmit.style.opacity = '1';
+        document.getElementById('uploadError').style.display = 'none';
+    } else {
+        btnSubmit.disabled = true;
+        btnSubmit.style.opacity = '0.5';
+        if (unmappedCount > 0 && parsedUploadData.length > 0) {
+            document.getElementById('uploadError').textContent = 'Debe mapear o ignorar todas las columnas pendientes.';
+            document.getElementById('uploadError').style.display = 'inline';
+        }
+    }
+}
+
+// Ensure button state strictly listens to Study Name typing as well
+document.getElementById('uploadStudyName').addEventListener('input', () => {
+    if (parsedUploadData.length > 0) {
+        validateParsedData();
+    }
+});
+
+async function uploadParsedData() {
+    const studyName = document.getElementById('uploadStudyName').value.trim();
     const studyType = document.getElementById('uploadStudyType').value;
     const studyStage = document.getElementById('uploadStudyStage').value;
 
-    if (!fileInput.files[0]) {
-        alert("Selecciona un archivo Excel");
-        return;
-    }
-
     if (!studyName) {
-        alert("Escribe un nombre para el nuevo estudio");
+        document.getElementById('uploadError').style.display = 'inline';
+        return;
+    }
+    document.getElementById('uploadError').style.display = 'none';
+
+    if (parsedUploadData.length === 0) {
+        alert("No hay datos para cargar.");
         return;
     }
 
-    if (!studyType || studyType === "") {
-        alert("Por favor selecciona el Tipo de Estudio (Validación o Fatiga)");
-        return;
-    }
+    // Build mapped data
+    const finalData = parsedUploadData.map(row => {
+        let newRow = {};
+        uploadHeaders.forEach((h, i) => {
+            const mapped = columnMappings[i];
+            if (mapped && mapped !== "ignorar") {
+                newRow[mapped] = row[h];
+            }
+        });
+        return newRow;
+    });
 
-    if (!studyStage || studyStage === "") {
-        alert("Por favor selecciona la Etapa (R)");
-        return;
-    }
+    // Repack JSON to Excel Blob using SheetJS
+    const ws = XLSX.utils.json_to_sheet(finalData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Base");
+
+    // Write to array buffer
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+    const blob = new Blob([wbout], { type: "application/octet-stream" });
 
     const formData = new FormData();
-    formData.append('file', fileInput.files[0]);
+    formData.append('file', blob, 'base_pegada.xlsx');
     formData.append('study_name', studyName);
     formData.append('study_type', studyType);
     formData.append('study_stage', studyStage);
 
-    alert("Cargando base de datos... Esto puede tomar unos segundos.");
+    document.getElementById('btnFinalUpload').disabled = true;
+    document.getElementById('btnFinalUpload').innerHTML = 'Cargando...';
 
     try {
         const res = await fetch('/upload-calls', {
@@ -247,7 +615,7 @@ async function uploadCalls() {
 
         if (res.ok) {
             const data = await res.json();
-            alert(`Carga exitosa: ${data.count} registros creados en estudio '${data.study_name}'.`);
+            alert(`Carga exitosa: ${data.count} registros creados en el estudio '${data.study_name}'.`);
             closeUploadModal();
             enterCRM();
         } else {
@@ -257,6 +625,9 @@ async function uploadCalls() {
     } catch (e) {
         console.error(e);
         alert("Error de red");
+    } finally {
+        document.getElementById('btnFinalUpload').disabled = false;
+        document.getElementById('btnFinalUpload').innerHTML = '<i class="fas fa-upload" style="margin-right: 5px;"></i> Cargar Datos';
     }
 }
 
