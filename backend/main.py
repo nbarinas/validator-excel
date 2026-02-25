@@ -808,9 +808,9 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
     query = db.query(models.Study)
     
     # SIMPLIFIED LOGIC requested by user:
-    # If Superuser/Coordinator -> Return ALL (Active + Inactive) always.
+    # If Superuser/Coordinator/Auxiliar -> Return ALL (Active + Inactive) always.
     # If Regular User -> Return ONLY Active.
-    if current_user.role.lower() in ["superuser", "coordinator"]:
+    if current_user.role.lower() in ["superuser", "coordinator", "auxiliar"]:
         pass # No filter, return everything
     else:
         query = query.filter(models.Study.is_active == True)
@@ -3396,11 +3396,29 @@ def delete_loan(loan_id: int, db: Session = Depends(database.get_db), current_us
 async def nomina_page():
     return FileResponse(os.path.join(FRONTEND_DIR, "nomina.html"))
 
+@app.get("/reports/active-agents")
+def get_active_agents(open_only: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """
+    Returns only users (agents) who actually have calls assigned in the database.
+    If open_only is True, filters to only agents with calls in active studies.
+    """
+    query = db.query(models.User).join(models.Call, models.User.id == models.Call.user_id)
+    if open_only:
+        query = query.join(models.Study, models.Call.study_id == models.Study.id).filter(models.Study.is_active == True)
+        
+    agents = query.distinct().all()
+    # Filter to ensure only roles we care about
+    valid_roles = ['agent', 'auxiliar', 'coordinator']
+    agents = [a for a in agents if a.role in valid_roles]
+    
+    return [{"id": a.id, "full_name": a.full_name, "username": a.username, "role": a.role} for a in agents]
+
 @app.get("/reports/daily-effectives")
 def get_daily_effectives(
     date: Optional[str] = None,
     open_only: bool = False,
     study_ids: Optional[str] = None,
+    agent_ids: Optional[str] = None,
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -3451,6 +3469,17 @@ def get_daily_effectives(
                 filters.append(f"s.id IN ({','.join([':id'+str(i) for i in range(len(id_list))])})")
                 for i, val in enumerate(id_list):
                     params[f"id{i}"] = val
+        except ValueError:
+            pass # Ignore malformed IDs
+
+    if agent_ids:
+        try:
+            # Expecting comma separated IDs: "1,2,3"
+            agent_list = [int(x.strip()) for x in agent_ids.split(",") if x.strip()]
+            if agent_list:
+                filters.append(f"u.id IN ({','.join([':aid'+str(i) for i in range(len(agent_list))])})")
+                for i, val in enumerate(agent_list):
+                    params[f"aid{i}"] = val
         except ValueError:
             pass # Ignore malformed IDs
 

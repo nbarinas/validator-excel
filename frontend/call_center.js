@@ -57,16 +57,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             });
 
-            if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
+            if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') {
                 // Show Landing, Hide CRM
                 document.getElementById('superuserLanding').style.display = 'flex';
                 document.getElementById('crmInterface').style.display = 'none';
-                // Ensure button is visible if they enter
-                const btn = document.getElementById('btnCreateStudy');
-                if (btn) btn.style.display = 'inline-block';
 
-                // Show Closed Studies Button ONLY for Superuser
-                if (currentUserRole === 'superuser') {
+                // Cargar Base y Gestión de Estudios only for Superuser/Coordinator
+                const btnUpload = document.getElementById('btnUploadExcelLanding');
+                const btnManage = document.getElementById('btnManageStudiesLanding');
+                const btnReport = document.getElementById('btnDailyReportLanding');
+
+                if (btnUpload) btnUpload.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+                if (btnManage) btnManage.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+                if (btnReport) btnReport.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+
+                // Ensure Create Study Button is visible if they enter the CRM (only for super/coord)
+                const btn = document.getElementById('btnCreateStudy');
+                if (btn) btn.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+
+                // Show Closed Studies Button for Superuser and Auxiliar
+                if (currentUserRole === 'superuser' || currentUserRole === 'auxiliar' || currentUserRole === 'coordinator') {
                     const btnClosed = document.getElementById('btnClosedStudies');
                     if (btnClosed) btnClosed.style.display = 'inline-block'; // or block/flex depending on css
                 }
@@ -76,15 +86,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = 'none';
                 loadStudies();
-            }
-
-            // Auxiliar Role Handling
-            if (currentUserRole === 'auxiliar') {
-                // Auxiliar can see active calls and manage them, similar to agent but maybe broader visibility?
-                // Requirement: "El rol auxiliar puede ver las llamadas activas"
-                // They should see the CRM interface.
-                document.getElementById('superuserLanding').style.display = 'none';
-                document.getElementById('crmInterface').style.display = 'grid';
             }
 
             // Ensure search is visible for EVERYONE
@@ -2292,6 +2293,7 @@ async function saveStudyAssistants() {
 // --- DAILY REPORT FEATURE ---
 let dailyReportFpInstance = null;
 let dailyReportStudyTS = null;
+let dailyReportAgentTS = null;
 
 async function showDailyReport() {
     const modal = document.getElementById('dailyReportModal');
@@ -2308,8 +2310,9 @@ async function showDailyReport() {
             locale: "es",
             conjunction: " to ",
             defaultDate: new Date(),
-            onChange: function (selectedDates, dateStr, instance) {
+            onChange: async function (selectedDates, dateStr, instance) {
                 if (selectedDates.length === 1 || selectedDates.length === 2) {
+                    await initDailyReportAgentSelect();
                     refreshDailyReport();
                 }
             }
@@ -2318,6 +2321,7 @@ async function showDailyReport() {
 
     // Initialize/Refresh Study Select
     await initDailyReportStudySelect();
+    await initDailyReportAgentSelect();
 
     // Initial load
     refreshDailyReport();
@@ -2358,6 +2362,37 @@ async function initDailyReportStudySelect() {
     }
 }
 
+async function initDailyReportAgentSelect() {
+    const sel = document.getElementById('dailyReportAgentSelect');
+    if (!sel) return;
+
+    try {
+        const openOnly = document.getElementById('dailyReportOpenOnly').checked;
+        const res = await fetch(`/reports/active-agents?open_only=${openOnly}`, { headers });
+        let users = await res.json();
+
+        if (dailyReportAgentTS) dailyReportAgentTS.destroy();
+
+        sel.innerHTML = '';
+        users.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = `${u.full_name || u.username}`;
+            sel.appendChild(opt);
+        });
+
+        dailyReportAgentTS = new TomSelect(sel, {
+            plugins: ['remove_button'],
+            create: false,
+            placeholder: "Todos los agentes...",
+            onBlur: () => refreshDailyReport()
+        });
+
+    } catch (e) {
+        console.error("Error loading agents for report", e);
+    }
+}
+
 function refreshDailyReport() {
     const dateInput = document.getElementById('dailyReportDate');
     const dateStr = dateInput ? dateInput.value : '';
@@ -2369,10 +2404,16 @@ function refreshDailyReport() {
         if (Array.isArray(studyIds)) studyIds = studyIds.join(',');
     }
 
-    fetchDailyReportData(dateStr, openOnly, studyIds);
+    let agentIds = null;
+    if (dailyReportAgentTS) {
+        agentIds = dailyReportAgentTS.getValue();
+        if (Array.isArray(agentIds)) agentIds = agentIds.join(',');
+    }
+
+    fetchDailyReportData(dateStr, openOnly, studyIds, agentIds);
 }
 
-async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null) {
+async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, agentIds = null) {
     const content = document.getElementById('dailyReportContent');
     content.innerHTML = '<div style="text-align:center; padding: 2rem;">Cargando...</div>';
 
@@ -2381,6 +2422,7 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null) 
         if (dateStr) params.append('date', dateStr);
         if (openOnly) params.append('open_only', 'true');
         if (studyIds) params.append('study_ids', studyIds);
+        if (agentIds) params.append('agent_ids', agentIds);
 
         let url = '/reports/daily-effectives';
         const qs = params.toString();

@@ -491,12 +491,12 @@
             </div>
 
             <div style="flex: 1; display: flex; gap: 2rem; justify-content: center; align-items: center;">
-                <button onclick="showUploadModal()"
+                <button id="btnUploadExcelLanding" onclick="showUploadModal()"
                     style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #6366f1; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-file-upload" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Cargar Base (Excel)
                 </button>
-                <button onclick="showManageStudies()"
+                <button id="btnManageStudiesLanding" onclick="showManageStudies()"
                     style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #f59e0b; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-database" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Base de Datos
@@ -511,7 +511,7 @@
                     <i class="fas fa-archive" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Estudios ya cerrados
                 </button>
-                <button onclick="showDailyReport()"
+                <button id="btnDailyReportLanding" onclick="showDailyReport()"
                     style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #0ea5e9; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-chart-line" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Reporte Diario
@@ -579,9 +579,19 @@
                     </select>
                 </div>
 
+                <div style="width: 100%; max-width: 400px; margin-top: 5px;">
+                    <label style="display: block; color: #475569; font-size: 0.85rem; margin-bottom: 5px;">Filtrar por
+                        Agentes (opcional):</label>
+                    <select id="dailyReportAgentSelect" multiple placeholder="Todos los agentes..."
+                        style="width: 100%;">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
                 <label
                     style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #475569; font-size: 0.9rem; margin-top: 5px;">
-                    <input type="checkbox" id="dailyReportOpenOnly" onchange="refreshDailyReport()"
+                    <input type="checkbox" id="dailyReportOpenOnly"
+                        onchange="initDailyReportStudySelect(); initDailyReportAgentSelect(); refreshDailyReport();"
                         style="cursor: pointer;">
                     Solo estudios abiertos
                 </label>
