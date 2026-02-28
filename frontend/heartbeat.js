@@ -1,3 +1,17 @@
+// Global Fetch Interceptor for 401 Unauthorized
+const originalFetch = window.fetch;
+window.fetch = async function () {
+    const response = await originalFetch.apply(this, arguments);
+    if (response.status === 401) {
+        console.warn('Session expired (401). Redirecting to login.');
+        localStorage.removeItem('token');
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/login.html') {
+            window.location.href = '/login';
+        }
+    }
+    return response;
+};
+
 // Activity Monitor / Heartbeat
 (function () {
     let lastActivityTime = Date.now();

@@ -70,6 +70,7 @@ class Call(Base):
     
     phone_number = Column(String(20), index=True)
     code = Column(String(50), nullable=True) # Codigo del registro (Excel)
+    segundo_codigo = Column(String(50), nullable=True) # Segundo Codigo del registro (Excel - para Validación)
     person_name = Column(String(100), nullable=True)
     city = Column(String(100), nullable=True)
     status = Column(String(20), default="pending") # pending, managed, closed
