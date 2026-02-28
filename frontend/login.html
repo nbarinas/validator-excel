@@ -84,17 +84,39 @@
                 <label for="password">Contraseña</label>
                 <input type="password" id="password" required>
             </div>
+            <div class="form-group">
+                <label id="captchaLabel" for="captchaInput">Resuelva: ? + ? =</label>
+                <input type="number" id="captchaInput" required placeholder="Ingrese el resultado">
+            </div>
             <button type="submit" class="btn-login">Ingresar</button>
         </form>
         <p id="errorMsg">Usuario o contraseña incorrectos</p>
     </div>
 
     <script>
+        let captchaResult = 0;
+        function generateCaptcha() {
+            const num1 = Math.floor(Math.random() * 10) + 1;
+            const num2 = Math.floor(Math.random() * 10) + 1;
+            captchaResult = num1 + num2;
+            document.getElementById('captchaLabel').innerText = `Por seguridad, resuelva: ${num1} + ${num2} =`;
+            document.getElementById('captchaInput').value = '';
+        }
+        generateCaptcha();
+
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
+            const captchaInput = parseInt(document.getElementById('captchaInput').value);
             const errorMsg = document.getElementById('errorMsg');
+
+            if (captchaInput !== captchaResult) {
+                errorMsg.innerText = "CAPTCHA incorrecto. Intente de nuevo.";
+                errorMsg.style.display = 'block';
+                generateCaptcha();
+                return;
+            }
 
             try {
                 const formData = new URLSearchParams();
@@ -113,12 +135,15 @@
                     localStorage.setItem('role', data.role); // Optional
                     window.location.href = '/';
                 } else {
+                    errorMsg.innerText = "Usuario o contraseña incorrectos";
                     errorMsg.style.display = 'block';
+                    generateCaptcha();
                 }
             } catch (err) {
                 console.error(err);
                 errorMsg.innerText = "Error de conexión";
                 errorMsg.style.display = 'block';
+                generateCaptcha();
             }
         });
     </script>

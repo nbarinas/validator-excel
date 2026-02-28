@@ -1,6 +1,20 @@
 const token = localStorage.getItem('token');
 if (!token) window.location.href = '/login';
 
+// Global Fetch Interceptor for 401 Unauthorized
+const originalFetch = window.fetch;
+window.fetch = async function () {
+    const response = await originalFetch.apply(this, arguments);
+    if (response.status === 401) {
+        console.warn('Session expired (401). Redirecting to login.');
+        localStorage.removeItem('token');
+        if (window.location.pathname !== '/login' && window.location.pathname !== '/login.html') {
+            window.location.href = '/login';
+        }
+    }
+    return response;
+};
+
 let currentStudyId = null;
 let allStudies = []; // Global store for robust access
 

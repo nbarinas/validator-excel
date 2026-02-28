@@ -887,24 +887,49 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
         raise HTTPException(status_code=404, detail="Source study not found")
 
     # 1. Generate New Name & Code
-    # Logic: Look for "R1", replace with "R2". If no "R" pattern, append "R2"
-    # Or just increment if R<N> found.
+    # Logic: Look for "R1" or "R+", replace with "Rf" if validation, else increment "R\d+".
+    # The user requested that Validation studies generate 'Rf' next, while Fatigue increment normally (R1 -> R2 -> R3).
     
     new_name = source_study.name
     import re
-    match = re.search(r'(R)(\d+)', new_name)
+    match = re.search(r'(R\+?|R\d+)', new_name)
     
     new_stage = source_study.stage # Default to same if no logic
     
+    # Check if study is validation (case insensitive)
+    is_validation = source_study.study_type and "validacion" in source_study.study_type.lower()
+    
     if match:
-        prefix = match.group(1) # R
-        number = int(match.group(2))
-        new_number = number + 1
-        new_name = re.sub(r'R\d+', f'R{new_number}', new_name)
-        new_stage = f"R{new_number}"
+        stage_str = match.group(1) # e.g. "R1", "R2", "R+"
+        
+        if is_validation:
+            # If validation, the next stage is generally Rf
+            # e.g., "Estudio R+" -> "Estudio Rf"
+            new_name = re.sub(r'R\+?|R\d+', 'Rf', new_name)
+            new_stage = "Rf"
+        else:
+            # Fatigue or other: increment number
+            # If it's something like R+, we might just have to guess R2 or fallback
+            if stage_str == "R+":
+                new_name = new_name.replace("R+", "R2")
+                new_stage = "R2"
+            elif stage_str.startswith("R"):
+                try:
+                    number = int(stage_str[1:])
+                    new_number = number + 1
+                    new_name = re.sub(r'R\d+', f'R{new_number}', new_name)
+                    new_stage = f"R{new_number}"
+                except ValueError:
+                    new_name = f"{new_name} - R2"
+                    new_stage = "R2"
     else:
-        new_name = f"{new_name} - R2"
-        new_stage = "R2"
+        # Fallback if no R pattern found in name
+        if is_validation:
+            new_name = f"{new_name} - Rf"
+            new_stage = "Rf"
+        else:
+            new_name = f"{new_name} - R2"
+            new_stage = "R2"
         
     start_code = source_study.code.split('_')[0] if '_' in source_study.code else source_study.code
     import random
@@ -939,6 +964,18 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
     
     # 4. Duplicate Calls
     for c in source_calls:
+        # Determine the codes to use
+        new_code = c.code 
+        new_segundo_codigo = c.segundo_codigo
+        
+        # KEY LOGIC: If Validation study AND new stage is Rf, swap the primary code to be the second code.
+        if is_validation and new_stage == "Rf":
+             if c.segundo_codigo:
+                 new_code = c.segundo_codigo
+                 # We can null out the second code since it became primary, or keep it.
+                 # Nulling it out avoids confusion.
+                 new_segundo_codigo = None
+        
         # Create new call instance copying relevant data
         new_call = models.Call(
             study_id=new_study.id,
@@ -965,8 +1002,10 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             children_age=c.children_age,
             housing_description=c.housing_description,
             
-            # Products / Study Data (Presumably they keep the same product?)
+            # Products / Study Data
             product_brand=c.product_brand,
+            code=new_code,                         # Updated per dual-code logic
+            segundo_codigo=new_segundo_codigo,     # Updated per dual-code logic
             
             # Hair Data
             shampoo_quantity=c.shampoo_quantity, # Keep quantity they had?
@@ -985,9 +1024,6 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             # Dog Data
             dog_name=c.dog_name,
             dog_user_type=c.dog_user_type,
-            
-            # Dog Data
-            # dog_name=c.dog_name, # Already included above
             # dog_user_type=c.dog_user_type, # Already included above
             
             # Map Second Collection Date -> Collection Date/Time (Hora Original)
@@ -1114,6 +1150,8 @@ def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = 
         c_dict['hair_shape'] = c.hair_shape
         c_dict['hair_length'] = c.hair_length
         c_dict['code'] = c.code # Ensure Code is sent
+        # We explicitly DO NOT send 'segundo_codigo' to the frontend 
+        # to prevent agents from seeing it as per user request.
         
         # Previous Agent Name
         c_dict['previous_agent_name'] = (c.previous_user.full_name if c.previous_user.full_name else c.previous_user.username) if c.previous_user else None
@@ -1352,6 +1390,7 @@ async def upload_calls(
             "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec"], # Added 'hora de recogida'
             "census": ["censo", "id", "identifier"],
             "code": ["codigo", "código", "cod", "id"], # Explicit mapping for Code
+            "segundo_codigo": ["segundo codigo", "segundo código", "codigo 2", "código 2"], # Added for Validation studies
             "implantation_pollster": ["encuestador", "pollster", "nombre encuestador", "implantation_pollster"],
 
             # Dog Food Study
@@ -1502,6 +1541,7 @@ async def upload_calls(
                 hair_length=get_val("hair_length")[:50] if get_val("hair_length") else None,
                 
                 code=get_val("code")[:50] if get_val("code") else None,
+                segundo_codigo=get_val("segundo_codigo")[:50] if get_val("segundo_codigo") else None, # Support for validation dual codes
 
                 status="pending"
             )
