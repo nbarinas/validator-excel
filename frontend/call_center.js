@@ -95,6 +95,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             // AUTOMATICALLY LOAD ALL PENDING CALLS
             loadStudyData(null); // Null = all pending from open studies
 
+            // INITIALIZE ALARM POLLING NOW THAT WE HAVE THE ROLE
+            if (typeof initAlarmPolling === 'function') {
+                initAlarmPolling();
+            }
+
             // Show Excel Button for Superuser/Auxiliar/Coordinator
             if (currentUserRole === 'superuser' || currentUserRole === 'auxiliar' || currentUserRole === 'coordinator') {
                 const btnExport = document.getElementById('btnExportExcel');
@@ -2158,10 +2163,25 @@ async function scheduleAlert() {
 
     if (res.ok) {
         alert("Alerta Programada");
+
+        // Clear existing alarm flags for this call so it can ring again if rescheduled
+        if (typeof alertedCallIds !== 'undefined') {
+            alertedCallIds.delete(currentCallId);
+        }
+        if (typeof pendingTriggerTimeouts !== 'undefined' && pendingTriggerTimeouts[currentCallId]) {
+            clearTimeout(pendingTriggerTimeouts[currentCallId]);
+            delete pendingTriggerTimeouts[currentCallId];
+        }
+
         // Refresh Grid to show new status and time
         const sel = document.getElementById('studySelect');
         if (sel.value) loadStudyData(sel.value);
         else loadStudyData(null);
+
+        // Instantly poll to register the new alarm locally without waiting 10 mins
+        if (typeof pollUpcomingCalls === 'function') {
+            pollUpcomingCalls();
+        }
     }
 }
 
@@ -2499,3 +2519,110 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, 
 function closeDailyReport() {
     document.getElementById('dailyReportModal').style.display = 'none';
 }
+
+// --- ACTIVE ALARM SYSTEM ---
+let alertedCallIds = new Set();
+let alarmPollingInterval = null;
+let pendingTriggerTimeouts = {}; // Store timeouts so we can clear them if needed
+
+async function pollUpcomingCalls() {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    try {
+        const res = await fetch('/calls/upcoming', { headers });
+        if (res.ok) {
+            const upcomingCalls = await res.json();
+
+            const now = new Date();
+
+            for (const call of upcomingCalls) {
+                // If we haven't already processed this call
+                if (!alertedCallIds.has(call.id) && call.appointment_time) {
+
+                    // The backend sends ISO string like "2026-03-03T06:39:00" WITHOUT timezone (naive)
+                    // new Date() in JS assumes naive strings are local time in most modern browsers, 
+                    // BUT if it appends 'Z' it's UTC. Let's explicitly parse it as local.
+
+                    // Replace 'Z' if present to force local evaluation, just in case
+                    const cleanTime = call.appointment_time.replace('Z', '');
+                    const apptTime = new Date(cleanTime);
+                    const diffMs = apptTime - now;
+
+                    console.log("ALARM DEBUG:", {
+                        callId: call.id,
+                        backendTimeStr: call.appointment_time,
+                        parsedApptTime: apptTime.toString(),
+                        browserNow: now.toString(),
+                        diffMs: diffMs,
+                        diffMinutes: diffMs / 60000
+                    });
+
+                    // We want to alert EXACTLY 5 minutes before (300,000 ms)
+                    // The backend gives us calls up to 12 minutes away
+
+                    // If the difference is less than 5 minutes, alert immediately (we might have just fallen into the window)
+                    if (diffMs <= 300000 && diffMs > 0) {
+                        alertedCallIds.add(call.id);
+                        showAlarmModal(call);
+                    }
+                    // If it's more than 5 minutes away, schedule a timeout to trigger at exactly 5 mins before
+                    else if (diffMs > 300000) {
+                        const msUntilFiveMinsBefore = diffMs - 300000;
+
+                        // Prevent scheduling multiple timeouts for the same call if it's fetched again
+                        if (!pendingTriggerTimeouts[call.id]) {
+                            console.log(`ALARM DEBUG: Scheduling timeout for call ${call.id} to ring in ${msUntilFiveMinsBefore / 1000} seconds`);
+                            pendingTriggerTimeouts[call.id] = setTimeout(() => {
+                                alertedCallIds.add(call.id);
+                                showAlarmModal(call);
+                                delete pendingTriggerTimeouts[call.id];
+                            }, msUntilFiveMinsBefore);
+                        }
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error polling upcoming calls", e);
+    }
+}
+
+function showAlarmModal(call) {
+    document.getElementById('alarmStudy').textContent = call.study_name || '-';
+    document.getElementById('alarmCensus').textContent = call.census || '-';
+    document.getElementById('alarmCity').textContent = call.city || '-';
+    document.getElementById('alarmPhone').textContent = call.phone_number || '-';
+    document.getElementById('alarmName').textContent = call.person_name || '-';
+
+    // Play sound
+    const audio = document.getElementById('alarmAudio');
+    if (audio) {
+        audio.play().catch(e => console.log('Audio autoplay prevented by browser', e));
+    }
+
+    document.getElementById('alarmModal').style.display = 'block';
+}
+
+function closeAlarmModal() {
+    document.getElementById('alarmModal').style.display = 'none';
+    const audio = document.getElementById('alarmAudio');
+    if (audio) {
+        audio.pause();
+        audio.currentTime = 0; // Reset to beginning
+    }
+}
+
+// Start polling every 10 minutes (600000 ms), ONLY for agents and auxiliaries
+function initAlarmPolling() {
+    if (currentUserRole && (currentUserRole === 'agent' || currentUserRole === 'auxiliar')) {
+        setTimeout(() => {
+            pollUpcomingCalls();
+            // Poll every 10 minutes. Since the backend returns calls up to 12 minutes away, 
+            // the frontend will calculate and schedule the exact 5-min mark.
+            alarmPollingInterval = setInterval(pollUpcomingCalls, 600000);
+        }, 5000);
+    }
+}
+
+// Polling is now explicitly started after successful authentication in DOMContentLoaded.
