@@ -1422,6 +1422,56 @@
                 style="margin-top: 20px; background: transparent; border: none; color: #64748b; cursor: pointer; font-size: 0.9rem;">Cancelar</button>
         </div>
     </div>
+
+    <!-- Active Alarm Notification Modal -->
+    <div id="alarmModal"
+        style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+        <div
+            style="background-color: #fff; margin: 10% auto; padding: 25px; border: 2px solid #ef4444; width: 400px; max-width: 90%; border-radius: 12px; text-align: center; box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.4); animation: pulseAlert 2s infinite;">
+            <div style="color: #ef4444; font-size: 3rem; margin-bottom: 10px;">
+                <i class="fas fa-bell"></i>
+            </div>
+            <h2 style="margin-top: 0; color: #1e293b; font-size: 1.5rem;">¡Llamada Pendiente!</h2>
+            <p style="color: #475569; font-size: 1.1rem; margin-bottom: 15px;">En 5 minutos tienes una llamada agendada
+                para:</p>
+            <div
+                style="background: #f8fafc; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px; border-left: 4px solid #3b82f6;">
+                <div style="margin-bottom: 8px;"><strong>Estudio:</strong> <span id="alarmStudy"
+                        style="color:#0f172a;">-</span></div>
+                <div style="margin-bottom: 8px;"><strong>Censo:</strong> <span id="alarmCensus"
+                        style="color:#0f172a;">-</span></div>
+                <div style="margin-bottom: 8px;"><strong>Ciudad:</strong> <span id="alarmCity"
+                        style="color:#0f172a;">-</span></div>
+                <div style="margin-bottom: 8px;"><strong>Teléfono:</strong> <span id="alarmPhone"
+                        style="color:#0f172a;">-</span></div>
+                <div><strong>Nombre:</strong> <span id="alarmName" style="color:#0f172a;">-</span></div>
+            </div>
+            <button onclick="closeAlarmModal()"
+                style="background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1rem; width: 100%; transition: background 0.3s;">
+                Entendido
+            </button>
+        </div>
+    </div>
+
+    <style>
+        @keyframes pulseAlert {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+
+    <!-- Continuous alarm clock sound -->
+    <audio id="alarmAudio" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"
+        loop></audio>
 </body>
 
 </html>
