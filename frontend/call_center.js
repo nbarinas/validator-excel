@@ -763,14 +763,19 @@ async function duplicateStudyR2(id, currentName) {
     }
 }
 
+let currentDuplicateExcelData = null;
+
 function showDuplicateValidatorModal() {
     document.getElementById('duplicateValidatorModal').style.display = 'flex';
     document.getElementById('duplicatePasteArea').value = '';
     document.getElementById('duplicateResults').style.display = 'none';
+    const btn = document.getElementById('btnDownloadDuplicateExcel');
+    if(btn) btn.style.display = 'none';
 }
 
 function closeDuplicateValidatorModal() {
     document.getElementById('duplicateValidatorModal').style.display = 'none';
+    currentDuplicateExcelData = null;
 }
 
 async function runDuplicateValidation() {
@@ -823,8 +828,16 @@ function renderDuplicateResults(data) {
     const summaryDiv = document.getElementById('duplicateSummary');
     const dupsList = document.getElementById('duplicatesList');
     const lengthList = document.getElementById('invalidLengthList');
+    const btnDownload = document.getElementById('btnDownloadDuplicateExcel');
 
     resultsDiv.style.display = 'block';
+    
+    currentDuplicateExcelData = data.excel_data;
+    if (currentDuplicateExcelData && currentDuplicateExcelData.length > 0 && btnDownload) {
+        btnDownload.style.display = 'block';
+    } else if (btnDownload) {
+        btnDownload.style.display = 'none';
+    }
 
     const { total_input, duplicate_count, invalid_length_count } = data.summary;
     summaryDiv.style.background = (duplicate_count > 0 || invalid_length_count > 0) ? '#fffbeb' : '#ecfdf5';
@@ -861,6 +874,29 @@ function renderDuplicateResults(data) {
                 </span>
             </div>
         `).join('');
+    }
+}
+
+function downloadDuplicateExcel() {
+    if (!currentDuplicateExcelData || currentDuplicateExcelData.length === 0) {
+        alert("No hay datos para descargar");
+        return;
+    }
+    
+    // Check if XLSX is available (SheetJS)
+    if (typeof XLSX === 'undefined') {
+        alert("La librería para exportar a Excel no está cargada en esta página.");
+        return;
+    }
+
+    try {
+        const worksheet = XLSX.utils.json_to_sheet(currentDuplicateExcelData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Resultados");
+        XLSX.writeFile(workbook, "Resultados_Validacion_Duplicados.xlsx");
+    } catch (e) {
+        console.error("Error al exportar a Excel:", e);
+        alert("Hubo un error al generar el archivo Excel.");
     }
 }
 

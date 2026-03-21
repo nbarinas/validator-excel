@@ -1060,15 +1060,15 @@ def check_duplicates(request: DuplicateCheckRequest, db: Session = Depends(datab
     
     duplicates = []
     invalid_length = []
+    excel_data = [] # Array mapped 1:1 for Excel export
     
     from sqlalchemy import or_
     
     for item in request.items:
-        # Clean number
         clean_number = "".join(filter(str.isdigit, item.number))
+        is_invalid = len(clean_number) != 10
         
-        # Check length
-        if len(clean_number) != 10:
+        if is_invalid:
             invalid_length.append({
                 "input_name": item.name,
                 "input_number": item.number,
@@ -1076,8 +1076,6 @@ def check_duplicates(request: DuplicateCheckRequest, db: Session = Depends(datab
                 "length": len(clean_number)
             })
         
-        # Search in DB (even if length is invalid, as requested "estas sras estan duplicadas y estan tienen mas o menos numeros")
-        # Search by phone_number or whatsapp
         matches = db.query(models.Call).options(joinedload(models.Call.study)).filter(
             or_(
                 models.Call.phone_number == clean_number,
@@ -1095,6 +1093,30 @@ def check_duplicates(request: DuplicateCheckRequest, db: Session = Depends(datab
                 "created_at": m.created_at.strftime("%Y-%m-%d %H:%M") if m.created_at else "N/A"
             })
             
+        # Generate the Excel mapped row
+        estado = ""
+        if matches:
+            match_texts = []
+            for m in matches:
+                s_name = m.study.name if m.study else "N/A"
+                s_date = m.created_at.strftime("%Y-%m-%d") if m.created_at else "N/A"
+                match_texts.append(f"{s_name} [{s_date}]")
+            estado = "Duplicado en: " + " | ".join(match_texts)
+            if is_invalid:
+                estado += f" -- (Aviso: Formato incorrecto, {len(clean_number)} dígitos)"
+        else:
+            if is_invalid:
+                estado = f"Error formato ({len(clean_number)} dígitos)"
+            else:
+                estado = "OK no duplicado"
+                
+        excel_data.append({
+            "Nombre Ingresado": item.name or "",
+            "Numero Ingresado": item.number,
+            "Numero Evaluado": clean_number,
+            "Estado Validacion": estado
+        })
+            
     return {
         "status": "success",
         "summary": {
@@ -1103,7 +1125,8 @@ def check_duplicates(request: DuplicateCheckRequest, db: Session = Depends(datab
             "invalid_length_count": len(invalid_length)
         },
         "duplicates": duplicates,
-        "invalid_length": invalid_length
+        "invalid_length": invalid_length,
+        "excel_data": excel_data
     }
 
 class CallCreate(BaseModel):
