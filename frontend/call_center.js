@@ -2605,29 +2605,37 @@ async function initDailyReportCitySelect() {
     }
 }
 
+let dailyReportTimeout = null;
+
 function refreshDailyReport() {
-    const dateInput = document.getElementById('dailyReportDate');
-    const dateStr = dateInput ? dateInput.value : '';
-    const openOnly = document.getElementById('dailyReportOpenOnly').checked;
-
-    let studyIds = null;
-    if (dailyReportStudyTS) {
-        studyIds = dailyReportStudyTS.getValue();
-        if (Array.isArray(studyIds)) studyIds = studyIds.join(',');
+    if (dailyReportTimeout) {
+        clearTimeout(dailyReportTimeout);
     }
+    
+    dailyReportTimeout = setTimeout(() => {
+        const dateInput = document.getElementById('dailyReportDate');
+        const dateStr = dateInput ? dateInput.value : '';
+        const openOnly = document.getElementById('dailyReportOpenOnly') ? document.getElementById('dailyReportOpenOnly').checked : false;
 
-    let agentIds = null;
-    if (dailyReportAgentTS) {
-        agentIds = dailyReportAgentTS.getValue();
-        if (Array.isArray(agentIds)) agentIds = agentIds.join(',');
-    }
+        let studyIds = null;
+        if (dailyReportStudyTS) {
+            studyIds = dailyReportStudyTS.getValue();
+            if (Array.isArray(studyIds)) studyIds = studyIds.join(',');
+        }
 
-    let cityFilter = null;
-    if (dailyReportCityTS) {
-        cityFilter = dailyReportCityTS.getValue() || null;
-    }
+        let agentIds = null;
+        if (dailyReportAgentTS) {
+            agentIds = dailyReportAgentTS.getValue();
+            if (Array.isArray(agentIds)) agentIds = agentIds.join(',');
+        }
 
-    fetchDailyReportData(dateStr, openOnly, studyIds, agentIds, cityFilter);
+        let cityFilter = null;
+        if (dailyReportCityTS) {
+            cityFilter = dailyReportCityTS.getValue() || null;
+        }
+
+        fetchDailyReportData(dateStr, openOnly, studyIds, agentIds, cityFilter);
+    }, 300); // 300ms de retraso para evitar múltiples recargas seguidas
 }
 
 async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, agentIds = null, cityFilter = null) {
@@ -2662,28 +2670,112 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, 
                 if (study.agents.length === 0) {
                     tableRows = `<div style="padding: 0.5rem; color: #94a3b8; font-style: italic;">Sin productividad hoy</div>`;
                 } else {
-                    tableRows = `<table style="width: 100%; border-collapse: collapse; text-align: left;">
+                    // Agrupar agentes y recolectar ciudades únicas
+                    const agentsMap = {};
+                    const citiesSet = new Set();
+
+                    study.agents.forEach(a => {
+                        const cityName = (a.city && a.city.trim() !== "") ? a.city : 'Sin Asignar';
+                        citiesSet.add(cityName);
+
+                        if (!agentsMap[a.name]) {
+                            agentsMap[a.name] = { 
+                                name: a.name || 'Desconocido', 
+                                totals: { effective: 0, desempeno: 0, logistico: 0 },
+                                cities: {} 
+                            };
+                        }
+
+                        if (!agentsMap[a.name].cities[cityName]) {
+                            agentsMap[a.name].cities[cityName] = { effective: 0, desempeno: 0, logistico: 0 };
+                        }
+
+                        agentsMap[a.name].cities[cityName].effective += a.count_effective;
+                        agentsMap[a.name].cities[cityName].desempeno += a.count_desempeno;
+                        agentsMap[a.name].cities[cityName].logistico += a.count_logistico;
+
+                        agentsMap[a.name].totals.effective += a.count_effective;
+                        agentsMap[a.name].totals.desempeno += a.count_desempeno;
+                        agentsMap[a.name].totals.logistico += a.count_logistico;
+                    });
+
+                    const sortedCities = Array.from(citiesSet).sort();
+
+                    // Construir cabeceras dinámicas
+                    let theadHtml = `<th style="padding: 0.5rem;">Agente</th>`;
+
+                    if (sortedCities.length > 0 && !cityFilter) {
+                        // Varias ciudades (o sin filtro)
+                        sortedCities.forEach(c => {
+                            theadHtml += `<th style="padding: 0.5rem; text-align: center; font-size: 0.75rem;">Efectivas<br>${c}</th>`;
+                        });
+                        theadHtml += `<th style="padding: 0.5rem; text-align: center; font-weight: bold; border-right: 2px solid #e2e8f0; background: #f8fafc;">Total Efe</th>`;
+
+                        sortedCities.forEach(c => {
+                            theadHtml += `<th style="padding: 0.5rem; text-align: center; font-size: 0.75rem;">Desempeño<br>${c}</th>`;
+                        });
+                        theadHtml += `<th style="padding: 0.5rem; text-align: center; font-weight: bold; border-right: 2px solid #e2e8f0; background: #f8fafc;">Total Des</th>`;
+
+                        sortedCities.forEach(c => {
+                            theadHtml += `<th style="padding: 0.5rem; text-align: center; font-size: 0.75rem;">Logístico<br>${c}</th>`;
+                        });
+                        theadHtml += `<th style="padding: 0.5rem; text-align: center; font-weight: bold; background: #f8fafc;">Total Log</th>`;
+                    } else {
+                        // Vista clásica / unificando solo totales si cityFilter existe
+                        theadHtml += `<th style="padding: 0.5rem; text-align: center;">Efectivas</th>
+                                    <th style="padding: 0.5rem; text-align: center;">Desempeño</th>
+                                    <th style="padding: 0.5rem; text-align: center;">Logístico</th>
+                                    ${cityFilter ? '<th style="padding: 0.5rem; text-align: center;">Ciudad</th>' : ''}`;
+                    }
+
+                    tableRows = `<table style="width: 100%; border-collapse: collapse; text-align: left; white-space: nowrap;">
                         <thead>
                             <tr style="border-bottom: 2px solid #e2e8f0; color: #64748b; font-size: 0.85rem;">
-                                <th style="padding: 0.5rem;">Agente</th>
-                                <th style="padding: 0.5rem; text-align: center;">Efectivas</th>
-                                <th style="padding: 0.5rem; text-align: center;">Desempeño</th>
-                                <th style="padding: 0.5rem; text-align: center;">Logístico</th>
-                                ${cityFilter ? '<th style="padding: 0.5rem; text-align: center;">Ciudad</th>' : ''}
+                                ${theadHtml}
                             </tr>
                         </thead>
                         <tbody>`;
-                    study.agents.forEach(a => {
-                        tableRows += `
-                            <tr style="border-bottom: 1px solid #f1f5f9;">
-                                <td style="padding: 0.5rem; color: #475569;">${a.name || 'Desconocido'}</td>
-                                <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #22c55e;">${a.count_effective}</td>
-                                <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #ef4444;">${a.count_desempeno}</td>
-                                <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #f59e0b;">${a.count_logistico}</td>
-                                ${cityFilter ? `<td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #334155;">${a.city || 'Desconocido'}</td>` : ''}
-                            </tr>
-                        `;
+
+                    // Llenar datos, order by efectivas desc
+                    const sortedAgents = Object.values(agentsMap).sort((a, b) => b.totals.effective - a.totals.effective);
+
+                    sortedAgents.forEach(agent => {
+                        tableRows += `<tr style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 0.5rem; color: #475569;">${agent.name}</td>`;
+
+                        if (sortedCities.length > 0 && !cityFilter) {
+                            // Efectivas
+                            sortedCities.forEach(c => {
+                                const val = agent.cities[c] ? agent.cities[c].effective : 0;
+                                tableRows += `<td style="padding: 0.5rem; text-align: center; color: #22c55e;">${val}</td>`;
+                            });
+                            tableRows += `<td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #16a34a; border-right: 2px solid #e2e8f0; background: #f8fafc;">${agent.totals.effective}</td>`;
+
+                            // Desempeño
+                            sortedCities.forEach(c => {
+                                const val = agent.cities[c] ? agent.cities[c].desempeno : 0;
+                                tableRows += `<td style="padding: 0.5rem; text-align: center; color: #ef4444;">${val}</td>`;
+                            });
+                            tableRows += `<td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #dc2626; border-right: 2px solid #e2e8f0; background: #f8fafc;">${agent.totals.desempeno}</td>`;
+
+                            // Logístico
+                            sortedCities.forEach(c => {
+                                const val = agent.cities[c] ? agent.cities[c].logistico : 0;
+                                tableRows += `<td style="padding: 0.5rem; text-align: center; color: #f59e0b;">${val}</td>`;
+                            });
+                            tableRows += `<td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #d97706; background: #f8fafc;">${agent.totals.logistico}</td>`;
+
+                        } else {
+                            // Classic visual if filtered
+                            tableRows += `<td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #22c55e;">${agent.totals.effective}</td>
+                                        <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #ef4444;">${agent.totals.desempeno}</td>
+                                        <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #f59e0b;">${agent.totals.logistico}</td>
+                                        ${cityFilter ? `<td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #334155;">${sortedCities[0] || cityFilter}</td>` : ''}`;
+                        }
+                        
+                        tableRows += `</tr>`;
                     });
+
                     tableRows += `</tbody></table>`;
                 }
 
