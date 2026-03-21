@@ -1510,8 +1510,13 @@
             </div>
 
             <div id="duplicateResults" style="flex: 1; overflow-y: auto; display: none;">
-                <div id="duplicateSummary" style="margin-bottom: 1rem; padding: 1rem; border-radius: 8px;">
-                    <!-- Summary here -->
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                    <div id="duplicateSummary" style="flex: 1; margin-right: 1rem; padding: 1rem; border-radius: 8px;">
+                        <!-- Summary here -->
+                    </div>
+                    <button id="btnDownloadDuplicateExcel" onclick="downloadDuplicateExcel()" style="display: none; background: #10b981; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; height: fit-content; white-space: nowrap;">
+                        <i class="fas fa-file-excel"></i> Descargar Excel
+                    </button>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
