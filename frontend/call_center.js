@@ -1,4 +1,4 @@
-﻿const token = localStorage.getItem('token');
+const token = localStorage.getItem('token');
 if (!token) window.location.href = '/login';
 
 // Setup Auth Header
@@ -760,6 +760,107 @@ async function duplicateStudyR2(id, currentName) {
     } catch (e) {
         console.error(e);
         alert("Error de conexión");
+    }
+}
+
+function showDuplicateValidatorModal() {
+    document.getElementById('duplicateValidatorModal').style.display = 'flex';
+    document.getElementById('duplicatePasteArea').value = '';
+    document.getElementById('duplicateResults').style.display = 'none';
+}
+
+function closeDuplicateValidatorModal() {
+    document.getElementById('duplicateValidatorModal').style.display = 'none';
+}
+
+async function runDuplicateValidation() {
+    const text = document.getElementById('duplicatePasteArea').value.trim();
+    if (!text) {
+        alert("Por favor, pega algunos datos primero.");
+        return;
+    }
+
+    const rows = text.split('\n').map(row => row.split('\t'));
+    const items = rows.map(row => {
+        let name = null;
+        let number = null;
+        if (row.length >= 2) {
+            name = row[0].trim();
+            number = row[1].trim();
+        } else {
+            number = row[0].trim();
+        }
+        return { name, number };
+    }).filter(item => item.number);
+
+    if (items.length === 0) {
+        alert("No se detectaron números válidos.");
+        return;
+    }
+
+    try {
+        const res = await fetch('/calls/check-duplicates', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ items })
+        });
+
+        if (res.ok) {
+            const data = await res.json();
+            renderDuplicateResults(data);
+        } else {
+            const err = await res.json();
+            alert("Error al validar: " + err.detail);
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión");
+    }
+}
+
+function renderDuplicateResults(data) {
+    const resultsDiv = document.getElementById('duplicateResults');
+    const summaryDiv = document.getElementById('duplicateSummary');
+    const dupsList = document.getElementById('duplicatesList');
+    const lengthList = document.getElementById('invalidLengthList');
+
+    resultsDiv.style.display = 'block';
+
+    const { total_input, duplicate_count, invalid_length_count } = data.summary;
+    summaryDiv.style.background = (duplicate_count > 0 || invalid_length_count > 0) ? '#fffbeb' : '#ecfdf5';
+    summaryDiv.style.border = (duplicate_count > 0 || invalid_length_count > 0) ? '1px solid #fde68a' : '1px solid #a7f3d0';
+    summaryDiv.innerHTML = `
+        <div style="font-weight: bold; font-size: 1.1rem; margin-bottom: 5px;">Resultado de Validación</div>
+        <div>Total revisados: <b>${total_input}</b></div>
+        <div style="color: #ef4444;">Duplicados encontrados: <b>${duplicate_count}</b></div>
+        <div style="color: #f59e0b;">Errores de formato (10 dígitos): <b>${invalid_length_count}</b></div>
+    `;
+
+    if (data.duplicates.length === 0) {
+        dupsList.innerHTML = '<div style="opacity: 0.5; font-style: italic; margin-top: 10px;">No se encontraron duplicados.</div>';
+    } else {
+        dupsList.innerHTML = data.duplicates.map(d => `
+            <div style="margin-top: 10px; padding: 8px; background: #fef2f2; border-radius: 4px; border-left: 3px solid #ef4444;">
+                <b>${d.input_name || 'Sin nombre'}</b> (${d.input_number})<br>
+                <span style="font-size: 0.8rem; color: #64748b;">
+                    Encontrado en: <b>${d.study_name}</b><br>
+                    Creado el: ${d.created_at}
+                </span>
+            </div>
+        `).join('');
+    }
+
+    if (data.invalid_length.length === 0) {
+        lengthList.innerHTML = '<div style="opacity: 0.5; font-style: italic; margin-top: 10px;">Todos los números tienen 10 dígitos.</div>';
+    } else {
+        lengthList.innerHTML = data.invalid_length.map(i => `
+            <div style="margin-top: 10px; padding: 8px; background: #fffbeb; border-radius: 4px; border-left: 3px solid #f59e0b;">
+                <b>${i.input_name || 'Sin nombre'}</b> (${i.input_number})<br>
+                <span style="font-size: 0.8rem; color: #b45309;">
+                    Tiene ${i.length} dígitos (se esperaban 10)
+                </span>
+            </div>
+        `).join('');
     }
 }
 
@@ -1932,9 +2033,17 @@ async function assignAgent() {
 
             showGridView();
         } else {
-            alert("Error al asignar");
+            let errorMsg = "Error al asignar";
+            try {
+                const err = await res.json();
+                if (err.detail) errorMsg += ": " + err.detail;
+            } catch (e) {}
+            alert(errorMsg);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        alert("Error de red al asignar");
+    }
 }
 
 // BULK ACTIONS
@@ -1983,9 +2092,17 @@ async function bulkAssign() {
             if (sel.value) loadStudyData(sel.value);
             else loadStudyData(null);
         } else {
-            alert("Error en asignación masiva");
+            let errorMsg = "Error en asignación masiva";
+            try {
+                const err = await res.json();
+                if (err.detail) errorMsg += ": " + err.detail;
+            } catch (e) {}
+            alert(errorMsg);
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        alert("Error de red en asignación masiva");
+    }
 }
 
 async function createStudy() {
@@ -2314,6 +2431,7 @@ async function saveStudyAssistants() {
 let dailyReportFpInstance = null;
 let dailyReportStudyTS = null;
 let dailyReportAgentTS = null;
+let dailyReportCityTS = null;
 
 async function showDailyReport() {
     const modal = document.getElementById('dailyReportModal');
@@ -2333,15 +2451,17 @@ async function showDailyReport() {
             onChange: async function (selectedDates, dateStr, instance) {
                 if (selectedDates.length === 1 || selectedDates.length === 2) {
                     await initDailyReportAgentSelect();
+                    await initDailyReportCitySelect();
                     refreshDailyReport();
                 }
             }
         });
     }
 
-    // Initialize/Refresh Study Select
+    // Initialize/Refresh Selects
     await initDailyReportStudySelect();
     await initDailyReportAgentSelect();
+    await initDailyReportCitySelect();
 
     // Initial load
     refreshDailyReport();
@@ -2413,6 +2533,42 @@ async function initDailyReportAgentSelect() {
     }
 }
 
+async function initDailyReportCitySelect() {
+    const sel = document.getElementById('dailyReportCitySelect');
+    if (!sel) return;
+
+    try {
+        const res = await fetch(`/reports/active-cities`, { headers });
+        if (!res.ok) throw new Error("Could not fetch active cities");
+        let payload = await res.json();
+
+        let uniqueCities = [];
+        if (Array.isArray(payload)) {
+            uniqueCities = payload;
+        }
+
+        if (dailyReportCityTS) dailyReportCityTS.destroy();
+
+        sel.innerHTML = '<option value="">(Sin agrupar)</option>';
+        uniqueCities.forEach(city => {
+            if (!city) return;
+            const opt = document.createElement('option');
+            opt.value = city;
+            opt.textContent = city;
+            sel.appendChild(opt);
+        });
+
+        dailyReportCityTS = new TomSelect(sel, {
+            create: false,
+            placeholder: "Agrupar por...",
+            onChange: () => refreshDailyReport()
+        });
+
+    } catch (e) {
+        console.error("Error loading cities for report", e);
+    }
+}
+
 function refreshDailyReport() {
     const dateInput = document.getElementById('dailyReportDate');
     const dateStr = dateInput ? dateInput.value : '';
@@ -2430,10 +2586,15 @@ function refreshDailyReport() {
         if (Array.isArray(agentIds)) agentIds = agentIds.join(',');
     }
 
-    fetchDailyReportData(dateStr, openOnly, studyIds, agentIds);
+    let cityFilter = null;
+    if (dailyReportCityTS) {
+        cityFilter = dailyReportCityTS.getValue() || null;
+    }
+
+    fetchDailyReportData(dateStr, openOnly, studyIds, agentIds, cityFilter);
 }
 
-async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, agentIds = null) {
+async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, agentIds = null, cityFilter = null) {
     const content = document.getElementById('dailyReportContent');
     content.innerHTML = '<div style="text-align:center; padding: 2rem;">Cargando...</div>';
 
@@ -2443,6 +2604,7 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, 
         if (openOnly) params.append('open_only', 'true');
         if (studyIds) params.append('study_ids', studyIds);
         if (agentIds) params.append('agent_ids', agentIds);
+        if (cityFilter) params.append('group_by_city', cityFilter);
 
         let url = '/reports/daily-effectives';
         const qs = params.toString();
@@ -2471,6 +2633,7 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, 
                                 <th style="padding: 0.5rem; text-align: center;">Efectivas</th>
                                 <th style="padding: 0.5rem; text-align: center;">Desempeño</th>
                                 <th style="padding: 0.5rem; text-align: center;">Logístico</th>
+                                ${cityFilter ? '<th style="padding: 0.5rem; text-align: center;">Ciudad</th>' : ''}
                             </tr>
                         </thead>
                         <tbody>`;
@@ -2481,6 +2644,7 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, 
                                 <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #22c55e;">${a.count_effective}</td>
                                 <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #ef4444;">${a.count_desempeno}</td>
                                 <td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #f59e0b;">${a.count_logistico}</td>
+                                ${cityFilter ? `<td style="padding: 0.5rem; text-align: center; font-weight: bold; color: #334155;">${a.city || 'Desconocido'}</td>` : ''}
                             </tr>
                         `;
                     });
@@ -2490,7 +2654,7 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, 
                 html += `
                     <div style="margin-bottom: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
                         <div style="background: #f8fafc; padding: 0.8rem; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #334155; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem;">
-                            <span>${study.study_name}</span>
+                            <span>${study.study_name} ${cityFilter ? ` - [${cityFilter}]` : ''}</span>
                             <div style="display: flex; gap: 0.5rem;">
                                 <span style="background: #22c55e; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">Efec: ${study.total_effective}</span>
                                 <span style="background: #ef4444; color: white; padding: 2px 8px; border-radius: 10px; font-size: 0.8rem;">Desp: ${study.total_desempeno}</span>
