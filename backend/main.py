@@ -1046,6 +1046,66 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
         "count": count
     }
 
+class DuplicateCheckItem(BaseModel):
+    name: Optional[str] = None
+    number: str
+
+class DuplicateCheckRequest(BaseModel):
+    items: List[DuplicateCheckItem]
+
+@app.post("/calls/check-duplicates")
+def check_duplicates(request: DuplicateCheckRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser" and current_user.role != "coordinator":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    duplicates = []
+    invalid_length = []
+    
+    from sqlalchemy import or_
+    
+    for item in request.items:
+        # Clean number
+        clean_number = "".join(filter(str.isdigit, item.number))
+        
+        # Check length
+        if len(clean_number) != 10:
+            invalid_length.append({
+                "input_name": item.name,
+                "input_number": item.number,
+                "clean_number": clean_number,
+                "length": len(clean_number)
+            })
+        
+        # Search in DB (even if length is invalid, as requested "estas sras estan duplicadas y estan tienen mas o menos numeros")
+        # Search by phone_number or whatsapp
+        matches = db.query(models.Call).options(joinedload(models.Call.study)).filter(
+            or_(
+                models.Call.phone_number == clean_number,
+                models.Call.whatsapp == clean_number
+            )
+        ).all()
+        
+        for m in matches:
+            duplicates.append({
+                "input_name": item.name,
+                "input_number": item.number,
+                "match_name": m.person_name,
+                "match_number": m.phone_number,
+                "study_name": m.study.name if m.study else "N/A",
+                "created_at": m.created_at.strftime("%Y-%m-%d %H:%M") if m.created_at else "N/A"
+            })
+            
+    return {
+        "status": "success",
+        "summary": {
+            "total_input": len(request.items),
+            "duplicate_count": len(duplicates),
+            "invalid_length_count": len(invalid_length)
+        },
+        "duplicates": duplicates,
+        "invalid_length": invalid_length
+    }
+
 class CallCreate(BaseModel):
     study_id: int
     phone_number: str
@@ -3453,12 +3513,25 @@ def get_active_agents(open_only: bool = False, db: Session = Depends(database.ge
     
     return [{"id": a.id, "full_name": a.full_name, "username": a.username, "role": a.role} for a in agents]
 
+@app.get("/reports/active-cities")
+def get_active_cities(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Retrieve all distinct cities from calls that are not empty
+    cities = db.query(models.Call.city).filter(
+        models.Call.city.isnot(None),
+        models.Call.city != ''
+    ).distinct().all()
+    # Flatten list of tuples
+    city_list = sorted([c[0] for c in cities if c[0]])
+    return city_list
+
+
 @app.get("/reports/daily-effectives")
 def get_daily_effectives(
     date: Optional[str] = None,
     open_only: bool = False,
     study_ids: Optional[str] = None,
     agent_ids: Optional[str] = None,
+    group_by_city: Optional[str] = None,
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(auth.get_current_user)
 ):
@@ -3523,6 +3596,10 @@ def get_daily_effectives(
         except ValueError:
             pass # Ignore malformed IDs
 
+    if group_by_city:
+        filters.append("c.city = :city_filter")
+        params["city_filter"] = group_by_city
+
     filter_sql = ""
     if filters:
         filter_sql = "AND " + " AND ".join(filters)
@@ -3536,7 +3613,8 @@ def get_daily_effectives(
             u.username as agent_username,
             SUM(CASE WHEN c.status IN ('managed', 'efectiva_campo') THEN 1 ELSE 0 END) as count_effective,
             SUM(CASE WHEN c.status IN ('caida_desempeno', 'caida_desempeno_campo') THEN 1 ELSE 0 END) as count_desempeno,
-            SUM(CASE WHEN c.status IN ('caida_logistica', 'caida_logistico_campo') THEN 1 ELSE 0 END) as count_logistico
+            SUM(CASE WHEN c.status IN ('caida_logistica', 'caida_logistico_campo') THEN 1 ELSE 0 END) as count_logistico,
+            c.city
         FROM calls c
         JOIN users u ON c.user_id = u.id
         JOIN studies s ON c.study_id = s.id
@@ -3545,7 +3623,7 @@ def get_daily_effectives(
             AND c.realization_date >= :start_date
             AND c.realization_date < :end_date
             {filter_sql}
-        GROUP BY s.name, u.full_name, u.username
+        GROUP BY s.name, u.full_name, u.username, c.city
         ORDER BY s.name, count_effective DESC, count_desempeno DESC, count_logistico DESC
     """)
     
@@ -3555,12 +3633,13 @@ def get_daily_effectives(
     tree = {}
     
     for row in result:
-        # row: (study_name, agent_name, agent_username, count_effective, count_desempeno, count_logistico)
+        # row: (study_name, agent_name, agent_username, count_effective, count_desempeno, count_logistico, city)
         s_name = row[0]
         a_name = row[1] or row[2]
         cnt_eff = row[3] or 0
         cnt_des = row[4] or 0
         cnt_log = row[5] or 0
+        city = row[6] or ""
         
         if s_name not in tree:
             tree[s_name] = []
@@ -3569,7 +3648,8 @@ def get_daily_effectives(
             "name": a_name, 
             "count_effective": cnt_eff,
             "count_desempeno": cnt_des,
-            "count_logistico": cnt_log
+            "count_logistico": cnt_log,
+            "city": city
         })
         
     output = []
