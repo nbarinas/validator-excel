@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nómina - AZ Marketing</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <!-- Flatpickr -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -45,8 +45,23 @@
         }
 
         .data-table th {
-            background: rgba(15, 23, 42, 0.8);
+            background: rgba(15, 23, 42, 1);
+            /* Opaque background to avoid transparent overlap */
             color: #cbd5e1;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        /* Container for horizontal and vertical scroll inside data tables */
+        .table-responsive {
+            max-height: 70vh;
+            /* Keeps table height constrained for vertical scroll inside */
+            overflow: auto;
+            /* Handles both vertical and horizontal scrolling */
+            width: 100%;
+            border-radius: 8px;
+            background: rgba(30, 41, 59, 0.5);
         }
 
         /* Modal Styles */
@@ -435,7 +450,7 @@
                     </div>
                 </div>
 
-                <div style="overflow-x: auto;">
+                <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -558,8 +573,7 @@
                         </div>
                     </div>
 
-                    <div
-                        style="height:200px; overflow:auto; margin-bottom:20px; border:1px solid #333; border-radius:6px;">
+                    <div class="table-responsive" style="margin-bottom:20px;">
                         <table class="data-table" style="font-size:0.9rem;">
                             <thead>
                                 <tr>
@@ -586,7 +600,7 @@
                     <div style="font-size: 0.9rem; color: #94a3b8;">* Prestaciones se calcula sobre el 2% de la nómina
                         por defecto</div>
                 </div>
-                <div style="overflow-x: auto;">
+                <div class="table-responsive">
                     <table class="data-table">
                         <thead>
                             <tr>
@@ -1137,46 +1151,54 @@
             // 2. Render Groups
             // Sort by distinct periods if needed, currently cache order is DB order (created_at)
 
+            let groupedConceptsTotal = {};
+
             Object.values(groups).forEach(g => {
                 total += g.total;
 
-                // HEADER ROW
-                const headerTr = document.createElement('tr');
-                headerTr.style.background = '#e2e8f0'; // Light gray for subheading
-                headerTr.innerHTML = `
-                   <td colspan="4" style="font-weight:bold; font-size: 0.95rem; text-transform:uppercase;">
-                       ${g.name} ${g.code ? '- EST ' + g.code : ''}
-                   </td>
-                `;
-                tbody.appendChild(headerTr);
-
-                // DETAILS
+                // DETAILS Grouping logic for consolidation (Point 4)
                 g.items.forEach(r => {
                     let details = [];
                     try { details = JSON.parse(r.details_json); } catch (e) { }
 
                     if (details.length === 0) {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                           <td style="padding-left:20px;">Pago General</td>
-                           <td style="text-align:center;">-</td>
-                           <td style="text-align:right;">-</td>
-                           <td style="text-align:right;">$${r.total_amount.toLocaleString()}</td>
-                         `;
-                        tbody.appendChild(tr);
+                        const key = `Pago General_0`;
+                        if (!groupedConceptsTotal[key]) groupedConceptsTotal[key] = { concept: 'Pago General', rate: 0, qty: 0, total: 0, studies: new Set() };
+                        groupedConceptsTotal[key].total += r.total_amount;
+                        if (g.code) groupedConceptsTotal[key].studies.add(g.code);
                     } else {
                         details.forEach(d => {
-                            const tr = document.createElement('tr');
-                            tr.innerHTML = `
-                               <td style="padding-left:20px;">${d.concept}</td>
-                               <td style="text-align:center;">${d.qty}</td>
-                               <td style="text-align:right;">$${d.rate.toLocaleString()}</td>
-                               <td style="text-align:right;">$${d.total.toLocaleString()}</td>
-                           `;
-                            tbody.appendChild(tr);
+                            const key = `${d.concept}_${d.rate}`;
+                            if (!groupedConceptsTotal[key]) {
+                                groupedConceptsTotal[key] = {
+                                    concept: d.concept,
+                                    rate: d.rate,
+                                    qty: 0,
+                                    total: 0,
+                                    studies: new Set()
+                                };
+                            }
+                            groupedConceptsTotal[key].qty += d.qty;
+                            groupedConceptsTotal[key].total += d.total;
+                            if (g.code) groupedConceptsTotal[key].studies.add(g.code);
                         });
                     }
                 });
+            });
+
+            // Render Consolidated Rows
+            Object.values(groupedConceptsTotal).forEach(item => {
+                const studiesArr = Array.from(item.studies);
+                const studiesStr = studiesArr.length > 0 ? `<br><small style="color:#666;">Estudios: ${studiesArr.join(', ')}</small>` : '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                   <td style="padding-left:20px;">${item.concept} ${studiesStr}</td>
+                   <td style="text-align:center;">${item.qty > 0 ? item.qty : '-'}</td>
+                   <td style="text-align:right;">${item.rate > 0 ? '$' + item.rate.toLocaleString() : '-'}</td>
+                   <td style="text-align:right;">$${item.total.toLocaleString()}</td>
+                 `;
+                tbody.appendChild(tr);
             });
 
             document.getElementById('printTotal').textContent = '$' + total.toLocaleString();
