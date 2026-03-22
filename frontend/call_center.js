@@ -10,6 +10,7 @@ const headers = {
 // State
 let currentCallId = null;
 let currentUserRole = null;
+let currentUserName = null; // Store full name of current agent
 let isClosedView = false; // Track if we are in Closed Studies mode
 
 const statusMap = {
@@ -43,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (uRes.ok) {
             const user = await uRes.json();
             currentUserRole = user.role;
+            currentUserName = user.full_name || user.username;
             const infoDivs = ['userInfoDisplay', 'userInfoDisplayLanding'];
             infoDivs.forEach(id => {
                 const ui = document.getElementById(id);
@@ -1700,9 +1702,16 @@ function closeFilter() {
 function openCallDetail(call) {
     currentCallId = call.id;
 
+    const cleanFloatStr = (val) => {
+        if (!val) return '';
+        let s = val.toString().trim();
+        if (s.endsWith('.0')) return s.slice(0, -2);
+        return s;
+    };
+
     // Standard Info
-    document.getElementById('phoneNumber').value = call.phone_number;
-    document.getElementById('correctedPhone').value = call.corrected_phone || '';
+    document.getElementById('phoneNumber').value = cleanFloatStr(call.phone_number);
+    document.getElementById('correctedPhone').value = cleanFloatStr(call.corrected_phone);
 
     // UPDATE TITLE
     const titleEl = document.getElementById('callDetailTitle');
@@ -1719,8 +1728,7 @@ function openCallDetail(call) {
     // Apply same swap logic: show collection_time if available as it likely holds the time
     document.getElementById('initialObs').value = call.collection_time || call.initial_observation || '';
     document.getElementById('apptTime').value = call.appointment_time || '';
-    document.getElementById('apptTime').value = call.appointment_time || '';
-    document.getElementById('extraPhone').value = call.extra_phone || '';
+    document.getElementById('extraPhone').value = cleanFloatStr(call.extra_phone);
 
     // POPULATE CENSUS SECTION
     document.getElementById('censusId').value = call.census || '';
@@ -1782,7 +1790,7 @@ function openCallDetail(call) {
 
     // WhatsApp field
     const whatsappField = document.getElementById('whatsappNumber');
-    if (whatsappField) whatsappField.value = call.whatsapp || '';
+    if (whatsappField) whatsappField.value = cleanFloatStr(call.whatsapp);
 
     // NEW FIELDS POPULATION
     document.getElementById('secondDate').value = call.second_collection_date || '';
@@ -2918,3 +2926,44 @@ function initAlarmPolling() {
 }
 
 // Polling is now explicitly started after successful authentication in DOMContentLoaded.
+
+// WhatsApp Integration
+function openWhatsAppChat(fieldId = 'whatsappNumber') {
+    const phoneNumberField = document.getElementById(fieldId);
+    const personNameField = document.getElementById('personName');
+    
+    if (!phoneNumberField) return;
+    
+    let phoneNumber = phoneNumberField.value.trim();
+    const personName = personNameField ? personNameField.value.trim() : 'Cliente';
+    const agentName = currentUserName || 'Encuestador';
+
+    if (!phoneNumber) {
+        alert("Por favor, ingrese un número de teléfono.");
+        return;
+    }
+
+    // Handle Excel ".0" suffix if present
+    if (phoneNumber.endsWith('.0')) {
+        phoneNumber = phoneNumber.slice(0, -2);
+    }
+
+    // Clean phone number (remove non-digits)
+    phoneNumber = phoneNumber.replace(/\D/g, '');
+
+    // Format for Colombia (prefix 57 if missing)
+    if (phoneNumber.length === 10 && phoneNumber.startsWith('3')) {
+        phoneNumber = '57' + phoneNumber;
+    }
+
+    if (phoneNumber.length < 10) {
+        alert("El número de teléfono parece inválido.");
+        return;
+    }
+
+    const greeting = `Hola, Sr@ ${personName} mi nombre es ${agentName}, soy la persona que el dia de hoy le va hacer la encuesta, podriamos hacer la encuesta en este momento?`;
+    const encodedMessage = encodeURIComponent(greeting);
+    const waUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
+
+    window.open(waUrl, '_blank');
+}

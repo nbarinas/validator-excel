@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Call Center - AZ Marketing</title>
     <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Flatpickr -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -441,6 +441,20 @@
             #bulkActions.active {
                 display: block !important;
             }
+        }
+
+        /* Clickable Phone Fields */
+        #phoneNumber,
+        #whatsappNumber {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        #phoneNumber:hover,
+        #whatsappNumber:hover {
+            border-color: #25D366 !important;
+            box-shadow: 0 0 5px rgba(37, 211, 102, 0.3);
+            background-color: #f0fff4 !important;
         }
     </style>
     <script>
@@ -1202,7 +1216,7 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
                         <label>Número de Celular</label>
-                        <input type="text" id="phoneNumber">
+                        <input type="text" id="phoneNumber" onclick="openWhatsAppChat('phoneNumber')" title="Haga clic para abrir WhatsApp" style="cursor: pointer;">
                     </div>
                     <div class="form-group">
                         <label>Celular Corregido / Nuevo</label>
@@ -1214,7 +1228,7 @@
                     </div>
                     <div class="form-group">
                         <label>WhatsApp</label>
-                        <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
+                        <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp" onclick="openWhatsAppChat('whatsappNumber')" title="Haga clic para abrir WhatsApp" style="cursor: pointer;">
                     </div>
                 </div>
                 <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
