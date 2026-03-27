@@ -766,6 +766,12 @@
 
         <!-- SIDEBAR: Selection & Search -->
         <div class="sidebar" id="crmSidebar" style="height: 100%; border-radius: 0;">
+            <div class="form-group" id="importAction" style="display: none; margin-bottom: 1rem;">
+                <button class="btn-submit" onclick="openImportModal()" style="width: 100%; background: #6366f1;">
+                    <i class="fas fa-file-import"></i> Traer de otro estudio
+                </button>
+            </div>
+
             <div class="form-group">
                 <label>Estudio Activo</label>
                 <select id="studySelect" class="form-input">
@@ -1319,6 +1325,73 @@
     </div>
     </div>
     </div>
+    </div>
+
+    <!-- IMPORT FROM OTHER STUDY MODAL -->
+    <div id="importExternalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 800px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h2 style="margin: 0; color: #1e293b;">Traer Personas de otros Estudios</h2>
+                <button onclick="closeImportModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: #64748b;">&times;</button>
+            </div>
+            <div id="importTargetInfo" style="margin-bottom: 1.5rem; padding: 0.75rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-arrow-right"></i> Importar al estudio: <span id="targetStudyLabel">Cargando...</span>
+            </div>
+
+            <div style="margin-bottom: 1rem; display: flex; gap: 1rem;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #475569; font-weight: 500;">1. Seleccione Estudio Origen:</label>
+                    <select id="importSourceStudy" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: white;">
+                        <option value="">-- Seleccione un estudio --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #475569; font-weight: 500;">2. Buscar por Nombre, Teléfono o Cédula (Opcional):</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="importSearchInput" placeholder="Ej: 3001234567 o Maria Perez" style="flex: 1; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                    <button class="btn-submit" onclick="searchExternalPerson()" style="background: #3b82f6; padding: 0 1.5rem;">Buscar</button>
+                </div>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; margin-bottom: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 1;">
+                        <tr style="text-align: left; border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 0.75rem;">Nombre</th>
+                            <th style="padding: 0.75rem;">Teléfono</th>
+                            <th style="padding: 0.75rem;">Cédula</th>
+                            <th style="padding: 0.75rem;">Estudio Origen</th>
+                            <th style="padding: 0.75rem;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="importSearchResults">
+                        <tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">Use el buscador arriba para encontrar personas.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="importListContainer" style="display: none; border-top: 2px solid #e2e8f0; padding-top: 1rem;">
+                <h3 style="margin-bottom: 1rem; color: #1e293b;">Personas a Importar</h3>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead style="background: #f8fafc;">
+                            <tr style="text-align: left; border-bottom: 1px solid #e2e8f0;">
+                                <th style="padding: 0.5rem;">Persona</th>
+                                <th style="padding: 0.5rem;">Código (Code)</th>
+                                <th style="padding: 0.5rem;">Fecha Recogida</th>
+                                <th style="padding: 0.5rem;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="importListTable"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                    <button class="btn-submit" onclick="confirmImport()" style="background: #22c55e;">Confirmar e Importar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="/static/call_center.js?v=24"></script>
