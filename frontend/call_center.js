@@ -3007,21 +3007,26 @@ function copyToClipboard(fieldId, event) {
     // textToCopy = textToCopy.replace(/\D/g, ''); 
 
     navigator.clipboard.writeText(textToCopy).then(() => {
-        // Find the button that triggered the event
-        const btn = event.currentTarget;
-        const icon = btn.querySelector('i');
+        // Find the button (currentTarget is reliable if onclick is on button, else closest)
+        let btn = event.currentTarget;
+        if (!btn || !btn.classList.contains('btn-copy')) {
+            btn = event.target.closest('.btn-copy');
+        }
         
-        if (icon) {
-            const originalClass = icon.className;
-            icon.className = 'fas fa-check';
-            btn.style.color = '#22c55e';
-            btn.style.borderColor = '#22c55e';
+        if (btn) {
+            const icon = btn.querySelector('i');
+            if (icon) {
+                const originalClass = icon.className;
+                icon.className = 'fas fa-check';
+                btn.style.color = '#22c55e';
+                btn.style.borderColor = '#22c55e';
 
-            setTimeout(() => {
-                icon.className = originalClass;
-                btn.style.color = '';
-                btn.style.borderColor = '';
-            }, 2000);
+                setTimeout(() => {
+                    icon.className = originalClass;
+                    btn.style.color = '';
+                    btn.style.borderColor = '';
+                }, 2000);
+            }
         }
     }).catch(err => {
         console.error('Error al copiar al portapapeles:', err);
