@@ -1262,7 +1262,7 @@
                         <label>Número de Celular</label>
                         <div class="input-group-copy">
                             <input type="text" id="phoneNumber" onclick="openWhatsAppChat('phoneNumber')" title="Haga clic para abrir WhatsApp" style="cursor: pointer;">
-                            <button class="btn-copy" onclick="copyToClipboard('phoneNumber')" title="Copiar número">
+                            <button class="btn-copy" onclick="copyToClipboard('phoneNumber', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
                         </div>
@@ -1271,7 +1271,7 @@
                         <label>Celular Corregido / Nuevo</label>
                         <div class="input-group-copy">
                             <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
-                            <button class="btn-copy" onclick="copyToClipboard('correctedPhone')" title="Copiar número">
+                            <button class="btn-copy" onclick="copyToClipboard('correctedPhone', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
                         </div>
@@ -1284,7 +1284,7 @@
                         <label>WhatsApp</label>
                         <div class="input-group-copy">
                             <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp" onclick="openWhatsAppChat('whatsappNumber')" title="Haga clic para abrir WhatsApp" style="cursor: pointer;">
-                            <button class="btn-copy" onclick="copyToClipboard('whatsappNumber')" title="Copiar número">
+                            <button class="btn-copy" onclick="copyToClipboard('whatsappNumber', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
                         </div>
