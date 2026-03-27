@@ -1252,6 +1252,96 @@ def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = 
         
     return result
 
+@app.get("/calls/search-external")
+def search_external_calls(query: str = None, source_study_id: int = None, target_study_id: int = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser" and current_user.role != "coordinator":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    from sqlalchemy import or_
+    query_obj = db.query(models.Call)
+    
+    # Filter by source study
+    if source_study_id:
+        query_obj = query_obj.filter(models.Call.study_id == source_study_id)
+    
+    # EXCLUDE those already in target study (by phone number)
+    if target_study_id:
+        existing_phones = db.query(models.Call.phone_number).filter(models.Call.study_id == target_study_id).all()
+        existing_phones_list = [p[0] for p in existing_phones]
+        query_obj = query_obj.filter(models.Call.phone_number.notin_(existing_phones_list))
+    
+    if query:
+        search = f"%{query}%"
+        query_obj = query_obj.filter(
+            or_(
+                models.Call.phone_number.like(search),
+                models.Call.person_name.like(search),
+                models.Call.person_cc.like(search)
+            )
+        )
+    
+    results = query_obj.options(joinedload(models.Call.study)).limit(50).all()
+    
+    return [{
+        "id": c.id,
+        "phone_number": c.phone_number,
+        "person_name": c.person_name,
+        "person_cc": c.person_cc,
+        "study_name": c.study.name if c.study else "N/A",
+        "study_id": c.study_id,
+        "city": c.city
+    } for c in results]
+
+class ImportExternalCall(BaseModel):
+    call_id: int
+    target_study_id: int
+    new_code: str
+    collection_date: str
+
+@app.post("/calls/import-external")
+def import_external_call(data: ImportExternalCall, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser" and current_user.role != "coordinator":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    source_call = db.query(models.Call).filter(models.Call.id == data.call_id).first()
+    if not source_call:
+        raise HTTPException(status_code=404, detail="Source call not found")
+        
+    target_study = db.query(models.Study).filter(models.Study.id == data.target_study_id).first()
+    if not target_study:
+        raise HTTPException(status_code=404, detail="Target study not found")
+        
+    # Create new call copying data
+    new_call = models.Call(
+        study_id=data.target_study_id,
+        status='pending',
+        # Base data
+        phone_number=source_call.phone_number,
+        person_name=source_call.person_name,
+        person_cc=source_call.person_cc,
+        city=source_call.city,
+        neighborhood=source_call.neighborhood,
+        address=source_call.address,
+        extra_phone=source_call.extra_phone,
+        whatsapp=source_call.whatsapp,
+        # Mandatory provided data
+        code=data.new_code,
+        collection_date=data.collection_date,
+        # Census data common across studies
+        nse=source_call.nse,
+        age=source_call.age,
+        age_range=source_call.age_range,
+        census=source_call.census,
+        housing_description=source_call.housing_description,
+        # Helper info
+        initial_observation=f"Importado desde {source_call.study.name if source_call.study else 'otro estudio'}. Fecha original: {source_call.collection_date}"
+    )
+    
+    db.add(new_call)
+    db.commit()
+    db.refresh(new_call)
+    return {"status": "success", "new_id": new_call.id}
+
 class AssignCall(BaseModel):
     user_id: int
 

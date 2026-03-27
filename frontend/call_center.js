@@ -60,6 +60,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') {
+                // Show Import action for Superuser/Coordinator
+                const importAct = document.getElementById('importAction');
+                if (importAct) importAct.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'block' : 'none';
+
                 // Show Landing, Hide CRM
                 document.getElementById('superuserLanding').style.display = 'flex';
                 document.getElementById('crmInterface').style.display = 'none';
@@ -2046,6 +2050,11 @@ async function assignAgent() {
         return;
     }
 
+    const select = document.getElementById('agentSelect');
+    const agentName = select.options[select.selectedIndex].text;
+
+    if (!confirm(`¿Seguro que va a asignar esta llamada a ${agentName}?`)) return;
+
     // REFACTORED UPDATE LOGIC TO PREVENT FILTER RESET
     try {
         const res = await fetch(`/calls/${currentCallId}/assign`, {
@@ -2108,6 +2117,13 @@ async function bulkAssign() {
     if (!userId) {
         alert("Seleccione un agente para asignar");
         return;
+    }
+
+    const select = document.getElementById('bulkAgentSelect');
+    const agentName = select.options[select.selectedIndex].text;
+
+    if (userId !== "UNASSIGN") {
+        if (!confirm(`¿Seguro que va a asignar ${checks.length} llamadas a ${agentName}?`)) return;
     }
 
     // Check for explicit "UNASSIGN" value or valid ID
@@ -2966,4 +2982,208 @@ function openWhatsAppChat(fieldId = 'whatsappNumber') {
     const waUrl = `https://wa.me/${phoneNumber}?text=${encodedMessage}`;
 
     window.open(waUrl, '_blank');
+}
+
+// --- IMPORT FROM OTHER STUDY LOGIC ---
+let importList = [];
+
+function openImportModal() {
+    const studySelect = document.getElementById('studySelect');
+    const targetStudyName = studySelect.options[studySelect.selectedIndex].text;
+    
+    if (!studySelect.value) {
+        alert("Debe seleccionar un estudio activo primero.");
+        return;
+    }
+
+    document.getElementById('targetStudyLabel').textContent = targetStudyName;
+    document.getElementById('importExternalModal').style.display = 'flex';
+    document.getElementById('importSearchResults').innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">Seleccione un estudio origen y use el buscador para encontrar personas.</td></tr>';
+    document.getElementById('importSearchInput').value = '';
+    
+    populateImportStudies(); // Fetch all studies for source selection
+    
+    importList = [];
+    updateImportListUI();
+}
+
+async function populateImportStudies() {
+    const sel = document.getElementById('importSourceStudy');
+    sel.innerHTML = '<option value="">Cargando estudios...</option>';
+    
+    try {
+        const res = await fetch('/studies', { headers }); // Assuming /studies returns all
+        const data = await res.json();
+        
+        sel.innerHTML = '<option value="">-- Seleccione un estudio --</option>';
+        // Sort studies so newer or active ones appear first? For now just as is.
+        data.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `${s.is_active ? '✅' : '📁'} ${s.code} - ${s.name}`;
+            sel.appendChild(opt);
+        });
+        
+        sel.onchange = () => {
+            searchExternalPerson(); // Trigger search when study changes
+        };
+    } catch (e) {
+        console.error(e);
+        sel.innerHTML = '<option value="">Error al cargar estudios</option>';
+    }
+}
+
+function closeImportModal() {
+    document.getElementById('importExternalModal').style.display = 'none';
+}
+
+async function searchExternalPerson() {
+    const studySelect = document.getElementById('studySelect');
+    const targetStudyId = studySelect.value;
+    const sourceStudyId = document.getElementById('importSourceStudy').value;
+    const query = document.getElementById('importSearchInput').value.trim();
+    
+    if (!sourceStudyId && !query) {
+        // Don't search if nothing is selected/typed
+        return;
+    }
+
+    const tbody = document.getElementById('importSearchResults');
+    tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center;">Buscando...</td></tr>';
+
+    try {
+        let url = `/calls/search-external?`;
+        if (query) url += `query=${encodeURIComponent(query)}&`;
+        if (sourceStudyId) url += `source_study_id=${sourceStudyId}&`;
+        if (targetStudyId) url += `target_study_id=${targetStudyId}`;
+        
+        const res = await fetch(url, { headers });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: #ef4444;">No se encontraron personas con ese criterio.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = '';
+            data.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid #f1f5f9';
+                tr.style.color = '#334155'; // Fixed text color (was too light)
+                tr.innerHTML = `
+                    <td style="padding: 0.75rem;">${p.person_name || 'Sin Nombre'}</td>
+                    <td style="padding: 0.75rem;">${p.phone_number}</td>
+                    <td style="padding: 0.75rem;">${p.person_cc || 'N/A'}</td>
+                    <td style="padding: 0.75rem;">${p.study_name}</td>
+                    <td style="padding: 0.75rem;">
+                        <button onclick='addToImportList(${JSON.stringify(p).replace(/'/g, "&apos;")})' style="background: #3b82f6; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: 500;">Seleccionar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    } catch (e) {
+        console.error(e);
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: #ef4444;">Error de conexión.</td></tr>';
+    }
+}
+
+function addToImportList(person) {
+    if (importList.find(p => p.id === person.id)) {
+        alert("Esta persona ya está en la lista.");
+        return;
+    }
+    importList.push({
+        ...person,
+        new_code: '',
+        collection_date: ''
+    });
+    updateImportListUI();
+}
+
+function updateImportListUI() {
+    const container = document.getElementById('importListContainer');
+    const tbody = document.getElementById('importListTable');
+    
+    if (importList.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    tbody.innerHTML = '';
+    importList.forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid #f1f5f9';
+        tr.style.color = '#334155'; // Fixed text color
+        tr.innerHTML = `
+            <td style="padding: 0.5rem; font-weight: 500;">${p.person_name || p.phone_number}</td>
+            <td style="padding: 0.5rem;"><input type="text" value="${p.new_code}" onchange="updateImportItem(${idx}, 'new_code', this.value)" style="width: 80px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
+            <td style="padding: 0.5rem;"><input type="text" value="${p.collection_date}" onchange="updateImportItem(${idx}, 'collection_date', this.value)" placeholder="DD/MM/YYYY" style="width: 100px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
+            <td style="padding: 0.5rem;"><button onclick="removeFromImportList(${p.id})" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 1.1rem;"><i class="fas fa-trash"></i></button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function updateImportItem(idx, field, value) {
+    importList[idx][field] = value;
+}
+
+function removeFromImportList(id) {
+    importList = importList.filter(p => p.id !== id);
+    updateImportListUI();
+}
+
+async function confirmImport() {
+    if (importList.length === 0) return;
+
+    const studyId = document.getElementById('studySelect').value;
+    if (!studyId) {
+        alert("Debe seleccionar un estudio activo primero.");
+        return;
+    }
+
+    // Validate inputs
+    for (const p of importList) {
+        if (!p.new_code || !p.collection_date) {
+            alert(`Debe completar el Código y la Fecha para ${p.person_name || p.phone_number}`);
+            return;
+        }
+    }
+
+    // Confirmation message with details
+    let msg = `¿Está seguro de importar ${importList.length} personas al estudio actual?\n\n`;
+    importList.forEach(p => {
+        msg += `- ${p.person_name || p.phone_number} (Código: ${p.new_code}, Fecha: ${p.collection_date})\n`;
+    });
+
+    if (!confirm(msg)) return;
+
+    try {
+        for (const p of importList) {
+            const res = await fetch('/calls/import-external', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({
+                    call_id: p.id,
+                    target_study_id: parseInt(studyId),
+                    new_code: p.new_code,
+                    collection_date: p.collection_date
+                })
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                alert(`Error al importar ${p.person_name}: ${err.detail || 'Error desconocido'}`);
+            }
+        }
+
+        alert("Importación completada exitosamente.");
+        closeImportModal();
+        loadStudyData(studyId); // Refresh grid
+    } catch (e) {
+        console.error(e);
+        alert("Error de red durante la importación.");
+    }
 }
