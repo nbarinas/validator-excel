@@ -2987,8 +2987,9 @@ function openWhatsAppChat(fieldId = 'whatsappNumber') {
 /**
  * Copies the value of a field to the clipboard with visual feedback.
  * @param {string} fieldId - The ID of the input field to copy from.
+ * @param {Event} event - The click event.
  */
-function copyToClipboard(fieldId) {
+function copyToClipboard(fieldId, event) {
     const field = document.getElementById(fieldId);
     if (!field || !field.value) {
         console.warn(`Field ${fieldId} not found or empty.`);
