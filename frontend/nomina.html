@@ -131,6 +131,20 @@
             }
         }
 
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
         @media (max-width: 768px) {
 
             /* Container */
@@ -1372,15 +1386,25 @@
             const resPeriods = await fetch('/payroll/periods', { headers: { 'Authorization': 'Bearer ' + token } });
             const allPeriods = await resPeriods.json();
             const activePeriods = allPeriods.filter(p => p.is_visible !== false);
-            const activePeriodIds = new Set(activePeriods.map(p => p.id));
+            const activePeriodIds = Array.from(new Set(activePeriods.map(p => p.id)));
 
-            if (activePeriodIds.size === 0) return alert("No hay nóminas activas.");
+            if (activePeriodIds.length === 0) return alert("No hay nóminas activas.");
 
-            // 1. We need every user's total active balance.
-            // Optimal approach: Since we don't have an endpoint for ALL records at once, we iterate through active periods and gather records.
+            // Show Progress Modal
+            const pModal = document.getElementById('printProgressModal');
+            const pText = document.getElementById('progressText');
+            const pBar = document.getElementById('progressBar');
+            pModal.style.display = 'block';
+            pBar.style.width = '0%';
+            pText.textContent = "Cargando periodos activos...";
+
             const userRecordsMap = {}; // user_id -> list of records
 
-            for (let pid of activePeriodIds) {
+            for (let i = 0; i < activePeriodIds.length; i++) {
+                const pid = activePeriodIds[i];
+                pText.textContent = `Descargando registros: Periodo ${i + 1} de ${activePeriodIds.length}...`;
+                pBar.style.width = `${((i + i / 2) / (activePeriodIds.length + 1)) * 50}%`; // First 50% for records
+
                 const resRecords = await fetch(`/payroll/records/${pid}`, { headers: { 'Authorization': 'Bearer ' + token } });
                 const records = await resRecords.json();
 
@@ -1388,13 +1412,11 @@
                     if (r.total_amount > 0) {
                         if (!userRecordsMap[r.user_id]) userRecordsMap[r.user_id] = [];
 
-                        // We need the period name/code for printing
                         const periodMeta = activePeriods.find(p => p.id === pid);
                         r.period_name = periodMeta.name;
                         r.study_code = periodMeta.study_code;
                         r.period_id = pid;
 
-                        // Concepts Configuration for heuristic
                         let periodConcepts = periodMeta.concepts || [];
                         if (periodConcepts.length === 0 && periodMeta.rates) {
                             if (periodMeta.rates.census) periodConcepts.push({ id: 'census', name: 'Censos', rate: periodMeta.rates.census });
@@ -1408,41 +1430,47 @@
             }
 
             const userIdsWithBalance = Object.keys(userRecordsMap).filter(uid => userRecordsMap[uid].length > 0);
-            if (userIdsWithBalance.length === 0) return alert("No hay colaboradores con saldo por pagar en las nóminas activas.");
+            if (userIdsWithBalance.length === 0) {
+                pModal.style.display = 'none';
+                return alert("No hay colaboradores con saldo por pagar en las nóminas activas.");
+            }
 
-            // Parallel Loan Check for Performance
-            console.log("Revisando préstamos para " + userIdsWithBalance.length + " colaboradores...");
-            const loanChecks = await Promise.all(userIdsWithBalance.map(async (uid) => {
+            pText.textContent = `Revisando préstamos para ${userIdsWithBalance.length} colaboradores...`;
+            pBar.style.width = '50%';
+
+            const userDeductionsMap = {};
+            for (let i = 0; i < userIdsWithBalance.length; i++) {
+                const uid = userIdsWithBalance[i];
+                const u = window.allUsersMap[uid] || { username: uid, full_name: 'Colaborador ' + uid };
+
+                // Update Progress UI
+                pText.textContent = `Revisando préstamos: ${i + 1} de ${userIdsWithBalance.length} (${u.full_name || u.username})`;
+                pBar.style.width = `${50 + ((i + 1) / userIdsWithBalance.length) * 45}%`;
+
                 try {
+                    // SEQUENTIAL LOAN CHECK (Safety first)
                     const resLoan = await fetch(`/loans/active/${uid}`, { headers: { 'Authorization': 'Bearer ' + token } });
-                    if (!resLoan.ok) return { uid, has_loan: false };
-                    const data = await resLoan.json();
-                    return { uid, ...data };
+                    if (resLoan.ok) {
+                        const check = await resLoan.json();
+                        if (check.has_loan) {
+                            // Wait for user interaction if there is a loan
+                            const amount = await new Promise((resolve) => {
+                                window.loanPromiseResolver = resolve;
+                                currentActiveLoan = check;
+                                globalSelectedUser = u;
+                                showLoanModal(check);
+                                document.getElementById('loanUserDisplay').textContent = u.full_name || u.username;
+                            });
+                            if (amount > 0) userDeductionsMap[uid] = amount;
+                        }
+                    }
                 } catch (e) {
                     console.error("Error fetching loan for " + uid, e);
-                    return { uid, has_loan: false };
-                }
-            }));
-
-            const userDeductionsMap = {}; // uid -> amount
-            for (let check of loanChecks) {
-                if (check.has_loan) {
-                    const uid = check.uid;
-                    const u = window.allUsersMap[uid] || { username: uid, full_name: 'Colaborador ' + uid };
-
-                    // Wait for user interaction
-                    const amount = await new Promise((resolve) => {
-                        window.loanPromiseResolver = resolve;
-                        currentActiveLoan = check;
-                        // IMPORTANT: Set globalSelectedUser so modal behaves correctly
-                        globalSelectedUser = u;
-                        showLoanModal(check);
-                        // Ensure name is correct if showLoanModal used globalSelectedUser
-                        document.getElementById('loanUserDisplay').textContent = u.full_name || u.username;
-                    });
-                    if (amount > 0) userDeductionsMap[uid] = amount;
                 }
             }
+
+            pText.textContent = "Generando Cuentas de Cobro...";
+            pBar.style.width = '100%';
 
             const win = window.open('', '', 'width=1100,height=800');
             const dateStr = new Date().toLocaleDateString();
@@ -1513,7 +1541,6 @@
                         <tbody>
                 `);
 
-                // Group by Period exactly like printGlobal() does
                 const groups = {};
                 records.forEach(r => {
                     const key = r.period_id;
@@ -1536,7 +1563,6 @@
                         let details = [];
                         try { details = JSON.parse(r.details_json); } catch (e) { }
 
-                        // Apply heuristics if details are missing
                         if (details.length === 0 && r.total_amount > 0 && r.period_concepts && r.period_concepts.length > 0) {
                             const pConcepts = r.period_concepts;
                             if (pConcepts.length === 1) {
@@ -1566,7 +1592,6 @@
                     });
                 });
 
-                // Add Deduction if exists
                 if (userDeductionsMap[uid]) {
                     const deduct = userDeductionsMap[uid];
                     total -= deduct;
@@ -1612,6 +1637,7 @@
                 </body></html>
             `);
             win.document.close();
+            pModal.style.display = 'none';
         }
 
         // --- LOAN LOGIC ---
@@ -3635,6 +3661,20 @@
             </div>
         </div>
     </div>
+    <!-- Progress Modal -->
+    <div id="printProgressModal" class="modal" style="z-index: 1100;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; padding: 30px;">
+            <div class="spinner" style="margin: 0 auto 20px;"></div>
+            <h3 id="progressTitle" style="color: #3b82f6; margin-bottom: 10px;">Procesando...</h3>
+            <p id="progressText" style="color: #cbd5e1; font-size: 0.9rem;">Preparando registros de nómina.</p>
+            <div id="progressBarContainer"
+                style="width: 100%; background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; margin-top: 20px; overflow: hidden;">
+                <div id="progressBar" style="width: 0%; height: 100%; background: #3b82f6; transition: width 0.3s;">
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Global Account -->
     <div id="globalAccountModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
