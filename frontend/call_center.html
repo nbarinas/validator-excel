@@ -443,18 +443,10 @@
             }
         }
 
-        /* Clickable Phone Fields */
+        /* Clickable Phone Fields removed */
         #phoneNumber,
         #whatsappNumber {
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        #phoneNumber:hover,
-        #whatsappNumber:hover {
-            border-color: #25D366 !important;
-            box-shadow: 0 0 5px rgba(37, 211, 102, 0.3);
-            background-color: #f0fff4 !important;
+            cursor: text;
         }
 
         /* Copy Button Styles */
@@ -1261,7 +1253,7 @@
                     <div class="form-group">
                         <label>Número de Celular</label>
                         <div class="input-group-copy">
-                            <input type="text" id="phoneNumber" onclick="openWhatsAppChat('phoneNumber')" title="Haga clic para abrir WhatsApp" style="cursor: pointer;">
+                            <input type="text" id="phoneNumber">
                             <button class="btn-copy" onclick="copyToClipboard('phoneNumber', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
@@ -1280,10 +1272,10 @@
                         <label>CC Persona</label>
                         <input type="text" id="personCC">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="display: none;">
                         <label>WhatsApp</label>
                         <div class="input-group-copy">
-                            <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp" onclick="openWhatsAppChat('whatsappNumber')" title="Haga clic para abrir WhatsApp" style="cursor: pointer;">
+                            <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp">
                             <button class="btn-copy" onclick="copyToClipboard('whatsappNumber', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
