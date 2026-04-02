@@ -1376,7 +1376,7 @@
     <div id="importExternalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 2rem; border-radius: 12px; width: 800px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                <h2 style="margin: 0; color: #1e293b;">Traer Personas de otros Estudios</h2>
+                <h2 style="margin: 0; color: #0f172a; font-weight: 700;">Traer Personas de otros Estudios</h2>
                 <button onclick="closeImportModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: #64748b;">&times;</button>
             </div>
             <div id="importTargetInfo" style="margin-bottom: 1.5rem; padding: 0.75rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-weight: 600; display: flex; align-items: center; gap: 8px;">
@@ -1404,11 +1404,11 @@
                 <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                     <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 1;">
                         <tr style="text-align: left; border-bottom: 2px solid #e2e8f0;">
-                            <th style="padding: 0.75rem;">Nombre</th>
-                            <th style="padding: 0.75rem;">Teléfono</th>
-                            <th style="padding: 0.75rem;">Cédula</th>
-                            <th style="padding: 0.75rem;">Estudio Origen</th>
-                            <th style="padding: 0.75rem;">Acción</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Nombre</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Teléfono</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Cédula</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Estudio Origen</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Acción</th>
                         </tr>
                     </thead>
                     <tbody id="importSearchResults">
@@ -1423,10 +1423,11 @@
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
                         <thead style="background: #f8fafc;">
                             <tr style="text-align: left; border-bottom: 1px solid #e2e8f0;">
-                                <th style="padding: 0.5rem;">Persona</th>
-                                <th style="padding: 0.5rem;">Código (Code)</th>
-                                <th style="padding: 0.5rem;">Fecha Recogida</th>
-                                <th style="padding: 0.5rem;"></th>
+                                <th style="padding: 0.5rem; color: #111827;">Persona</th>
+                                <th style="padding: 0.5rem; color: #111827;">Código (Code)</th>
+                                <th style="padding: 0.5rem; color: #111827;">Fecha Implante</th>
+                                <th style="padding: 0.5rem; color: #111827;">Fecha Recogida</th>
+                                <th style="padding: 0.5rem; color: #111827;"></th>
                             </tr>
                         </thead>
                         <tbody id="importListTable"></tbody>
