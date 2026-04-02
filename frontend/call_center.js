@@ -3146,6 +3146,7 @@ function addToImportList(person) {
     importList.push({
         ...person,
         new_code: '',
+        implantation_date: '',
         collection_date: ''
     });
     updateImportListUI();
@@ -3169,7 +3170,8 @@ function updateImportListUI() {
         tr.innerHTML = `
             <td style="padding: 0.5rem; font-weight: 500;">${p.person_name || p.phone_number}</td>
             <td style="padding: 0.5rem;"><input type="text" value="${p.new_code}" onchange="updateImportItem(${idx}, 'new_code', this.value)" style="width: 80px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
-            <td style="padding: 0.5rem;"><input type="text" value="${p.collection_date}" onchange="updateImportItem(${idx}, 'collection_date', this.value)" placeholder="DD/MM/YYYY" style="width: 100px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
+            <td style="padding: 0.5rem;"><input type="text" value="${p.implantation_date}" onchange="updateImportItem(${idx}, 'implantation_date', this.value)" placeholder="DD/MM" style="width: 80px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
+            <td style="padding: 0.5rem;"><input type="text" value="${p.collection_date}" onchange="updateImportItem(${idx}, 'collection_date', this.value)" placeholder="DD/MM" style="width: 80px; padding: 4px; border: 1px solid #cbd5e1; border-radius: 4px;"></td>
             <td style="padding: 0.5rem;"><button onclick="removeFromImportList(${p.id})" style="color: #ef4444; background: none; border: none; cursor: pointer; font-size: 1.1rem;"><i class="fas fa-trash"></i></button></td>
         `;
         tbody.appendChild(tr);
@@ -3196,8 +3198,8 @@ async function confirmImport() {
 
     // Validate inputs
     for (const p of importList) {
-        if (!p.new_code || !p.collection_date) {
-            alert(`Debe completar el Código y la Fecha para ${p.person_name || p.phone_number}`);
+        if (!p.new_code || !p.collection_date || !p.implantation_date) {
+            alert(`Debe completar Código, Fecha Implante y Fecha Recogida para ${p.person_name || p.phone_number}`);
             return;
         }
     }
@@ -3219,6 +3221,7 @@ async function confirmImport() {
                     call_id: p.id,
                     target_study_id: parseInt(studyId),
                     new_code: p.new_code,
+                    implantation_date: p.implantation_date,
                     collection_date: p.collection_date
                 })
             });

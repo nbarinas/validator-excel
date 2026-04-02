@@ -1296,6 +1296,7 @@ class ImportExternalCall(BaseModel):
     call_id: int
     target_study_id: int
     new_code: str
+    implantation_date: str
     collection_date: str
 
 @app.post("/calls/import-external")
@@ -1326,6 +1327,7 @@ def import_external_call(data: ImportExternalCall, db: Session = Depends(databas
         whatsapp=source_call.whatsapp,
         # Mandatory provided data
         code=data.new_code,
+        implantation_date=data.implantation_date,
         collection_date=data.collection_date,
         # Census data common across studies
         nse=source_call.nse,
@@ -1333,6 +1335,17 @@ def import_external_call(data: ImportExternalCall, db: Session = Depends(databas
         age_range=source_call.age_range,
         census=source_call.census,
         housing_description=source_call.housing_description,
+        # Hair Study Specifics
+        shampoo_brand=source_call.shampoo_brand,
+        shampoo_variety=source_call.shampoo_variety,
+        conditioner_brand=source_call.conditioner_brand,
+        conditioner_variety=source_call.conditioner_variety,
+        treatment_brand=source_call.treatment_brand,
+        treatment_variety=source_call.treatment_variety,
+        wash_frequency=source_call.wash_frequency,
+        hair_type=source_call.hair_type,
+        hair_shape=source_call.hair_shape,
+        hair_length=source_call.hair_length,
         # Helper info
         initial_observation=f"Importado desde {source_call.study.name if source_call.study else 'otro estudio'}. Fecha original: {source_call.collection_date}"
     )
