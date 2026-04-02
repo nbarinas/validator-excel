@@ -1594,6 +1594,7 @@ async def upload_calls(
             "conditioner_variety": ["variedad acondicionador", "variedad tratamiento.1"], # Prioritize correct name
 
             "wash_frequency": ["frecuencia de lavado"],
+            "purchase_frequency": ["con que frecuencia compra shampoo", "frecuencia de compra", "frecuencia compra"],
             "hair_type": ["tipo de cabello"],
             "hair_shape": ["forma de cabello"],
             "hair_length": ["largo de cabello", "plargo de cabello", "largo"], # Matches typo in Excel
@@ -1725,6 +1726,7 @@ async def upload_calls(
                 hair_type=get_val("hair_type")[:50] if get_val("hair_type") else None,
                 hair_shape=get_val("hair_shape")[:50] if get_val("hair_shape") else None,
                 hair_length=get_val("hair_length")[:50] if get_val("hair_length") else None,
+                purchase_frequency=get_val("purchase_frequency")[:100] if get_val("purchase_frequency") else None,
                 
                 code=get_val("code")[:50] if get_val("code") else None,
                 segundo_codigo=get_val("segundo_codigo")[:50] if get_val("segundo_codigo") else None, # Support for validation dual codes
