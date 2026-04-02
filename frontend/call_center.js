@@ -245,7 +245,8 @@ const STANDARD_FIELDS = [
     { id: 'frecuencia de lavado', label: 'Frecuencia Lavado' },
     { id: 'tipo de cabello', label: 'Tipo de Cabello' },
     { id: 'forma de cabello', label: 'Forma de Cabello' },
-    { id: 'largo de cabello', label: 'Largo de Cabello' }
+    { id: 'largo de cabello', label: 'Largo de Cabello' },
+    { id: 'frecuencia de compra', label: 'Frecuencia de Compra' }
 ];
 
 const CATEGORY_RULES = {
@@ -360,7 +361,7 @@ const KNOWN_BACKEND_COLUMNS = [
     "marca tratamiento", "variedad tratamiento",
     "marca acondicionador", "variedad acondicionador", "variedad tratamiento.1",
     "frecuencia de lavado", "tipo de cabello", "forma de cabello",
-    "largo de cabello", "largo"
+    "largo de cabello", "largo", "frecuencia de compra", "frecuencia compra", "con que frecuencia compra shampoo"
 ];
 
 function isRecognizedColumn(header) {
