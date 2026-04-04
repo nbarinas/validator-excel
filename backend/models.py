@@ -225,6 +225,7 @@ class FilterGroup(Base):
     category = Column(String(50), nullable=True) # e.g. "Shampoo", "Dogs"
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     is_active = Column(Boolean, default=True)
+    survey_schema = Column(Text, nullable=True) # JSON string with question definitions
     
     leads = relationship("FilterLead", back_populates="group")
 
