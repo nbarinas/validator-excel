@@ -1828,6 +1828,35 @@ class FilterLeadUpload(BaseModel):
     group_id: int
     leads: List[FilterLeadMapping]
 
+class FilterGroupSchemaUpdate(BaseModel):
+    survey_schema: Optional[str] = None # JSON string
+
+class FilterLeadDataUpdate(BaseModel):
+    survey_data: Dict
+
+@app.put("/filters/groups/{group_id}/schema")
+def update_filter_group_schema(group_id: int, update: FilterGroupSchemaUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_group = db.query(models.FilterGroup).filter(models.FilterGroup.id == group_id).first()
+    if not db_group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    db_group.survey_schema = update.survey_schema
+    db.commit()
+    return {"status": "ok"}
+
+@app.put("/filters/leads/{lead_id}/data")
+def update_filter_lead_data(lead_id: int, update: FilterLeadDataUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    import json
+    lead = db.query(models.FilterLead).filter(models.FilterLead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    # Merge existing data with new data if necessary, or just overwrite survey_data part
+    # For simplicity, we overwrite the survey_data JSON
+    lead.survey_data = json.dumps(update.survey_data)
+    db.commit()
+    return {"status": "ok"}
+
 @app.get("/filters/groups")
 def get_filter_groups(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     return db.query(models.FilterGroup).filter(models.FilterGroup.is_active == True).order_by(models.FilterGroup.id.desc()).all()
