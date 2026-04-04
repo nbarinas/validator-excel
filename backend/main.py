@@ -3636,7 +3636,7 @@ def get_active_agents(open_only: bool = False, db: Session = Depends(database.ge
         
     agents = query.distinct().all()
     # Filter to ensure only roles we care about
-    valid_roles = ['agent', 'auxiliar', 'coordinator']
+    valid_roles = ['agent', 'auxiliar', 'coordinator', 'bizage']
     agents = [a for a in agents if a.role in valid_roles]
     
     return [{"id": a.id, "full_name": a.full_name, "username": a.username, "role": a.role} for a in agents]
