@@ -1908,6 +1908,20 @@ async function updateCallStatus(newStatus) {
 
     // If marking as "Gestionado", prompt for survey ID and bonus status
     if (newStatus === 'managed') {
+        const stage = (typeof allCalls !== 'undefined' && allCalls) 
+            ? (allCalls.find(c => c.id === currentCallId)?.study_stage || "").toUpperCase() 
+            : "";
+
+        if (stage !== 'RF') {
+            const secondDate = document.getElementById('secondDate').value;
+            const secondTime = document.getElementById('secondTime').value;
+
+            if (!secondDate || !secondTime) {
+                alert("No has guardado fecha de segunda recogida, por favor agrégala y luego guarda como efectiva.");
+                return;
+            }
+        }
+
         surveyId = prompt("Ingrese el ID de la encuesta (alfanumérico):");
         if (surveyId === null) return; // User cancelled
         surveyId = surveyId.trim();
@@ -2195,7 +2209,7 @@ async function saveCallHeader() {
         }
 
         const body = {
-            phone_number: phone,
+            // phone_number: phone, // Removed to prevent primary phone update
             corrected_phone: corrected,
             person_cc: cc,
             whatsapp: whatsapp,
@@ -2238,10 +2252,7 @@ async function saveSecondPickup() {
 
     // We reuse the same endpoint but specifically for these fields
     const body = {
-        // We must include required fields if the backend enforces them. 
-        // Based on saveCallHeader, it sends phone, etc.
-        // To be safe, we grab them too.
-        phone_number: document.getElementById('phoneNumber').value,
+        // phone_number: document.getElementById('phoneNumber').value, // Removed to prevent primary phone update
         corrected_phone: document.getElementById('correctedPhone').value,
         person_cc: document.getElementById('personCC').value,
         whatsapp: document.getElementById('whatsappNumber').value,
