@@ -1810,6 +1810,111 @@ def schedule_call(call_id: int, sched: ScheduleCreate, db: Session = Depends(dat
     db.commit()
     return {"status": "ok"}
 
+# --- FILTERS MODULE API ---
+
+class FilterGroupCreate(BaseModel):
+    name: str
+    category: Optional[str] = None
+
+class FilterLeadMapping(BaseModel):
+    phone_number: str
+    person_name: Optional[str] = None
+    city: Optional[str] = None
+    interviewer_name: Optional[str] = None
+    recruiter_name: Optional[str] = None
+    survey_data: Optional[Dict] = {}
+
+class FilterLeadUpload(BaseModel):
+    group_id: int
+    leads: List[FilterLeadMapping]
+
+@app.get("/filters/groups")
+def get_filter_groups(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    return db.query(models.FilterGroup).filter(models.FilterGroup.is_active == True).order_by(models.FilterGroup.id.desc()).all()
+
+@app.post("/filters/groups")
+def create_filter_group(group: FilterGroupCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_group = models.FilterGroup(name=group.name, category=group.category)
+    db.add(db_group)
+    db.commit()
+    db.refresh(db_group)
+    return db_group
+
+@app.post("/filters/check-duplicates")
+def check_filter_duplicates(group_id: int, phone_numbers: List[str], db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # 1. Check in same group
+    existing_in_group = db.query(models.FilterLead.phone_number).filter(
+        models.FilterLead.group_id == group_id,
+        models.FilterLead.phone_number.in_(phone_numbers)
+    ).all()
+    in_group_set = {r[0] for r in existing_in_group}
+    
+    # 2. Check in global calls
+    existing_in_global = db.query(models.Call.phone_number).filter(
+        models.Call.phone_number.in_(phone_numbers)
+    ).all()
+    global_set = {r[0] for r in existing_in_global}
+    
+    return {
+        "in_group": list(in_group_set),
+        "in_global": list(global_set)
+    }
+
+@app.post("/filters/upload")
+def upload_filter_leads(upload: FilterLeadUpload, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    leads_to_add = []
+    import json
+    for l in upload.leads:
+        lead_obj = models.FilterLead(
+            group_id=upload.group_id,
+            phone_number=l.phone_number,
+            person_name=l.person_name,
+            city=l.city,
+            interviewer_name=l.interviewer_name,
+            recruiter_name=l.recruiter_name,
+            survey_data=json.dumps(l.survey_data) if l.survey_data else None,
+            status="pending"
+        )
+        leads_to_add.append(lead_obj)
+    
+    db.add_all(leads_to_add)
+    db.commit()
+    return {"status": "ok", "count": len(leads_to_add)}
+
+@app.get("/filters/groups/{group_id}/leads")
+def get_filter_leads(group_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    query = db.query(models.FilterLead).filter(models.FilterLead.group_id == group_id)
+    
+    # If not superuser/coordinator, show only assigned
+    if current_user.role not in ["superuser", "coordinator", "admin"]:
+        query = query.filter(models.FilterLead.assigned_user_id == current_user.id)
+        
+    return query.all()
+
+@app.post("/filters/leads/assign")
+def assign_filter_leads(group_id: int, user_id: int, count: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # Find unassigned leads in group
+    leads = db.query(models.FilterLead).filter(
+        models.FilterLead.group_id == group_id,
+        models.FilterLead.assigned_user_id == None
+    ).limit(count).all()
+    
+    for l in leads:
+        l.assigned_user_id = user_id
+    
+    db.commit()
+    return {"status": "ok", "count": len(leads)}
+
+@app.put("/filters/leads/{lead_id}/status")
+def update_filter_lead_status(lead_id: int, status: str, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    lead = db.query(models.FilterLead).filter(models.FilterLead.id == lead_id).first()
+    if not lead:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    
+    lead.status = status
+    db.commit()
+    return {"status": "ok"}
+
 # --- BIZAGE MODULE API ---
 
 class BizageStudyCreate(BaseModel):

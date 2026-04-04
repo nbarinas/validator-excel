@@ -60,9 +60,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') {
-                // Show Import action for Superuser/Coordinator
+                // Show Import action for Superuser/Coordinator/Agent (for Filtros)
                 const importAct = document.getElementById('importAction');
-                if (importAct) importAct.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'block' : 'none';
+                if (importAct) importAct.style.display = 'block'; 
+                // Note: The specific Traer de otro estudio button inside it is restricted later in JS if needed
+                // but usually agents don't see the sidebar if they are not in CRM.
 
                 // Show Landing, Hide CRM
                 document.getElementById('superuserLanding').style.display = 'flex';
@@ -77,6 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (btnManage) btnManage.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
                 if (btnReport) btnReport.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
 
+                const btnFilters = document.getElementById('btnFiltersLanding');
+                if (btnFilters) btnFilters.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+
                 // Ensure Create Study Button is visible if they enter the CRM (only for super/coord)
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
@@ -85,6 +90,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (currentUserRole === 'superuser' || currentUserRole === 'auxiliar' || currentUserRole === 'coordinator') {
                     const btnClosed = document.getElementById('btnClosedStudies');
                     if (btnClosed) btnClosed.style.display = 'inline-block'; // or block/flex depending on css
+                }
+                
+                // Add a "Atender Filtros" button for agents/auxiliars on landing if desired
+                // For now, they enter via CRM or we add a button here
+                if (currentUserRole === 'agent' || currentUserRole === 'bizage' || currentUserRole === 'auxiliar') {
+                    // If they are on landing, let's give them a way to enter filters
                 }
             } else {
                 // Normal User
@@ -3250,5 +3261,339 @@ async function confirmImport() {
     } catch (e) {
         console.error(e);
         alert("Error de red durante la importación.");
+    }
+}
+
+// --- FILTERS MODULE JS ---
+let currentFilterGroupId = null;
+let currentFilterLeads = [];
+let pendingFilterUploadData = [];
+
+function showFiltersManager() {
+    document.getElementById('filterManagerModal').style.display = 'flex';
+    loadFilterGroups();
+}
+
+function closeFiltersManager() {
+    document.getElementById('filterManagerModal').style.display = 'none';
+}
+
+async function loadFilterGroups() {
+    const res = await fetch('/filters/groups', { headers });
+    if (res.ok) {
+        const groups = await res.json();
+        const list = document.getElementById('filterGroupsList');
+        list.innerHTML = groups.map(g => `
+            <div onclick="selectFilterGroup(${g.id}, '${g.name}')" 
+                 style="padding: 0.8rem; background: ${currentFilterGroupId == g.id ? '#eef2ff' : '#f8fafc'}; 
+                        border: 1px solid ${currentFilterGroupId == g.id ? '#6366f1' : '#e2e8f0'}; 
+                        border-radius: 6px; cursor: pointer; transition: 0.2s;">
+                <div style="font-weight: bold; color: #1e293b;">${g.name}</div>
+                <div style="font-size: 0.75rem; color: #64748b;">ID: ${g.id} - ${new Date(g.created_at).toLocaleDateString()}</div>
+            </div>
+        `).join('');
+    }
+}
+
+async function selectFilterGroup(id, name) {
+    currentFilterGroupId = id;
+    document.getElementById('currentFilterName').innerText = `Filtro: ${name}`;
+    document.getElementById('filterDetailsPlaceholder').style.display = 'none';
+    document.getElementById('filterLeadsView').style.display = 'flex';
+    loadFilterGroups(); // Refresh selection visual
+    loadFilterLeads(id);
+}
+
+async function loadFilterLeads(id) {
+    const res = await fetch(`/filters/groups/${id}/leads`, { headers });
+    if (res.ok) {
+        const leads = await res.json();
+        const tbody = document.getElementById('filterLeadsTableBody');
+        tbody.innerHTML = leads.map(l => `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+                <td style="padding: 0.8rem; font-weight: 500;">${l.phone_number}</td>
+                <td style="padding: 0.8rem;">${l.person_name || '-'}</td>
+                <td style="padding: 0.8rem;">${l.city || '-'}</td>
+                <td style="padding: 0.8rem;">${l.interviewer_name || '-'}</td>
+                <td style="padding: 0.8rem;">${l.recruiter_name || '-'}</td>
+                <td style="padding: 0.8rem;">
+                    <span style="padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;
+                        background: ${l.status === 'qualified' ? '#dcfce7' : l.status === 'rejected' ? '#fee2e2' : '#f1f5f9'};
+                        color: ${l.status === 'qualified' ? '#166534' : l.status === 'rejected' ? '#991b1b' : '#475569'};">
+                        ${l.status === 'qualified' ? 'CALIFICA' : l.status === 'rejected' ? 'NO CALIFICA' : 'PENDIENTE'}
+                    </span>
+                </td>
+                <td style="padding: 0.8rem; color: #64748b;">${l.assigned_user_id ? 'Asignado' : 'Sin asignar'}</td>
+            </tr>
+        `).join('');
+    }
+}
+
+function showCreateFilter() {
+    document.getElementById('filterCreateModal').style.display = 'flex';
+}
+
+async function submitCreateFilter() {
+    const name = document.getElementById('newFilterGroupName').value;
+    if (!name) return alert("Ingrese un nombre");
+    
+    const res = await fetch('/filters/groups', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ name })
+    });
+    
+    if (res.ok) {
+        document.getElementById('filterCreateModal').style.display = 'none';
+        document.getElementById('newFilterGroupName').value = '';
+        loadFilterGroups();
+    }
+}
+
+function showFilterUpload() {
+    document.getElementById('filterUploadModal').style.display = 'flex';
+    document.getElementById('filterPasteArea').value = '';
+    document.getElementById('filterPreviewContainer').style.display = 'none';
+    pendingFilterUploadData = [];
+}
+
+async function handleFilterPasteData() {
+    const text = document.getElementById('filterPasteArea').value;
+    if (!text) return;
+    
+    const rows = text.trim().split('\n').map(r => r.split('\t'));
+    if (rows.length < 2) return;
+    
+    const headers_row = rows[0].map(h => h.trim().toLowerCase());
+    const data = rows.slice(1);
+    
+    // Attempt mapping
+    const colIdx = {
+        phone: headers_row.findIndex(h => h.includes('tel') || h.includes('cel') || h.includes('llamada')),
+        name: headers_row.findIndex(h => h.includes('nom') || h.includes('person')),
+        city: headers_row.findIndex(h => h.includes('ciu') || h.includes('mun')),
+        interviewer: headers_row.findIndex(h => h.includes('encue') || h.includes('interv')),
+        recruiter: headers_row.findIndex(h => h.includes('reclu'))
+    };
+    
+    if (colIdx.phone === -1) {
+        alert("No se encontró columna de teléfono");
+        return;
+    }
+
+    const leads = data.map(row => {
+        const lead = {
+            phone_number: row[colIdx.phone],
+            person_name: colIdx.name !== -1 ? row[colIdx.name] : '',
+            city: colIdx.city !== -1 ? row[colIdx.city] : '',
+            interviewer_name: colIdx.interviewer !== -1 ? row[colIdx.interviewer] : '',
+            recruiter_name: colIdx.recruiter !== -1 ? row[colIdx.recruiter] : '',
+            survey_data: {}
+        };
+        
+        // Put everything else in survey_data
+        headers_row.forEach((h, i) => {
+            if (!Object.values(colIdx).includes(i)) {
+                lead.survey_data[h] = row[i];
+            }
+        });
+        return lead;
+    });
+
+    // Check duplicates against backend
+    const phoneNumbers = leads.map(l => l.phone_number);
+    const dupRes = await fetch(`/filters/check-duplicates?group_id=${currentFilterGroupId}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(phoneNumbers)
+    });
+    
+    let duplicates = { in_group: [], in_global: [] };
+    if (dupRes.ok) duplicates = await dupRes.json();
+    
+    pendingFilterUploadData = leads;
+    
+    // Show Preview
+    const container = document.getElementById('filterPreviewContainer');
+    container.style.display = 'flex';
+    
+    const thead = document.getElementById('filterPreviewThead');
+    thead.innerHTML = `<tr>
+        <th style="padding: 0.5rem; border:1px solid #ddd;">Validación</th>
+        <th style="padding: 0.5rem; border:1px solid #ddd;">Teléfono</th>
+        <th style="padding: 0.5rem; border:1px solid #ddd;">Nombre</th>
+        <th style="padding: 0.5rem; border:1px solid #ddd;">Reclutador</th>
+    </tr>`;
+    
+    const tbody = document.getElementById('filterPreviewTbody');
+    tbody.innerHTML = leads.slice(0, 50).map(l => {
+        const isDupGroup = duplicates.in_group.includes(l.phone_number);
+        const isDupGlobal = duplicates.in_global.includes(l.phone_number);
+        const statusIcon = isDupGlobal ? '❌ GLOBAL' : (isDupGroup ? '⚠️ REPETIDO' : '✅ OK');
+        const color = isDupGlobal ? '#ef4444' : (isDupGroup ? '#f59e0b' : '#22c55e');
+        
+        return `
+            <tr>
+                <td style="padding: 0.5rem; border:1px solid #ddd; color: ${color}; font-weight: bold;">${statusIcon}</td>
+                <td style="padding: 0.5rem; border:1px solid #ddd;">${l.phone_number}</td>
+                <td style="padding: 0.5rem; border:1px solid #ddd;">${l.person_name}</td>
+                <td style="padding: 0.5rem; border:1px solid #ddd;">${l.recruiter_name}</td>
+            </tr>
+        `;
+    }).join('');
+    
+    const btn = document.getElementById('btnFinalFilterUpload');
+    btn.disabled = false;
+    btn.style.opacity = '1';
+}
+
+async function submitFilterUpload() {
+    if (!pendingFilterUploadData.length) return;
+    
+    const res = await fetch('/filters/upload', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+            group_id: currentFilterGroupId,
+            leads: pendingFilterUploadData
+        })
+    });
+    
+    if (res.ok) {
+        alert("Leads cargados exitosamente");
+        document.getElementById('filterUploadModal').style.display = 'none';
+        loadFilterLeads(currentFilterGroupId);
+    }
+}
+
+async function showFilterAssign() {
+    const res = await fetch(`/filters/groups/${currentFilterGroupId}/leads`, { headers });
+    if (res.ok) {
+        const leads = await res.json();
+        const available = leads.filter(l => !l.assigned_user_id).length;
+        document.getElementById('filterAvailableCount').innerText = available;
+        document.getElementById('filterAssignModal').style.display = 'flex';
+        
+        // Load agents if not loaded
+        loadAgentsIntoSelect('filterAssignUser');
+    }
+}
+
+async function loadAgentsIntoSelect(id) {
+    const res = await fetch('/reports/active-agents', { headers }); // Re-using existing agent list endpoint
+    if (res.ok) {
+        const agents = await res.json();
+        const select = document.getElementById(id);
+        const currentId = select.value;
+        select.innerHTML = agents.map(a => `<option value="${a.id}">${a.name} (${a.role})</option>`).join('');
+        if (currentId) select.value = currentId;
+    }
+}
+
+async function submitFilterAssign() {
+    const userId = document.getElementById('filterAssignUser').value;
+    const count = document.getElementById('filterAssignCount').value;
+    
+    const res = await fetch(`/filters/leads/assign?group_id=${currentFilterGroupId}&user_id=${userId}&count=${count}`, {
+        method: 'POST',
+        headers
+    });
+    
+    if (res.ok) {
+        alert("Leads asignados correctamente");
+        document.getElementById('filterAssignModal').style.display = 'none';
+        loadFilterLeads(currentFilterGroupId);
+    }
+}
+
+// AGENT WORKFLOW
+function showFilterCalling() {
+    document.getElementById('superuserLanding').style.display = 'none';
+    document.getElementById('crmInterface').style.display = 'none';
+    document.getElementById('filterCallingView').style.display = 'flex';
+    loadAgentFilterGroups();
+}
+
+function backToCRM() {
+    document.getElementById('filterCallingView').style.display = 'none';
+    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
+        document.getElementById('superuserLanding').style.display = 'flex';
+    } else {
+        document.getElementById('crmInterface').style.display = 'grid';
+    }
+}
+
+async function loadAgentFilterGroups() {
+    const res = await fetch('/filters/groups', { headers });
+    if (res.ok) {
+        const groups = await res.json();
+        const select = document.getElementById('filterGroupSelectAgent');
+        select.innerHTML = '<option value="">Seleccione Listado...</option>' + 
+            groups.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+    }
+}
+
+async function loadAgentFilterLeads() {
+    const groupId = document.getElementById('filterGroupSelectAgent').value;
+    if (!groupId) return;
+    
+    const res = await fetch(`/filters/groups/${groupId}/leads`, { headers });
+    if (res.ok) {
+        const leads = await res.json();
+        const list = document.getElementById('filterAgentLeadsList');
+        // Filter out those already finished in local if preferred, but usually backend covers it
+        list.innerHTML = leads.map(l => `
+            <div onclick="showFilterLeadDetail(${l.id})" 
+                 style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: 0.2s; 
+                        border-left: 6px solid ${l.status === 'qualified' ? '#22c55e' : l.status === 'rejected' ? '#ef4444' : '#6366f1'};">
+                <div style="font-weight: bold;">${l.person_name || l.phone_number}</div>
+                <div style="font-size: 0.8rem; color: #64748b;">${l.phone_number} - ${l.city || ''}</div>
+                <div style="font-size: 0.7rem; margin-top: 4px; font-weight: bold; color: ${l.status === 'pending' ? '#6366f1' : '#475569'};">
+                    ${l.status.toUpperCase()}
+                </div>
+            </div>
+        `).join('');
+        
+        currentFilterLeads = leads;
+    }
+}
+
+let activeFilterLead = null;
+
+function showFilterLeadDetail(leadId) {
+    const lead = currentFilterLeads.find(l => l.id === leadId);
+    if (!lead) return;
+    activeFilterLead = lead;
+    
+    document.getElementById('filterLeadDetail').style.display = 'flex';
+    document.getElementById('detFilterName').innerText = `Nombre: ${lead.person_name || 'Sin nombre'}`;
+    document.getElementById('detFilterPhone').innerText = lead.phone_number;
+    document.getElementById('detFilterCity').innerText = lead.city || '-';
+    document.getElementById('detFilterRecruiter').innerText = lead.recruiter_name || '-';
+    
+    const surveyDiv = document.getElementById('detFilterSurvey');
+    try {
+        const data = JSON.parse(lead.survey_data || '{}');
+        surveyDiv.innerHTML = Object.entries(data).map(([k, v]) => `
+            <div style="background: #f8fafc; padding: 8px; border-radius: 4px; border: 1px solid #f1f5f9;">
+                <span style="font-weight: bold; font-size: 0.8rem; color: #64748b; text-transform: capitalize;">${k}:</span>
+                <span style="font-size: 0.9rem;">${v}</span>
+            </div>
+        `).join('');
+    } catch (e) { surveyDiv.innerHTML = 'Error al cargar encuesta'; }
+}
+
+async function updateFilterStatus(status) {
+    if (!activeFilterLead) return;
+    if (!confirm(`¿Marcar este lead como ${status.toUpperCase()}?`)) return;
+    
+    const res = await fetch(`/filters/leads/${activeFilterLead.id}/status?status=${status}`, {
+        method: 'PUT',
+        headers
+    });
+    
+    if (res.ok) {
+        document.getElementById('filterLeadDetail').style.display = 'none';
+        loadAgentFilterLeads(); 
     }
 }

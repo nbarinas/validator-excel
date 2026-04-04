@@ -217,6 +217,43 @@ class BizageStudy(Base):
     paid_by = Column(String(50), nullable=True)
     invoice_number = Column(String(50), nullable=True) # Numero de factura
 
+class FilterGroup(Base):
+    __tablename__ = "filter_groups"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100))
+    category = Column(String(50), nullable=True) # e.g. "Shampoo", "Dogs"
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    is_active = Column(Boolean, default=True)
+    
+    leads = relationship("FilterLead", back_populates="group")
+
+class FilterLead(Base):
+    __tablename__ = "filter_leads"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    group_id = Column(Integer, ForeignKey("filter_groups.id"))
+    
+    phone_number = Column(String(20), index=True)
+    person_name = Column(String(100), nullable=True)
+    city = Column(String(100), nullable=True)
+    
+    # New specifics from user
+    interviewer_name = Column(String(100), nullable=True)
+    recruiter_name = Column(String(100), nullable=True)
+    
+    status = Column(String(20), default="pending") # pending, qualified, rejected
+    assigned_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    
+    # Flexible data (Perfumes, Caspa, etc.) stored as JSON string
+    survey_data = Column(Text, nullable=True) 
+    
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    group = relationship("FilterGroup", back_populates="leads")
+    assigned_user = relationship("User")
+
 class RateSheet(Base):
     __tablename__ = "rate_sheets"
     

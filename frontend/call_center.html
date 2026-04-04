@@ -560,6 +560,11 @@
                     <i class="fas fa-chart-line" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Reporte Diario
                 </button>
+                <button id="btnFiltersLanding" onclick="showFiltersManager()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #e11d48; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-filter" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Gestión de Filtros
+                </button>
                 <button id="btnDuplicateValidator" onclick="showDuplicateValidatorModal()"
                     style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #8b5cf6; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-search-plus" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
@@ -664,6 +669,135 @@
                 <button onclick="closeDailyReport()"
                     style="background: #94a3b8; border: none; padding: 0.8rem 2rem; border-radius: 6px; color: white; cursor: pointer; font-size: 1rem;">Cerrar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- FILTERS MANAGER MODAL -->
+    <div id="filterManagerModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 1100px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 style="margin: 0; color: #1e293b;">Gestión de Filtros (Pre-screening)</h2>
+                <button onclick="closeFiltersManager()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; flex: 1; overflow: hidden;">
+                <!-- Left: List of Filters -->
+                <div style="border-right: 1px solid #e2e8f0; padding-right: 1rem; overflow-y: auto; display: flex; flex-direction: column;">
+                    <button onclick="showCreateFilter()" style="width: 100%; padding: 0.8rem; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 1rem; font-weight: bold;">
+                        <i class="fas fa-plus"></i> Nuevo Filtro
+                    </button>
+                    <div id="filterGroupsList" style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1; overflow-y: auto;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Right: Details & Upload -->
+                <div id="filterDetailsView" style="display: flex; flex-direction: column; overflow: hidden;">
+                    <div id="filterDetailsPlaceholder" style="text-align: center; padding: 4rem; color: #64748b; flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                        <i class="fas fa-filter" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                        <p>Seleccione un filtro para gestionar sus datos o asignar agentes.</p>
+                    </div>
+                    
+                    <div id="filterLeadsView" style="display: none; flex: 1; flex-direction: column; overflow: hidden;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee;">
+                            <h3 id="currentFilterName" style="margin: 0; color: #1e293b;">Filtro: ...</h3>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button onclick="showFilterUpload()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                    <i class="fas fa-upload"></i> Cargar Excel
+                                </button>
+                                <button onclick="showFilterAssign()" style="background: #f59e0b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                    <i class="fas fa-user-plus"></i> Asignar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                                    <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #475569;">
+                                        <th style="padding: 0.8rem;">Teléfono</th>
+                                        <th style="padding: 0.8rem;">Nombre</th>
+                                        <th style="padding: 0.8rem;">Ciudad</th>
+                                        <th style="padding: 0.8rem;">Encuestador</th>
+                                        <th style="padding: 0.8rem;">Reclutador</th>
+                                        <th style="padding: 0.8rem;">Estado</th>
+                                        <th style="padding: 0.8rem;">Asignado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="filterLeadsTableBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE FILTER MODAL -->
+    <div id="filterCreateModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0; color: #1e293b;">Crear Nuevo Filtro</h3>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #475569;">Nombre del Listado</label>
+                <input type="text" id="newFilterGroupName" placeholder="Ej: Shampoo Mayo 2024" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('filterCreateModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="submitCreateFilter()" style="background: #22c55e; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">Crear Filtro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER UPLOAD MODAL -->
+    <div id="filterUploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 900px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <h2 style="margin-top: 0; color: #1e293b;">Cargar Datos al Filtro</h2>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Pegue los datos de Excel. El sistema validará duplicados con la base global de llamadas automáticamente.</p>
+            
+            <textarea id="filterPasteArea" oninput="handleFilterPasteData()"
+                    placeholder="Ctrl+V para pegar desde Excel..."
+                    style="width: 100%; height: 100px; padding: 1rem; font-family: monospace; border: 2px dashed #cbd5e1; border-radius: 8px; resize: none; box-sizing: border-box; margin-bottom: 1rem;"></textarea>
+
+            <div id="filterPreviewContainer" style="display: none; flex: 1; flex-direction: column; overflow: hidden; margin-bottom:1rem;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">Validación de Carga</h4>
+                <div style="overflow: auto; flex: 1; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; white-space: nowrap;">
+                        <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                            <tr id="filterPreviewThead"></tr>
+                        </thead>
+                        <tbody id="filterPreviewTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('filterUploadModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button id="btnFinalFilterUpload" onclick="submitFilterUpload()" disabled style="background: #22c55e; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; opacity: 0.5;">Cargar registros</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER ASSIGN MODAL -->
+    <div id="filterAssignModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 450px;">
+            <h3 style="margin-top: 0; color: #1e293b;">Asignar Leads a Agente</h3>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem;">Agente</label>
+                <select id="filterAssignUser" style="width: 100%; padding: 0.6rem; border-radius: 4px; border: 1px solid #ccc;"></select>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem;">Cantidad de registros (Disponibles: <span id="filterAvailableCount">0</span>)</label>
+                <input type="number" id="filterAssignCount" value="20" style="width: 100%; padding: 0.6rem; border-radius: 4px; border: 1px solid #ccc;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('filterAssignModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="submitFilterAssign()" style="background: #f59e0b; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">Asignar Ahora</button>
+            </div>
+        </div>
+    </div>
         </div>
     </div>
 
@@ -796,9 +930,12 @@
 
         <!-- SIDEBAR: Selection & Search -->
         <div class="sidebar" id="crmSidebar" style="height: 100%; border-radius: 0;">
-            <div class="form-group" id="importAction" style="display: none; margin-bottom: 1rem;">
+            <div class="form-group" id="importAction" style="display: none; margin-bottom: 1rem; gap: 0.5rem; flex-direction: column;">
                 <button class="btn-submit" onclick="openImportModal()" style="width: 100%; background: #6366f1;">
                     <i class="fas fa-file-import"></i> Traer de otro estudio
+                </button>
+                <button class="btn-submit" onclick="showFiltersManager()" style="width: 100%; background: #e11d48;">
+                    <i class="fas fa-filter"></i> Gestión de Filtros
                 </button>
             </div>
 
@@ -872,6 +1009,64 @@
                 <i class="fas fa-arrow-left" style="font-size: 3rem; margin-bottom: 1rem;"></i>
                 <h2>Seleccione un Estudio</h2>
                 <p>Elija una campaña del menú lateral para ver las llamadas disponibles.</p>
+            </div>
+
+            <!-- FILTER CALLING VIEW (Agent View) -->
+            <div id="filterCallingView" style="display: none; flex-direction: column; gap: 1.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="margin:0; color: #e11d48;"><i class="fas fa-filter"></i> Atención de Filtros</h2>
+                    <button onclick="backToCRM()" style="background: #94a3b8; border: none; padding: 0.5rem 1rem; border-radius: 6px; color: white; cursor: pointer;">
+                        <i class="fas fa-times"></i> Salir de Filtros
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem;">
+                    <!-- Left: Lead List -->
+                    <div style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: 70vh;">
+                        <div style="padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; border-radius: 12px 12px 0 0;">
+                            <select id="filterGroupSelectAgent" onchange="loadAgentFilterLeads()" style="width: 100%; padding: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold;"></select>
+                        </div>
+                        <div id="filterAgentLeadsList" style="flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                            <!-- Assigned leads here -->
+                        </div>
+                    </div>
+
+                    <!-- Right: detail and action -->
+                    <div id="filterLeadDetail" style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.5rem; display: none; flex-direction: column; height: 70vh;">
+                        <h3 id="detFilterName" style="margin-top:0;">Nombre: ...</h3>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-phone"></i> <span id="detFilterPhone">...</span>
+                            <button onclick="copyToClipboard(document.getElementById('detFilterPhone').innerText)" style="background:none; border:none; color:#3b82f6; cursor:pointer;"><i class="fas fa-copy"></i></button>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <label style="font-size:0.8rem; color:#64748b;">Ciudad</label>
+                                <div id="detFilterCity" style="font-weight: 500;">...</div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.8rem; color:#64748b;">Reclutador</label>
+                                <div id="detFilterRecruiter" style="font-weight: 500;">...</div>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1; overflow-y: auto; margin-bottom: 1.5rem;">
+                            <h4 style="margin-bottom: 0.5rem; border-bottom: 1px solid #eee; padding-bottom: 5px;">Datos de Filtro / Encuesta</h4>
+                            <div id="detFilterSurvey" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <!-- Dynamic fields from JSON -->
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <button onclick="updateFilterStatus('rejected')" style="padding: 1rem; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                <i class="fas fa-times-circle"></i> No Califica
+                            </button>
+                            <button onclick="updateFilterStatus('qualified')" style="padding: 1rem; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                <i class="fas fa-check-circle"></i> CALIFICA
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- GRID VIEW: List of Calls -->
