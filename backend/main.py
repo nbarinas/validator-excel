@@ -1367,17 +1367,9 @@ def assign_call(call_id: int, assignment: AssignCall, db: Session = Depends(data
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
 
-    # Check if call is already managed or dropped/failed
-    # We restrict assignment for these statuses as requested
-    restricted_statuses = [
-        "managed", "done", "efectiva_campo", 
-        "caida_desempeno", "caida_logistica", 
-        "caida_desempeno_campo", "caida_logistico_campo", 
-        "caidas", "caida" # Legacy
-    ]
-    
-    if call.status in restricted_statuses:
-         raise HTTPException(status_code=400, detail=f"No se puede reasignar una llamada con estado '{call.status}'")
+    # Solo se permite reasignar si está en 'pending' o 'scheduled'
+    if call.status not in ["pending", "scheduled"]:
+         raise HTTPException(status_code=400, detail=f"Solo se pueden reasignar llamadas en estado 'pending' o 'scheduled'. El estado actual es '{call.status}'")
     
     # Check user exists
     user = db.query(models.User).filter(models.User.id == assignment.user_id).first()
@@ -1412,6 +1404,15 @@ def assign_call_bulk(assignment: BulkAssignCall, db: Session = Depends(database.
     # Need to do it one by one to save previous_user_id properly
     
     calls = db.query(models.Call).filter(models.Call.id.in_(assignment.call_ids)).all()
+    
+    # Check for invalid statuses before proceeding
+    for call in calls:
+        if call.status not in ["pending", "scheduled"]:
+            raise HTTPException(
+                status_code=400, 
+                detail=f"Error en asignación masiva: El registro ID {call.id} está en estado '{call.status}' y no puede ser reasignado."
+            )
+            
     for call in calls:
         if call.user_id: # If previously assigned
              # If we are unassigning (assignment.user_id is None) OR assigning to different user
