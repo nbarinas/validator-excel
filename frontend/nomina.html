@@ -423,6 +423,31 @@
                     </button>
                 </div>
 
+                <!-- BULK ACTIONS -->
+                <div id="bulkActions" style="display: none; background: rgba(59, 130, 246, 0.1); border: 1px solid #3b82f6; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; align-items: center; gap: 15px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 8px; border-right: 1px solid #334155; padding-right: 15px;">
+                        <input type="checkbox" id="selectAllPeriods" onclick="toggleSelectAll(this)" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="selectAllPeriods" style="font-size: 0.9rem; cursor: pointer; color: #93c5fd;">Seleccionar Todo</label>
+                    </div>
+                    
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                        <div id="bulkAdminActions" style="display: flex; gap: 8px;">
+                            <button onclick="bulkToggleVisibility(true)" style="background: #22c55e; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem;">
+                                <i class="fas fa-check-circle"></i> Activar
+                            </button>
+                            <button onclick="bulkToggleVisibility(false)" style="background: #64748b; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem;">
+                                <i class="fas fa-times-circle"></i> Desactivar
+                            </button>
+                        </div>
+                        <button onclick="exportBulkExcel()" style="background: #10b981; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem;">
+                            <i class="fas fa-file-excel"></i> Excel
+                        </button>
+                        <button onclick="exportBulkPDF()" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.85rem;">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
+                    </div>
+                </div>
+
                 <div id="periodsListContent"></div>
             </div>
 
@@ -2116,6 +2141,13 @@
                 bulkActions.style.display = checked.length > 0 ? 'flex' : 'none';
             }
 
+            // Superuser check for bulk visibility toggle
+            const isSuper = currentUser && currentUser.role === 'superuser';
+            const bulkAdminActions = document.getElementById('bulkAdminActions');
+            if (bulkAdminActions) {
+                bulkAdminActions.style.display = isSuper ? 'flex' : 'none';
+            }
+
             // Sync master checkbox
             const master = document.getElementById('selectAllPeriods');
             if (master) {
@@ -2253,6 +2285,39 @@
                 loadPeriods();
             } else {
                 alert("Error al cambiar visibilidad");
+            }
+        }
+
+        async function bulkToggleVisibility(isVisible) {
+            const checked = document.querySelectorAll('.period-checkbox:checked');
+            const ids = Array.from(checked).map(cb => parseInt(cb.dataset.id));
+            if (ids.length === 0) return;
+
+            const action = isVisible ? "ACTIVAR" : "DESACTIVAR";
+            if (!confirm(`¿Está seguro de ${action} las ${ids.length} nóminas seleccionadas?`)) return;
+
+            try {
+                const res = await fetch('/payroll/periods/bulk-visibility', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        period_ids: ids,
+                        is_visible: isVisible
+                    })
+                });
+
+                if (res.ok) {
+                    loadPeriods();
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + (err.detail || "No se pudo actualizar"));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error de conexión");
             }
         }
 

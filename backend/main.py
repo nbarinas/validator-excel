@@ -3199,6 +3199,25 @@ def toggle_period_visibility(
     db.commit()
     return {"status": "ok", "is_visible": p.is_visible}
 
+class BulkVisibilityUpdate(BaseModel):
+    period_ids: List[int]
+    is_visible: bool
+
+@app.post("/payroll/periods/bulk-visibility")
+def bulk_toggle_period_visibility(
+    data: BulkVisibilityUpdate, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    if current_user.role != 'superuser':
+        raise HTTPException(status_code=403, detail="Not authorized")
+        
+    db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id.in_(data.period_ids)).update(
+        {models.PayrollPeriod.is_visible: data.is_visible}, synchronize_session=False
+    )
+    db.commit()
+    return {"status": "ok", "count": len(data.period_ids)}
+
 @app.delete("/payroll/periods/{period_id}")
 def delete_period(
     period_id: int, 
