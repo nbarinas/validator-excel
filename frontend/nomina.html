@@ -2164,7 +2164,9 @@
             const selectedIds = Array.from(checked).map(cb => parseInt(cb.dataset.id));
             if (selectedIds.length === 0) return;
 
-            const allRows = [];
+            // Consolidated export (no breakdown): 1 row per person across all selected payroll periods.
+            // Grouping key is CC (cedula_ciudadania) when available; otherwise fallback to username; finally user_id.
+            const aggregates = new Map();
 
             for (let id of selectedIds) {
                 const period = allFetchedPeriods.find(p => p.id === id);
@@ -2173,52 +2175,43 @@
                 const res = await fetch(`/payroll/records/${id}`, { headers: { 'Authorization': 'Bearer ' + token } });
                 const records = await res.json();
 
-                const periodConcepts = period.concepts || [];
-                if (periodConcepts.length === 0 && period.rates) {
-                    if (period.rates.census) periodConcepts.push({ id: 'census', name: 'Censos', rate: period.rates.census });
-                    if (period.rates.effective) periodConcepts.push({ id: 'effective', name: 'Encuestas Efectivas', rate: period.rates.effective });
-                }
-
                 records.forEach(r => {
                     const user = window.allUsersMap[r.user_id] || { full_name: 'Unknown', username: r.user_id };
-                    let details = [];
-                    try { details = JSON.parse(r.details_json); } catch (e) { }
 
-                    const row = {
-                        "Nómina": period.name,
-                        "Estudio": period.study_code || 'Gral',
-                        "Colaborador": user.full_name || user.username,
-                        "CC/Usuario": user.username,
-                        "Total Pagar": r.total_amount
-                    };
+                    const cc = (user.cedula_ciudadania || user.username || '').toString().trim();
+                    const key = cc || `user:${r.user_id}`;
 
-                    // Add concept breakdowns
-                    const rowMap = {};
-                    details.forEach(d => {
-                        const match = findMatchingConcept(d, periodConcepts);
-                        if (match) {
-                            if (!rowMap[match.id]) rowMap[match.id] = { qty: 0, total: 0 };
-                            rowMap[match.id].qty += (d.qty || 0);
-                            rowMap[match.id].total += (d.total || 0);
-                        }
-                    });
+                    const existing = aggregates.get(key);
+                    if (!existing) {
+                        aggregates.set(key, {
+                            "Colaborador": (user.full_name || user.username || '').toString(),
+                            "CC": cc || (user.username || '').toString(),
+                            "Dirección": (user.address || '').toString(),
+                            "Celular": (user.phone_number || '').toString(),
+                            "Total Pagar": 0
+                        });
+                    } else {
+                        // Fill missing contact fields if a later record has them
+                        if (!existing["Dirección"] && user.address) existing["Dirección"] = user.address.toString();
+                        if (!existing["Celular"] && user.phone_number) existing["Celular"] = user.phone_number.toString();
+                        if (!existing["Colaborador"] && (user.full_name || user.username)) existing["Colaborador"] = (user.full_name || user.username).toString();
+                        if (!existing["CC"] && cc) existing["CC"] = cc;
+                    }
 
-                    periodConcepts.forEach(c => {
-                        const item = rowMap[c.id];
-                        row[`${c.name} (Cant)`] = item ? item.qty : 0;
-                        row[`${c.name} ($)`] = item ? item.total : 0;
-                    });
-
-                    allRows.push(row);
+                    aggregates.get(key)["Total Pagar"] += (r.total_amount || 0);
                 });
             }
+
+            const allRows = Array.from(aggregates.values())
+                .filter(r => (r["Colaborador"] || r["CC"]))
+                .sort((a, b) => (a["Colaborador"] || '').localeCompare((b["Colaborador"] || ''), 'es'));
 
             if (allRows.length === 0) return alert("No hay datos para exportar.");
 
             const ws = XLSX.utils.json_to_sheet(allRows);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Nóminas Seleccionadas");
-            XLSX.writeFile(wb, `Export_Nomina_Masiva_${new Date().getTime()}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, ws, "Consolidado");
+            XLSX.writeFile(wb, `Export_Nomina_Consolidado_${new Date().getTime()}.xlsx`);
         }
 
         async function exportBulkPDF() {
