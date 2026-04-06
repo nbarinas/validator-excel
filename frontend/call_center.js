@@ -220,6 +220,7 @@ async function updateTempInfo(callId, field, value) {
 let parsedUploadData = [];
 let uploadHeaders = [];
 let columnMappings = [];
+let uploadMode = 'new'; // 'new' | 'existing'
 
 const STANDARD_FIELDS = [
     { id: 'ignorar', label: '-- Ignorar esta columna --' },
@@ -290,7 +291,7 @@ function updateUploadHints() {
     }
 }
 
-function showUploadModal() {
+async function showUploadModal(existing = false) {
     document.getElementById('uploadModal').style.display = 'flex';
     document.getElementById('uploadStudyName').value = '';
     document.getElementById('pasteArea').value = '';
@@ -303,10 +304,79 @@ function showUploadModal() {
     uploadHeaders = [];
     columnMappings = [];
     updateUploadHints();
+    await setUploadMode(existing ? 'existing' : 'new');
 }
 
 function closeUploadModal() {
     document.getElementById('uploadModal').style.display = 'none';
+}
+
+async function setUploadMode(mode) {
+    uploadMode = mode;
+    const btnNew = document.getElementById('btnUploadModeNew');
+    const btnExisting = document.getElementById('btnUploadModeExisting');
+
+    // Toggle buttons style
+    if (btnNew && btnExisting) {
+        const isNew = mode === 'new';
+        btnNew.style.background = isNew ? '#6366f1' : 'white';
+        btnNew.style.color = isNew ? 'white' : '#0f172a';
+        btnExisting.style.background = !isNew ? '#14b8a6' : 'white';
+        btnExisting.style.color = !isNew ? 'white' : '#0f172a';
+    }
+
+    // Toggle form fields
+    const studyNameInput = document.getElementById('uploadStudyName');
+    const studyTypeSel = document.getElementById('uploadStudyType');
+    const studyStageSel = document.getElementById('uploadStudyStage');
+    const existingGroup = document.getElementById('uploadExistingStudyGroup');
+    const existingSelect = document.getElementById('uploadExistingStudySelect');
+
+    const isExisting = mode === 'existing';
+
+    if (studyNameInput) studyNameInput.parentElement.style.display = isExisting ? 'none' : 'block';
+    if (studyTypeSel) studyTypeSel.parentElement.style.display = isExisting ? 'none' : 'block';
+    if (studyStageSel) studyStageSel.parentElement.style.display = isExisting ? 'none' : 'block';
+    if (existingGroup) existingGroup.style.display = isExisting ? 'block' : 'none';
+
+    if (isExisting && existingSelect) {
+        await loadStudiesIntoUploadSelect();
+    }
+
+    // Re-validate button state
+    if (parsedUploadData.length > 0) validateParsedData();
+}
+
+async function loadStudiesIntoUploadSelect() {
+    const sel = document.getElementById('uploadExistingStudySelect');
+    if (!sel) return;
+
+    sel.innerHTML = '<option value="">Cargando...</option>';
+    try {
+        const res = await fetch('/studies?include_inactive=true', { headers });
+        if (!res.ok) throw new Error('Could not load studies');
+        const studies = await res.json();
+
+        // Sort active first, then by name
+        const sorted = (studies || []).sort((a, b) => {
+            const ai = (a.is_active === true || a.is_active === 1) ? 1 : 0;
+            const bi = (b.is_active === true || b.is_active === 1) ? 1 : 0;
+            if (ai !== bi) return bi - ai;
+            return (a.name || '').localeCompare((b.name || ''), 'es');
+        });
+
+        sel.innerHTML = '<option value="">Seleccione...</option>';
+        sorted.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            const state = (s.is_active === true || s.is_active === 1) ? 'Abierto' : 'Cerrado';
+            opt.textContent = `[${state}] ${s.code || 'S/C'} - ${s.name}`;
+            sel.appendChild(opt);
+        });
+    } catch (e) {
+        console.error(e);
+        sel.innerHTML = '<option value="">Error cargando estudios</option>';
+    }
 }
 
 function handlePasteData() {
@@ -560,8 +630,13 @@ function validateParsedData() {
         alertBox.style.display = 'none';
     }
 
+    const isExisting = uploadMode === 'existing';
     const studyName = document.getElementById('uploadStudyName').value.trim();
-    if (parsedUploadData.length > 0 && unmappedCount === 0) {
+    const existingStudyId = document.getElementById('uploadExistingStudySelect') ? document.getElementById('uploadExistingStudySelect').value : '';
+
+    const hasTarget = isExisting ? !!existingStudyId : !!studyName;
+
+    if (parsedUploadData.length > 0 && unmappedCount === 0 && hasTarget) {
         btnSubmit.disabled = false;
         btnSubmit.style.opacity = '1';
         document.getElementById('uploadError').style.display = 'none';
@@ -570,6 +645,11 @@ function validateParsedData() {
         btnSubmit.style.opacity = '0.5';
         if (unmappedCount > 0 && parsedUploadData.length > 0) {
             document.getElementById('uploadError').textContent = 'Debe mapear o ignorar todas las columnas pendientes.';
+            document.getElementById('uploadError').style.display = 'inline';
+        } else if (parsedUploadData.length > 0 && unmappedCount === 0 && !hasTarget) {
+            document.getElementById('uploadError').textContent = isExisting
+                ? 'Seleccione un estudio destino.'
+                : 'Debe asignar un nombre al estudio.';
             document.getElementById('uploadError').style.display = 'inline';
         }
     }
@@ -583,13 +663,24 @@ document.getElementById('uploadStudyName').addEventListener('input', () => {
 });
 
 async function uploadParsedData() {
+    const isExisting = uploadMode === 'existing';
     const studyName = document.getElementById('uploadStudyName').value.trim();
     const studyType = document.getElementById('uploadStudyType').value;
     const studyStage = document.getElementById('uploadStudyStage').value;
+    const existingStudyId = document.getElementById('uploadExistingStudySelect') ? document.getElementById('uploadExistingStudySelect').value : '';
 
-    if (!studyName) {
-        document.getElementById('uploadError').style.display = 'inline';
-        return;
+    if (isExisting) {
+        if (!existingStudyId) {
+            document.getElementById('uploadError').textContent = 'Seleccione un estudio destino.';
+            document.getElementById('uploadError').style.display = 'inline';
+            return;
+        }
+    } else {
+        if (!studyName) {
+            document.getElementById('uploadError').textContent = 'Debe asignar un nombre al estudio.';
+            document.getElementById('uploadError').style.display = 'inline';
+            return;
+        }
     }
     document.getElementById('uploadError').style.display = 'none';
 
@@ -621,9 +712,13 @@ async function uploadParsedData() {
 
     const formData = new FormData();
     formData.append('file', blob, 'base_pegada.xlsx');
-    formData.append('study_name', studyName);
-    formData.append('study_type', studyType);
-    formData.append('study_stage', studyStage);
+    if (isExisting) {
+        formData.append('study_id', existingStudyId);
+    } else {
+        formData.append('study_name', studyName);
+        formData.append('study_type', studyType);
+        formData.append('study_stage', studyStage);
+    }
 
     document.getElementById('btnFinalUpload').disabled = true;
     document.getElementById('btnFinalUpload').innerHTML = 'Cargando...';
@@ -639,7 +734,8 @@ async function uploadParsedData() {
 
         if (res.ok) {
             const data = await res.json();
-            alert(`Carga exitosa: ${data.count} registros creados en el estudio '${data.study_name}'.`);
+            const actionWord = (uploadMode === 'existing') ? 'anexados' : 'creados';
+            alert(`Carga exitosa: ${data.count} registros ${actionWord} en el estudio '${data.study_name}'.`);
             closeUploadModal();
             enterCRM();
         } else {

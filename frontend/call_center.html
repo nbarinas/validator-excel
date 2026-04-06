@@ -540,6 +540,11 @@
                     <i class="fas fa-file-upload" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Cargar Base (Excel)
                 </button>
+                <button id="btnUploadExcelExistingLanding" onclick="showUploadModal(true)"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #14b8a6; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-layer-group" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Cargar a existente
+                </button>
                 <button id="btnManageStudiesLanding" onclick="showManageStudies()"
                     style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #f59e0b; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-database" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
@@ -830,11 +835,34 @@
             style="background: white; padding: 2rem; border-radius: 12px; width: 900px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
             <h2 style="margin-top: 0; color: #1e293b;">Cargar Base de Llamadas (Copiar y Pegar Excel)</h2>
 
+            <div style="display:flex; gap:10px; align-items:center; margin: 0 0 1rem 0; flex-wrap: wrap;">
+                <span style="color:#475569; font-size:0.9rem; font-weight:600;">Destino</span>
+                <button id="btnUploadModeNew" onclick="setUploadMode('new')" type="button"
+                    style="padding: 6px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #6366f1; color: white; cursor: pointer;">
+                    Nuevo estudio
+                </button>
+                <button id="btnUploadModeExisting" onclick="setUploadMode('existing')" type="button"
+                    style="padding: 6px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; color: #0f172a; cursor: pointer;">
+                    Estudio existente
+                </button>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
                 <div class="form-group">
                     <label style="color: #475569;">Nombre del Nuevo Estudio</label>
                     <input type="text" id="uploadStudyName" placeholder="Ej: Estudio Diciembre 2025"
                         style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+                <div class="form-group" id="uploadExistingStudyGroup" style="display:none;">
+                    <label style="color: #475569;">Seleccionar Estudio (Abierto o Cerrado)</label>
+                    <select id="uploadExistingStudySelect"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"
+                        onchange="validateParsedData()">
+                        <option value="">Seleccione...</option>
+                    </select>
+                    <div style="margin-top:6px; font-size:0.8rem; color:#64748b;">
+                        Se anexarán los registros al estudio seleccionado (no crea uno nuevo).
+                    </div>
                 </div>
                 <div class="form-group">
                     <label style="color: #475569;">Categoría de Datos</label>
