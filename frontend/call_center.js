@@ -2950,6 +2950,24 @@ async function fetchDailyReportData(dateStr, openOnly = false, studyIds = null, 
                 `;
             });
 
+            // --- GRAN TOTAL AL FINAL ---
+            const grandTotalEfe = data.reduce((sum, s) => sum + (s.total_effective || 0), 0);
+            const grandTotalDes = data.reduce((sum, s) => sum + (s.total_desempeno || 0), 0);
+            const grandTotalLog = data.reduce((sum, s) => sum + (s.total_logistico || 0), 0);
+
+            html += `
+                <div style="margin-top: 1rem; border: 2px solid #334155; border-radius: 8px; overflow: hidden;">
+                    <div style="background: #1e293b; padding: 0.8rem 1.2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                        <span style="color: white; font-weight: bold; font-size: 1rem;">📊 TOTAL GENERAL</span>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <span style="background: #22c55e; color: white; padding: 4px 16px; border-radius: 20px; font-size: 0.95rem; font-weight: bold;">Efectivas: ${grandTotalEfe}</span>
+                            <span style="background: #ef4444; color: white; padding: 4px 16px; border-radius: 20px; font-size: 0.95rem; font-weight: bold;">Desempeño: ${grandTotalDes}</span>
+                            <span style="background: #f59e0b; color: white; padding: 4px 16px; border-radius: 20px; font-size: 0.95rem; font-weight: bold;">Logístico: ${grandTotalLog}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+
             content.innerHTML = html;
 
         } else {
