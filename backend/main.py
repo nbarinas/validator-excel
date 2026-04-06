@@ -3784,16 +3784,25 @@ def get_active_agents(open_only: bool = False, db: Session = Depends(database.ge
     Returns only users (agents) who actually have calls assigned in the database.
     If open_only is True, filters to only agents with calls in active studies.
     """
-    query = db.query(models.User).join(models.Call, models.User.id == models.Call.user_id)
+    # NOTE: This endpoint is used to populate "Agentes" selectors in the UI.
+    # Minimal behavior change requested: when open_only is OFF, return *all* users so supervisors/admins
+    # can also be selected in reports. When open_only is ON, keep returning only users with calls in active studies.
     if open_only:
-        query = query.join(models.Study, models.Call.study_id == models.Study.id).filter(models.Study.is_active == True)
-        
-    agents = query.distinct().all()
-    # Filter to ensure only roles we care about
-    valid_roles = ['agent', 'auxiliar', 'coordinator', 'bizage']
-    agents = [a for a in agents if a.role in valid_roles]
-    
-    return [{"id": a.id, "full_name": a.full_name, "username": a.username, "role": a.role} for a in agents]
+        query = (
+            db.query(models.User)
+            .join(models.Call, models.User.id == models.Call.user_id)
+            .join(models.Study, models.Call.study_id == models.Study.id)
+            .filter(models.Study.is_active == True)
+            .distinct()
+        )
+        users = query.all()
+    else:
+        users = db.query(models.User).all()
+
+    # Keep superuser out of general lists to avoid confusing UI filters.
+    users = [u for u in users if (u.role or "").lower() != "superuser"]
+
+    return [{"id": u.id, "full_name": u.full_name, "username": u.username, "role": u.role} for u in users]
 
 @app.get("/reports/active-cities")
 def get_active_cities(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
