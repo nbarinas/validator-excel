@@ -695,7 +695,7 @@
                 <button class="btn-submit" onclick="savePLData()">Guardar Cambios</button>
             </div>
         </div>
-        <div id="loanDeductionModal" class="modal">
+        <div id="loanDeductionModal" class="modal" style="z-index: 2000;">
             <div class="modal-content" style="max-width: 400px;">
                 <!-- <span class="close" onclick="closeLoanModal()">&times;</span> -->
                 <h3 style="color:#eab308;"><i class="fas fa-exclamation-triangle"></i> Préstamo Activo</h3>
@@ -1478,6 +1478,8 @@
                     if (resLoan.ok) {
                         const check = await resLoan.json();
                         if (check.has_loan) {
+                            pText.textContent = `⚠️ ESPERANDO DECISIÓN: ¿Deducir préstamo a ${u.full_name || u.username}?`;
+                            pBar.style.backgroundColor = '#eab308'; // Warning color
                             // Wait for user interaction if there is a loan
                             const amount = await new Promise((resolve) => {
                                 window.loanPromiseResolver = resolve;
@@ -1487,6 +1489,7 @@
                                 document.getElementById('loanUserDisplay').textContent = u.full_name || u.username;
                             });
                             if (amount > 0) userDeductionsMap[uid] = amount;
+                            pBar.style.backgroundColor = ''; // Reset color
                         }
                     }
                 } catch (e) {
@@ -2773,13 +2776,18 @@
         let manualUserId = null;
 
         function resolveManualUser() {
-            const val = document.getElementById('manualUserInput').value;
-            const match = val.match(/\((.*?)\)$/); // Match last (...)
-            const username = match ? match[1] : '';
+            const val = document.getElementById('manualUserInput').value.trim();
+            // Match the content of the LAST set of parentheses
+            const match = val.match(/\(([^()]+)\)[^()]*$/);
+            const username = match ? match[1].trim() : '';
 
-            // Find user by username (ID match or username match)
-            // window.allUsersMap key is ID.
-            const user = Object.values(window.allUsersMap).find(u => u.username === username);
+            // Find user by username
+            const user = Object.values(window.allUsersMap).find(u => 
+                u.username === username || 
+                (u.full_name && u.full_name.trim() === val) ||
+                (u.username === val)
+            );
+
             if (user) {
                 manualUserId = user.id;
                 document.getElementById('manualUserId').value = user.id;
@@ -2931,7 +2939,16 @@
         function populateManualConcepts() {
             const sel = document.getElementById('newItemConcept');
             sel.innerHTML = '';
+            
+            // Filter concepts that shouldn't be manually assigned (failures, appointments, etc.)
+            const excludedKeywords = ['caido', 'caida', 'caída', 'caído', 'cita', 'pendiente'];
+            
             currentPeriodConcepts.forEach(c => {
+                const nameNorm = c.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const isExcluded = excludedKeywords.some(key => nameNorm.includes(key));
+                
+                if (isExcluded) return; // Skip non-payable/failure concepts
+
                 const opt = document.createElement('option');
                 opt.value = c.id;
                 opt.textContent = c.name;
