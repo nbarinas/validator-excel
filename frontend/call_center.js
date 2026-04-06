@@ -38,6 +38,20 @@ const translateStatus = (s) => statusMap[s] || s;
 
 // Init
 document.addEventListener('DOMContentLoaded', async () => {
+    // Ensure Excel pastes always trigger parsing (some browsers/extensions don't fire `input` reliably on paste)
+    const pasteArea = document.getElementById('pasteArea');
+    if (pasteArea) {
+        pasteArea.addEventListener('paste', () => {
+            setTimeout(() => {
+                try {
+                    handlePasteData();
+                } catch (e) {
+                    console.error('Error parsing pasted data', e);
+                }
+            }, 0);
+        });
+    }
+
     // Load User Info
     try {
         const uRes = await fetch('/users/me', { headers });
@@ -2305,7 +2319,6 @@ async function saveCallHeader() {
     const phone = document.getElementById('phoneNumber').value;
     const corrected = document.getElementById('correctedPhone').value;
     const cc = document.getElementById('personCC').value;
-    const whatsapp = document.getElementById('whatsappNumber').value;
     const extraPhone = document.getElementById('extraPhone').value;
 
     // Check if we are UPDATING an existing call
@@ -2319,7 +2332,6 @@ async function saveCallHeader() {
             // phone_number: phone, // Removed to prevent primary phone update
             corrected_phone: corrected,
             person_cc: cc,
-            whatsapp: whatsapp,
             extra_phone: extraPhone,
             // New Fields
             second_collection_date: document.getElementById('secondDate').value,
@@ -2362,7 +2374,6 @@ async function saveSecondPickup() {
         // phone_number: document.getElementById('phoneNumber').value, // Removed to prevent primary phone update
         corrected_phone: document.getElementById('correctedPhone').value,
         person_cc: document.getElementById('personCC').value,
-        whatsapp: document.getElementById('whatsappNumber').value,
         extra_phone: document.getElementById('extraPhone').value,
 
         // Target Fields
