@@ -87,10 +87,7 @@ app.add_middleware(
 )
 
 @app.get("/debug/memory")
-def debug_memory(current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
+def debug_memory():
     return {
         "current_memory_mb": get_memory_usage(),
         "process_id": os.getpid(),
@@ -1790,6 +1787,7 @@ async def upload_calls(
 
 @app.get("/calls")
 def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    log_memory_usage("get_calls: START")
     q = db.query(models.Call)
     if study_id:
         q = q.filter(models.Call.study_id == study_id)
