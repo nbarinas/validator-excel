@@ -24,16 +24,6 @@ def log_memory_usage(label: str):
     usage = get_memory_usage()
     print(f"[MEMORY MONITOR] {label}: {usage} MB")
 
-@app.get("/debug/memory")
-def debug_memory(current_user: models.User = Depends(auth.get_current_user)):
-    if current_user.role != "superuser":
-        raise HTTPException(status_code=403, detail="Not authorized")
-    
-    return {
-        "current_memory_mb": get_memory_usage(),
-        "process_id": os.getpid(),
-        "timestamp": datetime.now().isoformat()
-    }
 
 def parse_messy_time(text):
     if not text or not isinstance(text, str):
@@ -95,6 +85,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.get("/debug/memory")
+def debug_memory(current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    return {
+        "current_memory_mb": get_memory_usage(),
+        "process_id": os.getpid(),
+        "timestamp": datetime.now().isoformat()
+    }
 
 # Startup: Create Tables & Seed Users
 @app.on_event("startup")
