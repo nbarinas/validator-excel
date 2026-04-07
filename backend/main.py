@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, status
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, status, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
@@ -24,6 +24,14 @@ def log_memory_usage(label: str):
     """Prints a standardized memory log to the console."""
     usage = get_memory_usage()
     print(f"[MEMORY MONITOR] {label}: {usage} MB")
+
+def run_gc_task():
+    """Background task to force garbage collection after a response is sent."""
+    before = get_memory_usage()
+    gc.collect()
+    after = get_memory_usage()
+    diff = round(before - after, 2)
+    print(f"[MEMORY MONITOR] AUTO-CLEAN: {before}MB -> {after}MB (Released {diff}MB)")
 
 
 def parse_messy_time(text):
@@ -1563,16 +1571,17 @@ def update_temp_info(call_id: int, info: TempInfoUpdate, db: Session = Depends(d
 
 @app.post("/upload-calls")
 async def upload_calls(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     study_name: str = Form(None),
-    study_type: str = Form(None), # Added
-    study_stage: str = Form(None), # Added
+    study_type: str = Form(None),
+    study_stage: str = Form(None),
     study_id: int = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
-    # Add Logging
     log_memory_usage("upload_calls: START")
+    background_tasks.add_task(run_gc_task)
     try:
         if current_user.role != "superuser" and current_user.role != "coordinator":
             raise HTTPException(status_code=403, detail="Not authorized")
@@ -1821,8 +1830,14 @@ async def upload_calls(
 
 
 @app.get("/calls")
-def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+def get_calls(
+    background_tasks: BackgroundTasks,
+    study_id: Optional[int] = None, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
     log_memory_usage("get_calls: START")
+    background_tasks.add_task(run_gc_task)
     q = db.query(models.Call)
     if study_id:
         q = q.filter(models.Call.study_id == study_id)
@@ -2228,10 +2243,12 @@ def normalize_columns(df, manual_mapping=None):
 
 @app.post("/validate")
 async def validate_files(
+    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     mapping: str = Form(None)
 ):
     log_memory_usage("validate_files: START")
+    background_tasks.add_task(run_gc_task)
     if len(files) != 2:
         raise HTTPException(status_code=400, detail="Exactly 2 files are required for Validation.")
 
@@ -2711,8 +2728,13 @@ async def validate_files(
     return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @app.post("/fatiga")
-async def fatiga_check(files: List[UploadFile] = File(...), mapping: str = Form(None)):
+async def fatiga_check(
+    background_tasks: BackgroundTasks,
+    files: List[UploadFile] = File(...), 
+    mapping: str = Form(None)
+):
     log_memory_usage("fatiga_check: START")
+    background_tasks.add_task(run_gc_task)
     if not (2 <= len(files) <= 10):
          raise HTTPException(status_code=400, detail="Fatiga mode requires between 2 and 10 files.")
 
@@ -3389,8 +3411,13 @@ def update_period_pl(
     return {"status": "ok", "period_id": p.id}
 
 @app.post("/payroll/generate/{period_id}")
-def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
+def generate_payroll(
+    background_tasks: BackgroundTasks,
+    period_id: int, 
+    db: Session = Depends(database.get_db)
+):
     log_memory_usage("generate_payroll: START")
+    background_tasks.add_task(run_gc_task)
     period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="Period not found")
