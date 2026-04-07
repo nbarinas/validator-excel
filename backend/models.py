@@ -12,6 +12,7 @@ class User(Base):
     hashed_password = Column(String(255)) # specified length
     role = Column(String(20), default="agent") # specified length
     last_seen = Column(DateTime(timezone=True), nullable=True)
+    device_type = Column(String(20), nullable=True) # computer, mobile
     
     # New Fields
     full_name = Column(String(100), nullable=True)

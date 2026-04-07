@@ -1710,6 +1710,9 @@
 
                             pill.innerHTML = `
                                 <div class="status-dot ${colorClass}"></div>
+                                <i class="fas ${u.device_type === 'mobile' ? 'fa-mobile-alt' : 'fa-laptop'}" 
+                                   style="margin-right: 4px; color: #64748b; font-size: 0.85rem;" 
+                                   title="${u.device_type === 'mobile' ? 'Celular' : 'Computador'}"></i>
                                 <span>${u.full_name || u.username}</span>
                             `;
                             container.appendChild(pill);
