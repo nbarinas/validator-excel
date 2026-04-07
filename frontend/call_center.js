@@ -12,6 +12,7 @@ let currentCallId = null;
 let currentUserRole = null;
 let currentUserName = null; // Store full name of current agent
 let isClosedView = false; // Track if we are in Closed Studies mode
+let studySelectTS = null; // TomSelect instance for main study dropdown
 
 const statusMap = {
     'pending': 'Pendiente',
@@ -1029,46 +1030,64 @@ function downloadDuplicateExcel() {
 }
 
 async function loadStudies(showClosed = false) {
-    // SIMPLIFIED LOGIC: Always fetch all studies, filter in frontend
-    let url = '/studies';
+    const sel = document.getElementById('studySelect');
+    if (!sel) return;
 
-    const res = await fetch(url, { headers });
-    let studies = await res.json();
-
-    if (showClosed) {
-        // Filter for inactive (false, 0, null)
-        studies = studies.filter(s => s.is_active === false || s.is_active === 0 || s.is_active === null);
-    } else {
-        // Filter for ACTIVE (true)
-        studies = studies.filter(s => s.is_active === true || s.is_active === 1);
+    // Destroy existing TomSelect instance if it exists
+    if (studySelectTS) {
+        studySelectTS.destroy();
+        studySelectTS = null;
     }
 
+    // SIMPLIFIED LOGIC: Always fetch all studies, filter in frontend
+    let url = '/studies';
+    try {
+        const res = await fetch(url, { headers });
+        if (!res.ok) throw new Error('Failed to fetch studies');
+        let studies = await res.json();
 
-
-    const sel = document.getElementById('studySelect');
-    // Change default option text based on mode
-    const defaultText = showClosed ? 'Todos (Estudios Cerrados)...' : 'Seleccione Estudio...';
-    sel.innerHTML = `<option value="">${defaultText}</option>`;
-
-    studies.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = s.id;
-        opt.textContent = `${s.code} - ${s.name}`;
         if (showClosed) {
-            opt.style.color = 'red'; // Visual cue
+            // Filter for inactive (false, 0, null)
+            studies = studies.filter(s => s.is_active === false || s.is_active === 0 || s.is_active === null);
+        } else {
+            // Filter for ACTIVE (true)
+            studies = studies.filter(s => s.is_active === true || s.is_active === 1);
         }
-        sel.appendChild(opt);
-    });
 
-    sel.onchange = () => {
-        // Allow loading null (global) if value is empty
-        loadStudyData(sel.value || null);
-    };
+        // Change default option text based on mode
+        const defaultText = showClosed ? 'Todos (Estudios Cerrados)...' : 'Seleccione Estudio...';
+        sel.innerHTML = `<option value="">${defaultText}</option>`;
 
-    // Auto-load all closed studies by default
-    if (showClosed) {
-        sel.value = ""; // Select "Todos"
-        loadStudyData(null);
+        studies.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = `${s.code} - ${s.name}`;
+            if (showClosed) {
+                opt.style.color = 'red'; // Visual cue
+            }
+            sel.appendChild(opt);
+        });
+
+        // Initialize TomSelect
+        studySelectTS = new TomSelect(sel, {
+            create: false,
+            placeholder: defaultText,
+            maxOptions: 1000,
+            onChange: (value) => {
+                // Allow loading null (global) if value is empty
+                loadStudyData(value || null);
+            }
+        });
+
+        // Auto-load all closed studies by default
+        if (showClosed) {
+            studySelectTS.setValue(""); // Select "Todos"
+            loadStudyData(null);
+        }
+
+    } catch (e) {
+        console.error("Error loading studies", e);
+        sel.innerHTML = `<option value="">Error cargando estudios</option>`;
     }
 }
 
