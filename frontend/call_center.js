@@ -2518,7 +2518,8 @@ function exportToExcel() {
         "Fecha 2 Recogida": row.second_collection_date || '',
         "Hora 2 Recogida": row.second_collection_time || '',
         "Shampoo": row.shampoo_quantity || '',
-        "Observacion": row.observation_text || ''
+        "Observaciones Iniciales": row.initial_observation || '',
+        "Observaciones": row.concatenated_observations || 'no tiene'
     }));
 
     // Create Worksheet

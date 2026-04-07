@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, sta
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, subqueryload
 import json
 import pandas as pd
 import io
@@ -1149,7 +1149,8 @@ def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = 
     # OPTIMIZATION: Eager load Study and User to prevent N+1
     query = db.query(models.Call).options(
         joinedload(models.Call.study),
-        joinedload(models.Call.user)
+        joinedload(models.Call.user),
+        subqueryload(models.Call.observations).joinedload(models.Observation.user)
     ).join(models.Study)
     
     if study_id:
@@ -1239,9 +1240,19 @@ def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = 
         # Previous Agent Name
         c_dict['previous_agent_name'] = (c.previous_user.full_name if c.previous_user.full_name else c.previous_user.username) if c.previous_user else None
         
-        # Get last 4 observations
-        # Sort by ID descending (newest first) and take top 4
-        # Note: This relies on lazy loading. For high scale, use joinedload/subqueryload.
+        # Concatenate all observations for Excel/History
+        if c.observations:
+            sorted_all = sorted(c.observations, key=lambda x: x.id) # Chronological
+            obs_parts = []
+            for o in sorted_all:
+                date_str = o.created_at.strftime('%d/%m/%Y %H:%M') if o.created_at else ''
+                agent_name = (o.user.full_name if o.user and o.user.full_name else (o.user.username if o.user else 'S/A'))
+                obs_parts.append(f"[{date_str}] {agent_name}: {o.text}")
+            c_dict['concatenated_observations'] = " | ".join(obs_parts)
+        else:
+            c_dict['concatenated_observations'] = "no tiene"
+
+        # Get last 4 observations for UI display
         if c.observations:
             sorted_obs = sorted(c.observations, key=lambda x: x.id, reverse=True)[:4]
             c_dict['last_observations'] = [f"{o.text} ({o.created_at.strftime('%Y-%m-%d %H:%M') if o.created_at else ''})" for o in sorted_obs]
