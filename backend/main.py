@@ -11,6 +11,29 @@ from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 import re
+import psutil
+
+def get_memory_usage():
+    """Returns current RSS memory usage in MB."""
+    process = psutil.Process(os.getpid())
+    mem_bytes = process.memory_info().rss
+    return round(mem_bytes / (1024 * 1024), 2)
+
+def log_memory_usage(label: str):
+    """Prints a standardized memory log to the console."""
+    usage = get_memory_usage()
+    print(f"[MEMORY MONITOR] {label}: {usage} MB")
+
+@app.get("/debug/memory")
+def debug_memory(current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    return {
+        "current_memory_mb": get_memory_usage(),
+        "process_id": os.getpid(),
+        "timestamp": datetime.now().isoformat()
+    }
 
 def parse_messy_time(text):
     if not text or not isinstance(text, str):
@@ -1516,8 +1539,7 @@ async def upload_calls(
     current_user: models.User = Depends(auth.get_current_user)
 ):
     # Add Logging
-    print(f"DEBUG: upload_calls start. Study: {study_name}, Type: {study_type}, Stage: {study_stage}, ID: {study_id}")
-    
+    log_memory_usage("upload_calls: START")
     try:
         if current_user.role != "superuser" and current_user.role != "coordinator":
             raise HTTPException(status_code=403, detail="Not authorized")
@@ -2175,6 +2197,7 @@ async def validate_files(
     files: List[UploadFile] = File(...),
     mapping: str = Form(None)
 ):
+    log_memory_usage("validate_files: START")
     if len(files) != 2:
         raise HTTPException(status_code=400, detail="Exactly 2 files are required for Validation.")
 
@@ -2655,6 +2678,7 @@ async def validate_files(
 
 @app.post("/fatiga")
 async def fatiga_check(files: List[UploadFile] = File(...), mapping: str = Form(None)):
+    log_memory_usage("fatiga_check: START")
     if not (2 <= len(files) <= 10):
          raise HTTPException(status_code=400, detail="Fatiga mode requires between 2 and 10 files.")
 
@@ -3332,6 +3356,7 @@ def update_period_pl(
 
 @app.post("/payroll/generate/{period_id}")
 def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
+    log_memory_usage("generate_payroll: START")
     period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="Period not found")
