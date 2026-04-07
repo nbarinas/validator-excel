@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 import re
 import psutil
+import gc
 
 def get_memory_usage():
     """Returns current RSS memory usage in MB."""
@@ -86,11 +87,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/debug/memory")
-def debug_memory():
+@app.get("/debug/gc")
+def debug_gc():
+    """Manually triggers garbage collection and returns memory delta."""
+    before = get_memory_usage()
+    collected = gc.collect()
+    after = get_memory_usage()
     return {
-        "current_memory_mb": get_memory_usage(),
-        "process_id": os.getpid(),
+        "memory_before_mb": before,
+        "memory_after_mb": after,
+        "delta_mb": round(before - after, 2),
+        "objects_collected": collected,
         "timestamp": datetime.now().isoformat()
     }
 
@@ -1164,6 +1171,34 @@ def create_call(call: CallCreate, db: Session = Depends(database.get_db), curren
     db.commit()
     db.refresh(db_call)
     return db_call
+
+@app.get("/calls/upcoming")
+def get_upcoming_calls(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """
+    Returns calls scheduled for the current user within a 15-minute window.
+    Based on the frontend's pollUpcomingCalls logic.
+    """
+    now = datetime.now()
+    # The frontend polls every minute and checks if call is within 5 minutes.
+    # We provide a slightly larger window (15 mins) to ensure no calls are missed.
+    window_end = now + timedelta(minutes=15)
+    
+    upcoming = db.query(models.Call).filter(
+        models.Call.user_id == current_user.id,
+        models.Call.status.in_(["scheduled", "pending"]),
+        models.Call.appointment_time >= now,
+        models.Call.appointment_time <= window_end
+    ).all()
+    
+    return [{
+        "id": c.id,
+        "appointment_time": c.appointment_time.isoformat() if c.appointment_time else None,
+        "person_name": c.person_name,
+        "phone_number": c.phone_number,
+        "study_name": c.study.name if c.study else None,
+        "city": c.city,
+        "census": c.census
+    } for c in upcoming]
 
 @app.get("/calls")
 def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
