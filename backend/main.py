@@ -1209,7 +1209,9 @@ def get_upcoming_calls(db: Session = Depends(database.get_db), current_user: mod
     } for c in upcoming]
 
 @app.get("/calls")
-def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    log_memory_usage("get_calls: START")
+    background_tasks.add_task(run_gc_task)
     # Join with Study to get status and name
     # OPTIMIZATION: Eager load Study and User to prevent N+1
     query = db.query(models.Call).options(
@@ -1829,19 +1831,6 @@ async def upload_calls(
         return JSONResponse(status_code=500, content={"detail": f"Internal Server Error: {str(e)}"})
 
 
-@app.get("/calls")
-def get_calls(
-    background_tasks: BackgroundTasks,
-    study_id: Optional[int] = None, 
-    db: Session = Depends(database.get_db), 
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    log_memory_usage("get_calls: START")
-    background_tasks.add_task(run_gc_task)
-    q = db.query(models.Call)
-    if study_id:
-        q = q.filter(models.Call.study_id == study_id)
-    return q.all()
 
 class ObservationCreate(BaseModel):
     text: str
