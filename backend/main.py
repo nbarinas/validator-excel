@@ -214,7 +214,8 @@ def get_users_status(db: Session = Depends(database.get_db), current_user: model
         "username": u.username,
         "full_name": u.full_name,
         "role": u.role,
-        "last_seen": u.last_seen
+        "last_seen": u.last_seen,
+        "device_type": u.device_type
     } for u in users]
 
 @app.post("/users", status_code=status.HTTP_201_CREATED)
