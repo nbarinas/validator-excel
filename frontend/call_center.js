@@ -3104,7 +3104,7 @@ function initAlarmPolling() {
             pollUpcomingCalls();
             // Poll every 10 minutes. Since the backend returns calls up to 12 minutes away, 
             // the frontend will calculate and schedule the exact 5-min mark.
-            alarmPollingInterval = setInterval(pollUpcomingCalls, 600000);
+            alarmPollingInterval = setInterval(pollUpcomingCalls, 300000); // Poll every 5 minutes
         }, 5000);
     }
 }
