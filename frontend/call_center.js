@@ -1079,10 +1079,10 @@ async function loadStudies(showClosed = false) {
             }
         });
 
-        // Auto-load all closed studies by default
+        // Prevent auto-loading all closed studies by default to save memory
+        // User must explicitly search and select a study from the TomSelect dropdown
         if (showClosed) {
-            studySelectTS.setValue(""); // Select "Todos"
-            loadStudyData(null);
+            studySelectTS.setValue("", true); // Select "Todos" silently without triggering onChange
         }
 
     } catch (e) {
