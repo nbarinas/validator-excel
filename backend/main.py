@@ -1058,10 +1058,13 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             hair_length=c.hair_length,
             purchase_frequency=c.purchase_frequency,
             
+            # Pollster / Respondent Info (copied to next R)
+            respondent=c.respondent,
+            implantation_pollster=c.implantation_pollster,
+
             # Dog Data
             dog_name=c.dog_name,
             dog_user_type=c.dog_user_type,
-            # dog_user_type=c.dog_user_type, # Already included above
             
             # Map Second Collection Date -> Collection Date/Time (Hora Original)
             # User Request: "que esas tome la fecha origianl como la de second_collection_date"
