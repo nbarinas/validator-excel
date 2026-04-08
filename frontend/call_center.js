@@ -2532,10 +2532,11 @@ function exportToExcel() {
         "Censo": row.census || '',
         "NSE": row.nse || '',
         "Edad": row.age || '',
-        "Edad": row.age || '',
         "Barrio": row.neighborhood || '',
         "Fecha 2 Recogida": row.second_collection_date || '',
         "Hora 2 Recogida": row.second_collection_time || '',
+        "Encuestador": row.implantation_pollster || '',
+        "Respondente": row.respondent || '',
         "Shampoo": row.shampoo_quantity || '',
         "Observaciones Iniciales": row.initial_observation || '',
         "Observaciones": row.concatenated_observations || 'no tiene'
