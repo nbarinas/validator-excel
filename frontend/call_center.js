@@ -89,10 +89,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const btnUpload = document.getElementById('btnUploadExcelLanding');
                 const btnManage = document.getElementById('btnManageStudiesLanding');
                 const btnReport = document.getElementById('btnDailyReportLanding');
+                const btnDup = document.getElementById('btnDuplicateValidator');
+                const btnBack = document.getElementById('btnBackToDashboard');
 
                 if (btnUpload) btnUpload.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
                 if (btnManage) btnManage.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
                 if (btnReport) btnReport.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+                if (btnDup) btnDup.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+                if (btnBack) btnBack.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') ? 'inline-block' : 'none';
 
                 const btnFilters = document.getElementById('btnFiltersLanding');
                 if (btnFilters) btnFilters.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
@@ -1503,8 +1507,8 @@ function showGridView() {
     document.getElementById('callsGridView').style.display = 'block';
     document.getElementById('callDetailView').style.display = 'none';
 
-    // Restore sidebar only for superusers/coordinators
-    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
+    // Restore sidebar only for superusers/coordinators/auxiliars
+    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') {
         document.querySelector('.sidebar').style.display = 'flex';
         document.getElementById('crmInterface').style.gridTemplateColumns = '300px 1fr';
     } else {
@@ -2138,7 +2142,7 @@ async function finishCall() {
 }
 
 async function loadAgents() {
-    if (currentUserRole !== 'superuser' && currentUserRole !== 'coordinator') return;
+    if (currentUserRole !== 'superuser' && currentUserRole !== 'coordinator' && currentUserRole !== 'auxiliar') return;
     try {
         const res = await fetch('/users', { headers });
         if (res.ok) {
@@ -3661,7 +3665,7 @@ function showFilterCalling() {
 
 function backToCRM() {
     document.getElementById('filterCallingView').style.display = 'none';
-    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
+    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') {
         document.getElementById('superuserLanding').style.display = 'flex';
     } else {
         document.getElementById('crmInterface').style.display = 'grid';
