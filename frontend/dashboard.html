@@ -222,6 +222,12 @@
                 <div class="module-title">Estudios/Bizage</div>
                 <div class="module-desc">Gestión de Estudios y Pagos</div>
             </a>
+
+            <a href="https://az-whap-bot.onrender.com/" target="_blank" class="module-card" id="cardCuotas" style="display: none;">
+                <i class="fas fa-chart-pie module-icon"></i>
+                <div class="module-title">Cuotas</div>
+                <div class="module-desc">Link para ir a las cuotas</div>
+            </a>
         </div>
 
         <!-- Online Users Panel -->
@@ -280,6 +286,9 @@
                     if (user.role === 'superuser') {
                         if (cardUsers) cardUsers.style.display = 'flex';
                         if (cardBizage) cardBizage.style.display = 'flex';
+                        
+                        const cardCuotas = document.getElementById('cardCuotas');
+                        if (cardCuotas) cardCuotas.style.display = 'flex';
 
                         // Enable Nomina for Superuser
                         const cardNomina = document.getElementById('cardNomina');
