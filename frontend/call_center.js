@@ -14,6 +14,17 @@ let currentUserName = null; // Store full name of current agent
 let isClosedView = false; // Track if we are in Closed Studies mode
 let studySelectTS = null; // TomSelect instance for main study dropdown
 
+const obsCategories = [
+    { label: "LLAMADA", category: "call", options: ["No Contesta", "Buzón de Voz", "Ocupado", "Llamar Luego", "No quiere contestar"] },
+    { label: "WHATSAPP", category: "whatsapp", options: ["No Contesta", "No tiene whatsapp", "Mensaje Enviado", "No responde"] },
+    { label: "SMS", category: "sms", options: ["No Contesta", "Mensaje Enviado"] },
+    { label: "VIDEO", category: "video", options: ["No Contesta", "Rechaza Video"] },
+    { label: "RESULTADO", category: "result", options: [
+        { text: "Efectiva", type: "positive" },
+        "No quiere contestar", "Cita Agendada", "No cumple el filtro del estudio", "Número Errado", "Uso otro producto"
+    ]}
+];
+
 const statusMap = {
     'pending': 'Pendiente',
     'management': 'Gestionando',
@@ -131,9 +142,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             // AUTOMATICALLY LOAD ALL PENDING CALLS
             loadStudyData(null); // Null = all pending from open studies
 
-            // INITIALIZE ALARM POLLING NOW THAT WE HAVE THE ROLE
             if (typeof initAlarmPolling === 'function') {
                 initAlarmPolling();
+            }
+
+            // INITIALIZE REMINDER POLLING (Every hour)
+            if (typeof initReminderPolling === 'function') {
+                initReminderPolling();
             }
 
             // Show Excel Button for Superuser/Auxiliar/Coordinator
@@ -1850,6 +1865,7 @@ function closeFilter() {
 
 function openCallDetail(call) {
     currentCallId = call.id;
+    renderObservationShortcuts();
 
     const cleanFloatStr = (val) => {
         if (!val) return '';
@@ -2418,29 +2434,38 @@ async function saveSecondPickup() {
             const err = await res.json();
             alert("Error: " + (err.detail || "Error al actualizar"));
         }
-    } catch (e) { console.error(e); alert("Error de conexión"); }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión");
+    }
 }
+
 
 async function loadObservations() {
     if (!currentCallId) return;
     try {
         const res = await fetch(`/calls/${currentCallId}/observations`, { headers });
         const obs = await res.json();
-        const feed = document.getElementById('obsFeed');
-        feed.innerHTML = '';
+        renderObservations(obs);
+    } catch (e) { console.error(e); }
+}
 
-        obs.forEach(o => {
+function renderObservations(obs) {
+    const feed = document.getElementById('obsFeed');
+    if (!feed) return;
+    feed.innerHTML = '';
+    
+    try {
+        const sorted = [...obs].sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+        sorted.forEach(o => {
             const el = document.createElement('div');
             el.className = 'obs-item';
-            // Date handling
+            
             let dateStr = "Fecha desconocida";
             if (o.created_at) {
                 const d = new Date(o.created_at);
                 if (d.getFullYear() > 1970) {
                     dateStr = d.toLocaleString();
-                } else {
-                    // Start of epoch or invalid
-                    dateStr = "";
                 }
             }
 
@@ -2461,6 +2486,102 @@ async function loadObservations() {
     } catch (e) { console.error(e); }
 }
 
+function renderObservationShortcuts() {
+    const container = document.getElementById('observation-shortcuts');
+    if (!container) return;
+    container.innerHTML = '';
+
+    obsCategories.forEach(cat => {
+        const group = document.createElement('div');
+        group.className = 'shortcut-group';
+        
+        const label = document.createElement('div');
+        label.className = 'shortcut-group-label';
+        label.textContent = cat.label;
+        group.appendChild(label);
+
+        const chipsContainer = document.createElement('div');
+        chipsContainer.className = 'shortcut-chips';
+
+        cat.options.forEach(opt => {
+            const optText = typeof opt === 'string' ? opt : opt.text;
+            const isPositive = typeof opt !== 'string' && opt.type === 'positive';
+            const isNoContesta = optText.toLowerCase().includes('no contesta') || 
+                               optText.toLowerCase().includes('no tiene') ||
+                               optText.toLowerCase().includes('ocupado') ||
+                               optText.toLowerCase().includes('buzón');
+
+            const chip = document.createElement('div');
+            chip.className = 'opt-chip';
+            chip.dataset.category = cat.category;
+            chip.dataset.text = optText;
+            if (isPositive) chip.dataset.type = 'positive';
+            if (isNoContesta) chip.dataset.exclusion = 'negative';
+            
+            chip.innerHTML = optText;
+            chip.onclick = () => handleShortcutClick(chip, cat.category, optText, isPositive, isNoContesta);
+            chipsContainer.appendChild(chip);
+        });
+
+        group.appendChild(chipsContainer);
+        container.appendChild(group);
+    });
+}
+
+function handleShortcutClick(chip, category, text, isPositive, isNoContesta) {
+    const chips = document.querySelectorAll('.opt-chip');
+    const wasActive = chip.classList.contains('active');
+
+    // EXCLUSION LOGIC (Intra-category): Deselect others in the same group
+    if (!wasActive) {
+        document.querySelectorAll(`.opt-chip[data-category="${category}"]`).forEach(c => {
+            c.classList.remove('active');
+        });
+    }
+
+    // EXCLUSION LOGIC (Cross-category): Positive vs Negative
+    if (!wasActive && isPositive) {
+        chips.forEach(c => {
+            if (c.dataset.exclusion === 'negative') c.classList.remove('active');
+        });
+    }
+    if (!wasActive && isNoContesta) {
+        chips.forEach(c => {
+            if (c.dataset.type === 'positive') c.classList.remove('active');
+        });
+    }
+
+    if (wasActive) {
+        chip.classList.remove('active');
+    } else {
+        chip.classList.add('active');
+    }
+
+    updateObservationTextFromShortcuts();
+}
+
+
+function updateObservationTextFromShortcuts() {
+    const activeChips = document.querySelectorAll('.opt-chip.active');
+    const textarea = document.getElementById('newObs');
+    
+    const groups = {};
+    activeChips.forEach(c => {
+        const cat = c.dataset.category;
+        const text = c.dataset.text;
+        const catObj = obsCategories.find(oc => oc.category === cat);
+        const displayCat = catObj ? catObj.label : cat;
+        if (!groups[displayCat]) groups[displayCat] = [];
+        groups[displayCat].push(text);
+    });
+
+    let finalStr = '';
+    for (const [cat, texts] of Object.entries(groups)) {
+        finalStr += `[${cat}: ${texts.join(', ')}] `;
+    }
+    textarea.value = finalStr.trim();
+}
+
 async function addObservation() {
     if (!currentCallId) return;
     const text = document.getElementById('newObs').value;
@@ -2475,10 +2596,12 @@ async function addObservation() {
     if (res.ok) {
         document.getElementById('newObs').value = '';
         loadObservations();
-        // Update status in grid? 
-        // Ideally reload grid when going back.
+        // Clear active shortcuts
+        document.querySelectorAll('.opt-chip.active').forEach(chip => chip.classList.remove('active'));
     }
 }
+
+
 
 async function scheduleAlert() {
     if (!currentCallId) return;
@@ -3746,3 +3869,158 @@ async function updateFilterStatus(status) {
         loadAgentFilterLeads(); 
     }
 }
+
+// --- AGENT REMINDER SYSTEM (SILENT / HOURLY) ---
+let reminderPollingInterval = null;
+
+function initReminderPolling() {
+    // Include all roles that might handle calls (Agent, Auxiliar, Bizage, and Superuser/Coordinator for testing/management)
+    const operationalRoles = ['agent', 'auxiliar', 'bizage', 'superuser', 'coordinator'];
+    if (currentUserRole && operationalRoles.includes(currentUserRole)) {
+        // Fetch immediately
+        fetchReminders();
+        // Set interval to 1 hour (3600000 ms)
+        reminderPollingInterval = setInterval(fetchReminders, 3600000);
+    }
+}
+
+async function fetchReminders() {
+    try {
+        const res = await fetch('/users/me/reminders', { headers });
+        if (res.ok) {
+            const reminders = await res.json();
+            updateRemindersUI(reminders);
+        }
+    } catch (e) {
+        console.error("Error fetching reminders", e);
+    }
+}
+
+function updateRemindersUI(reminders) {
+    const count = reminders.length;
+    
+    // Update Badges
+    ['remindersBadgeCRM', 'remindersBadgeLanding'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.textContent = count;
+            el.style.display = count > 0 ? 'flex' : 'none';
+        }
+    });
+
+    // Update Lists
+    ['remindersListCRM', 'remindersListLanding'].forEach(id => {
+        const list = document.getElementById(id);
+        if (!list) return;
+
+        if (count === 0) {
+            list.innerHTML = `
+                <div class="reminder-empty">
+                    <i class="fas fa-check-circle"></i>
+                    Sin pendientes pendientes críticos.
+                </div>
+            `;
+            return;
+        }
+
+        list.innerHTML = reminders.map(r => `
+            <div class="reminder-item" data-call-id="${r.id}">
+                <div class="reminder-title">
+                    <span>⚠️ Pendiente</span>
+                    <span style="font-weight: normal; font-size: 0.7rem;">#${r.id}</span>
+                </div>
+                <div class="reminder-subtitle">
+                    ${r.person_name || 'Sin nombre'} (${r.phone_number})<br>
+                    <span style="color: #6366f1;">${r.study_name}</span>
+                </div>
+                <div class="reminder-actions">
+                    <button class="btn-reminder-resolve btn-reminder-go" onclick="jumpToCallReminder(${r.id})">
+                        Ir a Llamada
+                    </button>
+                    <button class="btn-reminder-resolve" onclick="resolveReminderQuickly(${r.id}, 'Persona sigue sin contestar')">
+                        No contesta
+                    </button>
+                    <button class="btn-reminder-resolve" onclick="resolveReminderQuickly(${r.id}, 'No es el tiempo de hacer la encuesta')">
+                        No es tiempo
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    });
+}
+
+function toggleRemindersPanel(event) {
+    event.stopPropagation();
+    // Detect which container we are in (Landing or CRM)
+    const isLanding = !!event.currentTarget.id.includes('Landing') || !!event.currentTarget.closest('#remindersContainerLanding');
+    const panelId = isLanding ? 'remindersPanelLanding' : 'remindersPanelCRM';
+    const panel = document.getElementById(panelId);
+    
+    // Close other panels first
+    ['remindersPanelCRM', 'remindersPanelLanding'].forEach(p => {
+        if (p !== panelId) {
+             const op = document.getElementById(p);
+             if (op) op.style.display = 'none';
+        }
+    });
+
+    if (panel) {
+        const isHidden = panel.style.display === 'none' || panel.style.display === '';
+        panel.style.display = isHidden ? 'block' : 'none';
+        
+        if (isHidden) {
+            fetchReminders(); // Refresh when opening
+        }
+    }
+}
+
+async function resolveReminderQuickly(callId, reason) {
+    if (!confirm(`¿Marcar este pendiente con: "${reason}"?`)) return;
+    
+    try {
+        const res = await fetch(`/calls/${callId}/observation`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ text: `[NOTIFICACIÓN: ${reason}]` })
+        });
+        
+        if (res.ok) {
+            // Success: the call will now have an observation, so it shouldn't appear in reminders
+            fetchReminders();
+        } else {
+            alert("Error al actualizar remanente.");
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión.");
+    }
+}
+
+function jumpToCallReminder(callId) {
+    // Re-use existing grid navigation logic
+    // We need to be in CRM first
+    if (document.getElementById('crmInterface').style.display === 'none') {
+        enterCRM();
+    }
+    
+    // Attempt to open detail
+    if (typeof openCallDetail === 'function') {
+        openCallDetail(callId);
+        // Close reminders panel
+        ['remindersPanelCRM', 'remindersPanelLanding'].forEach(p => {
+            const panel = document.getElementById(p);
+            if (panel) panel.style.display = 'none';
+        });
+    }
+}
+
+// Click outside logic
+document.addEventListener('click', (e) => {
+    ['remindersPanelCRM', 'remindersPanelLanding'].forEach(id => {
+        const panel = document.getElementById(id);
+        const container = document.getElementById(id === 'remindersPanelCRM' ? 'remindersContainerCRM' : 'remindersContainerLanding');
+        if (panel && container && !container.contains(e.target)) {
+            panel.style.display = 'none';
+        }
+    });
+});
