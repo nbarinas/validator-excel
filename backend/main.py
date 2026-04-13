@@ -3,7 +3,6 @@ from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload, subqueryload
-from sqlalchemy import or_, and_
 import json
 import pandas as pd
 import io
@@ -1212,32 +1211,6 @@ def get_upcoming_calls(db: Session = Depends(database.get_db), current_user: mod
         "census": c.census
     } for c in upcoming]
 
-@app.get("/users/me/reminders")
-def get_my_reminders(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    """
-    Returns up to 4 priority reminders for the agent:
-    1. Pending calls with NO observations (Oldest first).
-    2. Scheduled calls whose time has arrived.
-    """
-    now = datetime.now()
-    
-    # We join with Observation and filter where Observation.id is NULL to find calls with NO observations.
-    # We use subquery or outerjoin. Outerjoin is generally efficient for this.
-    reminders = db.query(models.Call).outerjoin(models.Observation).filter(
-        models.Call.user_id == current_user.id,
-        models.Call.status == "pending",
-        models.Observation.id == None
-    ).order_by(models.Call.created_at.asc()).limit(4).all()
-    
-    return [{
-        "id": c.id,
-        "person_name": c.person_name,
-        "phone_number": c.phone_number,
-        "census": c.census,
-        "status": c.status,
-        "appointment_time": c.appointment_time.isoformat() if c.appointment_time else None,
-        "study_name": c.study.name if c.study else "Sin estudio"
-    } for c in reminders]
 
 @app.get("/calls")
 def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
