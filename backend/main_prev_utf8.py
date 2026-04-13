@@ -1,9 +1,8 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, status, BackgroundTasks
+﻿from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, status
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload, subqueryload
-from sqlalchemy import or_, and_
 import json
 import pandas as pd
 import io
@@ -25,14 +24,6 @@ def log_memory_usage(label: str):
     """Prints a standardized memory log to the console."""
     usage = get_memory_usage()
     print(f"[MEMORY MONITOR] {label}: {usage} MB")
-
-def run_gc_task():
-    """Background task to force garbage collection after a response is sent."""
-    before = get_memory_usage()
-    gc.collect()
-    after = get_memory_usage()
-    diff = round(before - after, 2)
-    print(f"[MEMORY MONITOR] AUTO-CLEAN: {before}MB -> {after}MB (Released {diff}MB)")
 
 
 def parse_messy_time(text):
@@ -1059,13 +1050,10 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             hair_length=c.hair_length,
             purchase_frequency=c.purchase_frequency,
             
-            # Pollster / Respondent Info (copied to next R)
-            respondent=c.respondent,
-            implantation_pollster=c.implantation_pollster,
-
             # Dog Data
             dog_name=c.dog_name,
             dog_user_type=c.dog_user_type,
+            # dog_user_type=c.dog_user_type, # Already included above
             
             # Map Second Collection Date -> Collection Date/Time (Hora Original)
             # User Request: "que esas tome la fecha origianl como la de second_collection_date"
@@ -1212,37 +1200,8 @@ def get_upcoming_calls(db: Session = Depends(database.get_db), current_user: mod
         "census": c.census
     } for c in upcoming]
 
-@app.get("/users/me/reminders")
-def get_my_reminders(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    """
-    Returns up to 4 priority reminders for the agent:
-    1. Pending calls with NO observations (Oldest first).
-    2. Scheduled calls whose time has arrived.
-    """
-    now = datetime.now()
-    
-    # We join with Observation and filter where Observation.id is NULL to find calls with NO observations.
-    # We use subquery or outerjoin. Outerjoin is generally efficient for this.
-    reminders = db.query(models.Call).outerjoin(models.Observation).filter(
-        models.Call.user_id == current_user.id,
-        models.Call.status == "pending",
-        models.Observation.id == None
-    ).order_by(models.Call.created_at.asc()).limit(4).all()
-    
-    return [{
-        "id": c.id,
-        "person_name": c.person_name,
-        "phone_number": c.phone_number,
-        "census": c.census,
-        "status": c.status,
-        "appointment_time": c.appointment_time.isoformat() if c.appointment_time else None,
-        "study_name": c.study.name if c.study else "Sin estudio"
-    } for c in reminders]
-
 @app.get("/calls")
-def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    log_memory_usage("get_calls: START")
-    background_tasks.add_task(run_gc_task)
+def get_calls(study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     # Join with Study to get status and name
     # OPTIMIZATION: Eager load Study and User to prevent N+1
     query = db.query(models.Call).options(
@@ -1604,17 +1563,16 @@ def update_temp_info(call_id: int, info: TempInfoUpdate, db: Session = Depends(d
 
 @app.post("/upload-calls")
 async def upload_calls(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     study_name: str = Form(None),
-    study_type: str = Form(None),
-    study_stage: str = Form(None),
+    study_type: str = Form(None), # Added
+    study_stage: str = Form(None), # Added
     study_id: int = Form(None),
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user)
 ):
+    # Add Logging
     log_memory_usage("upload_calls: START")
-    background_tasks.add_task(run_gc_task)
     try:
         if current_user.role != "superuser" and current_user.role != "coordinator":
             raise HTTPException(status_code=403, detail="Not authorized")
@@ -1862,6 +1820,13 @@ async def upload_calls(
         return JSONResponse(status_code=500, content={"detail": f"Internal Server Error: {str(e)}"})
 
 
+@app.get("/calls")
+def get_calls(study_id: Optional[int] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    log_memory_usage("get_calls: START")
+    q = db.query(models.Call)
+    if study_id:
+        q = q.filter(models.Call.study_id == study_id)
+    return q.all()
 
 class ObservationCreate(BaseModel):
     text: str
@@ -2263,12 +2228,10 @@ def normalize_columns(df, manual_mapping=None):
 
 @app.post("/validate")
 async def validate_files(
-    background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     mapping: str = Form(None)
 ):
     log_memory_usage("validate_files: START")
-    background_tasks.add_task(run_gc_task)
     if len(files) != 2:
         raise HTTPException(status_code=400, detail="Exactly 2 files are required for Validation.")
 
@@ -2748,13 +2711,8 @@ async def validate_files(
     return StreamingResponse(output, headers=headers, media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 @app.post("/fatiga")
-async def fatiga_check(
-    background_tasks: BackgroundTasks,
-    files: List[UploadFile] = File(...), 
-    mapping: str = Form(None)
-):
+async def fatiga_check(files: List[UploadFile] = File(...), mapping: str = Form(None)):
     log_memory_usage("fatiga_check: START")
-    background_tasks.add_task(run_gc_task)
     if not (2 <= len(files) <= 10):
          raise HTTPException(status_code=400, detail="Fatiga mode requires between 2 and 10 files.")
 
@@ -3431,13 +3389,8 @@ def update_period_pl(
     return {"status": "ok", "period_id": p.id}
 
 @app.post("/payroll/generate/{period_id}")
-def generate_payroll(
-    background_tasks: BackgroundTasks,
-    period_id: int, 
-    db: Session = Depends(database.get_db)
-):
+def generate_payroll(period_id: int, db: Session = Depends(database.get_db)):
     log_memory_usage("generate_payroll: START")
-    background_tasks.add_task(run_gc_task)
     period = db.query(models.PayrollPeriod).filter(models.PayrollPeriod.id == period_id).first()
     if not period:
         raise HTTPException(status_code=404, detail="Period not found")
