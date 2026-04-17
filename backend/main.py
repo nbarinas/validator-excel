@@ -1045,7 +1045,7 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
             segundo_codigo=new_segundo_codigo,     # Updated per dual-code logic
             
             # Hair Data
-            shampoo_quantity=c.shampoo_quantity, # Keep quantity they had?
+            # shampoo_quantity=c.shampoo_quantity, # Removed per user request
             shampoo_brand=c.shampoo_brand,
             shampoo_variety=c.shampoo_variety,
             conditioner_brand=c.conditioner_brand,
