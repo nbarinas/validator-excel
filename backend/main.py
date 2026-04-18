@@ -115,6 +115,31 @@ def on_startup():
     models.Base.metadata.create_all(bind=database.engine)
     db = database.SessionLocal()
     
+    # Auto-migration for new columns
+    from sqlalchemy import text, inspect
+    try:
+        inspector = inspect(database.engine)
+        
+        # Studies
+        study_cols = [c['name'] for c in inspector.get_columns('studies')]
+        if 'closing_date' not in study_cols:
+            db.execute(text("ALTER TABLE studies ADD COLUMN closing_date DATETIME"))
+            print("Migration: Added closing_date to studies")
+            
+        # Calls
+        call_cols = [c['name'] for c in inspector.get_columns('calls')]
+        if 'bonus_amount' not in call_cols:
+            db.execute(text("ALTER TABLE calls ADD COLUMN bonus_amount INTEGER"))
+            print("Migration: Added bonus_amount to calls")
+        if 'bonus_auxiliary' not in call_cols:
+            db.execute(text("ALTER TABLE calls ADD COLUMN bonus_auxiliary VARCHAR(100)"))
+            print("Migration: Added bonus_auxiliary to calls")
+            
+        db.commit()
+    except Exception as e:
+        print(f"Migration error: {e}")
+        db.rollback()
+    
     # Default users to create
     default_users = [
         {"username": "admin", "password": "admin123", "role": "superuser"},
@@ -176,6 +201,14 @@ class UserCreate(BaseModel):
     account_holder_cc: Optional[str] = None
     cedula_ciudadania: Optional[str] = None
     photo_base64: Optional[str] = None
+
+class StudyReschedule(BaseModel):
+    closing_date: str # ISO string
+
+class BonosFinalize(BaseModel):
+    auxiliar_name: str
+    bonus_amount: int
+    archive_study: bool
 
 # --- DEBUG ENDPOINTS ---
 # --- DEBUG ENDPOINTS (DISABLED FOR SECURITY) ---
@@ -529,6 +562,7 @@ def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(databa
             ("study_type", "VARCHAR(50)"),
             ("stage", "VARCHAR(20)"),  # ← Changed from VARCHAR(10) to match models.py
             ("is_active", "BOOLEAN DEFAULT 1"),  # ← MISSING!
+            ("closing_date", "DATETIME"), # New Field
         ]
 
         for col, dtype in new_study_cols:
@@ -608,7 +642,9 @@ def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(databa
             ("purchase_frequency", "VARCHAR(100)"),
             ("implantation_pollster", "VARCHAR(100)"),
             ("dog_breed", "VARCHAR(100)"),
-            ("dog_size", "VARCHAR(50)")
+            ("dog_size", "VARCHAR(50)"),
+            ("bonus_amount", "INTEGER"),
+            ("bonus_auxiliary", "VARCHAR(100)")
         ]
 
         for col, dtype in new_call_cols_2:
@@ -1333,6 +1369,80 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
         result.append(c_dict)
         
     return result
+
+@app.get("/studies/{study_id}/bonos-data")
+def get_study_bonos_data(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Solo Superusuarios pueden acceder a esta función")
+        
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Estudio no encontrado")
+        
+    # User said: "en efectivo y caida por desempeño, las otras no"
+    # Mapping: managed (Efectiva), caida_desempeno (Desempeño)
+    target_statuses = ["managed", "caida_desempeno"]
+    
+    calls = db.query(models.Call).filter(
+        models.Call.study_id == study_id,
+        models.Call.status.in_(target_statuses)
+    ).all()
+    
+    return {
+        "study_name": study.name,
+        "closing_date": study.closing_date,
+        "calls": [{
+            "id": c.id,
+            "phone": c.corrected_phone if c.corrected_phone else c.phone_number,
+            "name": c.person_name,
+            "city": c.city,
+            "status": c.status
+        } for c in calls]
+    }
+
+@app.put("/studies/{study_id}/reschedule")
+def reschedule_study(study_id: int, update: StudyReschedule, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Estudio no encontrado")
+        
+    try:
+        study.closing_date = datetime.fromisoformat(update.closing_date.replace('Z', '+00:00'))
+        db.commit()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Fecha inválida: {str(e)}")
+        
+    return {"status": "ok", "closing_date": study.closing_date}
+
+@app.post("/studies/{study_id}/finalize-bonos")
+def finalize_study_bonos(study_id: int, finalize: BonosFinalize, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="No autorizado")
+        
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Estudio no encontrado")
+        
+    # Update calls
+    target_statuses = ["managed", "caida_desempeno"]
+    db.query(models.Call).filter(
+        models.Call.study_id == study_id,
+        models.Call.status.in_(target_statuses)
+    ).update({
+        "bonus_amount": finalize.bonus_amount,
+        "bonus_auxiliary": finalize.auxiliar_name,
+        "bonus_status": "enviado"
+    }, synchronize_session=False)
+    
+    if finalize.archive_study:
+        study.is_active = False
+        study.status = "closed"
+        
+    db.commit()
+    return {"status": "ok"}
 
 @app.get("/calls/search-external")
 def search_external_calls(query: str = None, source_study_id: int = None, target_study_id: int = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
