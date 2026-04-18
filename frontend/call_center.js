@@ -1887,7 +1887,23 @@ function openCallDetail(call) {
     document.getElementById('personBrand').value = call.product_brand || '';
     // Apply same swap logic: show collection_time if available as it likely holds the time
     document.getElementById('initialObs').value = call.collection_time || call.initial_observation || '';
-    document.getElementById('apptTime').value = call.appointment_time || '';
+    
+    // Appointment Time - Parsing for the new split fields
+    const scheduleDateEl = document.getElementById('scheduleDate');
+    const scheduleTimeSelectEl = document.getElementById('scheduleTimeSelect');
+    if (call.appointment_time) {
+        // appointment_time is ISO like "2026-03-03T06:39:00"
+        const parts = call.appointment_time.split('T');
+        if (parts.length === 2) {
+            scheduleDateEl.value = parts[0];
+            // Format time to HH:mm for simpler matching with select values
+            const timePart = parts[1].substring(0, 5); 
+            scheduleTimeSelectEl.value = timePart;
+        }
+    } else {
+        scheduleDateEl.value = '';
+        scheduleTimeSelectEl.value = '';
+    }
     document.getElementById('extraPhone').value = cleanFloatStr(call.extra_phone);
 
     // POPULATE CENSUS SECTION
@@ -1955,7 +1971,22 @@ function openCallDetail(call) {
     // NEW FIELDS POPULATION
     document.getElementById('secondDate').value = call.second_collection_date || '';
     document.getElementById('secondTime').value = call.second_collection_time || '';
-    document.getElementById('shampooQty').value = call.shampoo_quantity || '';
+    
+    // Shampoo Quantity with "Otros" handle
+    const shampooQtySelect = document.getElementById('shampooQty');
+    const shampooQtyOtros = document.getElementById('shampooQtyOtros');
+    const standardShampooOpts = ['para 1 lavada', 'para 2 lavadas', 'para 3 lavadas', 'para 4 lavadas', 'ya no tiene shampo', ''];
+    
+    const qty = call.shampoo_quantity || '';
+    if (standardShampooOpts.includes(qty)) {
+        shampooQtySelect.value = qty;
+        shampooQtyOtros.style.display = 'none';
+        shampooQtyOtros.value = '';
+    } else {
+        shampooQtySelect.value = 'Otros';
+        shampooQtyOtros.style.display = 'block';
+        shampooQtyOtros.value = qty;
+    }
 
     // Status Badge
     const badge = document.getElementById('callStatusBadge');
@@ -2370,7 +2401,9 @@ async function saveCallHeader() {
             // New Fields
             second_collection_date: document.getElementById('secondDate').value,
             second_collection_time: document.getElementById('secondTime').value,
-            shampoo_quantity: document.getElementById('shampooQty').value
+            shampoo_quantity: (document.getElementById('shampooQty').value === 'Otros') 
+                ? document.getElementById('shampooQtyOtros').value 
+                : document.getElementById('shampooQty').value
         };
 
         try {
@@ -2413,7 +2446,9 @@ async function saveSecondPickup() {
         // Target Fields
         second_collection_date: document.getElementById('secondDate').value,
         second_collection_time: document.getElementById('secondTime').value,
-        shampoo_quantity: document.getElementById('shampooQty').value
+        shampoo_quantity: (document.getElementById('shampooQty').value === 'Otros') 
+            ? document.getElementById('shampooQtyOtros').value 
+            : document.getElementById('shampooQty').value
     };
 
     try {
@@ -2600,13 +2635,29 @@ async function addObservation() {
 
 async function scheduleAlert() {
     if (!currentCallId) return;
-    const time = document.getElementById('scheduleTime').value;
-    if (!time) return;
+    
+    const date = document.getElementById('scheduleDate').value;
+    const timeVal = document.getElementById('scheduleTimeSelect').value;
+    
+    if (!date || !timeVal) {
+        alert("Debe seleccionar Fecha y Hora para programar la alerta.");
+        return;
+    }
+
+    let finalTime = timeVal;
+    // Mapping for text-based options
+    if (timeVal === "En la mañana" || timeVal === "Durante el día" || timeVal === "Escribir antes") {
+        finalTime = "10:00";
+    } else if (timeVal === "En la tarde") {
+        finalTime = "14:00";
+    }
+    
+    const isoDateTime = `${date}T${finalTime}:00`;
 
     const res = await fetch(`/calls/${currentCallId}/schedule`, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ scheduled_time: time }) // API expects ISO string, input provides something close
+        body: JSON.stringify({ scheduled_time: isoDateTime })
     });
 
     if (res.ok) {
@@ -3862,5 +3913,17 @@ async function updateFilterStatus(status) {
     if (res.ok) {
         document.getElementById('filterLeadDetail').style.display = 'none';
         loadAgentFilterLeads(); 
+    }
+}
+
+// UI Helpers for Dynamic Fields
+function toggleShampooOtros(val) {
+    const input = document.getElementById('shampooQtyOtros');
+    if (val === 'Otros') {
+        input.style.display = 'block';
+        input.focus();
+    } else {
+        input.style.display = 'none';
+        input.value = '';
     }
 }

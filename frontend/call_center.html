@@ -1386,7 +1386,40 @@
                 </div>
                 <div class="form-group">
                     <label>Hora Cita (Original)</label>
-                    <input type="text" id="apptTime" readonly style="background: #f9fafb;">
+                    <select id="apptTime" class="form-control">
+                        <option value="">-- Seleccione --</option>
+                        <option value="Escribir antes">Escribir antes</option>
+                        <option value="En la mañana">En la mañana</option>
+                        <option value="En la tarde">En la tarde</option>
+                        <option value="Durante el día">Durante el día</option>
+                        <optgroup label="Horas Específicas">
+                            <option value="07:00 AM">07:00 AM</option>
+                            <option value="07:30 AM">07:30 AM</option>
+                            <option value="08:00 AM">08:00 AM</option>
+                            <option value="08:30 AM">08:30 AM</option>
+                            <option value="09:00 AM">09:00 AM</option>
+                            <option value="09:30 AM">09:30 AM</option>
+                            <option value="10:00 AM">10:00 AM</option>
+                            <option value="10:30 AM">10:30 AM</option>
+                            <option value="11:00 AM">11:00 AM</option>
+                            <option value="11:30 AM">11:30 AM</option>
+                            <option value="12:00 PM">12:00 PM</option>
+                            <option value="12:30 PM">12:30 PM</option>
+                            <option value="01:00 PM">01:00 PM</option>
+                            <option value="01:30 PM">01:30 PM</option>
+                            <option value="02:00 PM">02:00 PM</option>
+                            <option value="02:30 PM">02:30 PM</option>
+                            <option value="03:00 PM">03:00 PM</option>
+                            <option value="03:30 PM">03:30 PM</option>
+                            <option value="04:00 PM">04:00 PM</option>
+                            <option value="04:30 PM">04:30 PM</option>
+                            <option value="05:00 PM">05:00 PM</option>
+                            <option value="05:30 PM">05:30 PM</option>
+                            <option value="06:00 PM">06:00 PM</option>
+                            <option value="06:30 PM">06:30 PM</option>
+                            <option value="07:00 PM">07:00 PM</option>
+                        </optgroup>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Info Extra</label>
@@ -1525,11 +1558,53 @@
                     </div>
                     <div class="form-group">
                         <label>Hora 2da Recogida</label>
-                        <input type="text" id="secondTime" placeholder="Ej: 2:00 PM">
+                        <select id="secondTime" class="form-control" required>
+                            <option value="">-- Seleccione Hora --</option>
+                            <option value="Escribir antes">Escribir antes</option>
+                            <option value="En la mañana">En la mañana</option>
+                            <option value="En la tarde">En la tarde</option>
+                            <option value="Durante el día">Durante el día</option>
+                            <optgroup label="Horas Específicas">
+                                <option value="07:00 AM">07:00 AM</option>
+                                <option value="07:30 AM">07:30 AM</option>
+                                <option value="08:00 AM">08:00 AM</option>
+                                <option value="08:30 AM">08:30 AM</option>
+                                <option value="09:00 AM">09:00 AM</option>
+                                <option value="09:30 AM">09:30 AM</option>
+                                <option value="10:00 AM">10:00 AM</option>
+                                <option value="10:30 AM">10:30 AM</option>
+                                <option value="11:00 AM">11:00 AM</option>
+                                <option value="11:30 AM">11:30 AM</option>
+                                <option value="12:00 PM">12:00 PM</option>
+                                <option value="12:30 PM">12:30 PM</option>
+                                <option value="01:00 PM">01:00 PM</option>
+                                <option value="01:30 PM">01:30 PM</option>
+                                <option value="02:00 PM">02:00 PM</option>
+                                <option value="02:30 PM">02:30 PM</option>
+                                <option value="03:00 PM">03:00 PM</option>
+                                <option value="03:30 PM">03:30 PM</option>
+                                <option value="04:00 PM">04:00 PM</option>
+                                <option value="04:30 PM">04:30 PM</option>
+                                <option value="05:00 PM">05:00 PM</option>
+                                <option value="05:30 PM">05:30 PM</option>
+                                <option value="06:00 PM">06:00 PM</option>
+                                <option value="06:30 PM">06:30 PM</option>
+                                <option value="07:00 PM">07:00 PM</option>
+                            </optgroup>
+                        </select>
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" style="position: relative;">
                         <label>Cantidad de Shampoo</label>
-                        <input type="text" id="shampooQty" placeholder="Ej: 2 Botellas">
+                        <select id="shampooQty" class="form-control" onchange="toggleShampooOtros(this.value)">
+                            <option value="">-- Seleccione (Opcional) --</option>
+                            <option value="para 1 lavada">para 1 lavada</option>
+                            <option value="para 2 lavadas">para 2 lavadas</option>
+                            <option value="para 3 lavadas">para 3 lavadas</option>
+                            <option value="para 4 lavadas">para 4 lavadas</option>
+                            <option value="ya no tiene shampo">ya no tiene shampo</option>
+                            <option value="Otros">Otros (Escribir)</option>
+                        </select>
+                        <input type="text" id="shampooQtyOtros" class="form-control" style="display:none; margin-top: 5px;" placeholder="Especifique cantidad...">
                     </div>
                 </div>
             </div>
@@ -1555,8 +1630,44 @@
             <div class="form-section" id="scheduleSection" style="display: none;">
                 <h3>Programar Alerta</h3>
                 <div class="form-group">
-                    <label>Hora Programada</label>
-                    <input type="datetime-local" id="scheduleTime">
+                    <label>Fecha y Hora Alerta</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="date" id="scheduleDate" class="form-control" style="flex: 1;">
+                        <select id="scheduleTimeSelect" class="form-control" style="flex: 1;">
+                            <option value="">-- Hora --</option>
+                            <option value="Escribir antes">Escribir antes</option>
+                            <option value="En la mañana">En la mañana</option>
+                            <option value="En la tarde">En la tarde</option>
+                            <option value="Durante el día">Durante el día</option>
+                            <optgroup label="Horas Específicas">
+                                <option value="07:00">07:00 AM</option>
+                                <option value="07:30">07:30 AM</option>
+                                <option value="08:00">08:00 AM</option>
+                                <option value="08:30">08:30 AM</option>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="09:30">09:30 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="10:30">10:30 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="11:30">11:30 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="12:30">12:30 PM</option>
+                                <option value="13:00">01:00 PM</option>
+                                <option value="13:30">01:30 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="14:30">02:30 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="15:30">03:30 PM</option>
+                                <option value="16:00">04:00 PM</option>
+                                <option value="16:30">04:30 PM</option>
+                                <option value="17:00">05:00 PM</option>
+                                <option value="17:30">05:30 PM</option>
+                                <option value="18:00">06:00 PM</option>
+                                <option value="18:30">06:30 PM</option>
+                                <option value="19:00">07:00 PM</option>
+                            </optgroup>
+                        </select>
+                    </div>
                 </div>
                 <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
                     Llamada</button>
