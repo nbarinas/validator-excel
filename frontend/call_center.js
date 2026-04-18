@@ -1171,7 +1171,11 @@ function applyColumnFilters() {
     const selectedShampoos = getMultiSelectValues('colFilterShampooContainer'); // New Multi-Select
 
     // Helper Checks
-    const checkPhone = (c) => !phoneTerm || (c.phone_number || '').toString().toLowerCase().includes(phoneTerm);
+    const checkPhone = (c) => !phoneTerm || (
+        (c.phone_number || '').toString().toLowerCase().includes(phoneTerm) ||
+        (c.whatsapp || '').toString().toLowerCase().includes(phoneTerm) ||
+        (c.corrected_phone || '').toString().toLowerCase().includes(phoneTerm)
+    );
     const checkName = (c) => !nameTerm || (c.person_name || '').toString().toLowerCase().includes(nameTerm);
     const checkCensus = (c) => !censusTerm || (c.census || '').toString().toLowerCase().includes(censusTerm);
 
