@@ -108,6 +108,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (btnReport) btnReport.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
                 if (btnDup) btnDup.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
                 if (btnBack) btnBack.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') ? 'inline-block' : 'none';
+                
+                const btnBonos = document.getElementById('btnBonosEstudiosLanding');
+                if (btnBonos) btnBonos.style.display = (currentUserRole === 'superuser') ? 'inline-block' : 'none';
 
                 const btnFilters = document.getElementById('btnFiltersLanding');
                 if (btnFilters) btnFilters.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
@@ -3929,5 +3932,231 @@ function toggleShampooOtros(val) {
     } else {
         input.style.display = 'none';
         input.value = '';
+    }
+}
+// --- BONOS ESTUDIOS LOGIC ---
+let currentBonoCalls = [];
+
+async function showBonosEstudios() {
+    console.log("showBonosEstudios called. Role:", currentUserRole);
+    const modal = document.getElementById('bonosEstudiosModal');
+    if (!modal) {
+        console.error("Modal 'bonosEstudiosModal' not found in DOM");
+        return;
+    }
+    modal.style.display = 'flex';
+    
+    // Load study list
+    try {
+        const res = await fetch('/studies', { headers });
+        if (res.ok) {
+            const studies = await res.json();
+            const sel = document.getElementById('bonoStudySelect');
+            sel.innerHTML = '<option value="">Seleccione un estudio...</option>';
+            studies.filter(s => s.is_active).forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s.id;
+                opt.textContent = s.name;
+                sel.appendChild(opt);
+            });
+        }
+    } catch (e) {
+        console.error("Error loading studies for bonos", e);
+    }
+}
+
+function closeBonosEstudios() {
+    document.getElementById('bonosEstudiosModal').style.display = 'none';
+}
+
+async function loadBonoStudyData() {
+    const studyId = document.getElementById('bonoStudySelect').value;
+    const tbody = document.getElementById('bonoCallsTableBody');
+    const btnDown = document.getElementById('btnDownloadBonoExcel');
+    const alertDiv = document.getElementById('bonoClosingAlert');
+    const infoDiv = document.getElementById('bonoClosingInfo');
+    
+    if (!studyId) {
+        tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">Seleccione un estudio para ver los registros.</td></tr>';
+        btnDown.disabled = true;
+        btnDown.style.opacity = '0.5';
+        alertDiv.style.display = 'none';
+        infoDiv.textContent = '';
+        return;
+    }
+
+    try {
+        const res = await fetch(`/studies/${studyId}/bonos-data`, { headers });
+        if (res.ok) {
+            const data = await res.json();
+            currentBonoCalls = data.calls;
+            
+            // Render table
+            if (currentBonoCalls.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">No hay registros efectivos o por desempeño en este estudio.</td></tr>';
+                btnDown.disabled = true;
+                btnDown.style.opacity = '0.5';
+            } else {
+                tbody.innerHTML = currentBonoCalls.map((c, i) => `
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 0.8rem;">${i + 1}</td>
+                        <td style="padding: 0.8rem;">${c.phone}</td>
+                        <td style="padding: 0.8rem;">${c.name || '---'}</td>
+                        <td style="padding: 0.8rem;">${c.city || '---'}</td>
+                        <td style="padding: 0.8rem;">
+                            <span style="padding: 2px 8px; border-radius:12px; font-size: 0.8rem; background: ${c.status === 'managed' ? '#dcfce7' : '#fee2e2'}; color: ${c.status === 'managed' ? '#166534' : '#991b1b'};">
+                                ${translateStatus(c.status)}
+                            </span>
+                        </td>
+                    </tr>
+                `).join('');
+                btnDown.disabled = false;
+                btnDown.style.opacity = '1';
+            }
+            
+            // Check Closing Date
+            if (data.closing_date) {
+                const closingDate = new Date(data.closing_date);
+                const today = new Date();
+                
+                infoDiv.textContent = `Fecha de cierre: ${closingDate.toLocaleDateString()}`;
+                
+                // Alert if it's today
+                if (closingDate.toDateString() === today.toDateString()) {
+                    alertDiv.style.display = 'block';
+                } else {
+                    alertDiv.style.display = 'none';
+                }
+            } else {
+                infoDiv.textContent = 'Sin fecha de cierre configurada';
+                alertDiv.style.display = 'none';
+            }
+
+        }
+    } catch (e) {
+        console.error("Error loading bono data", e);
+        alert("Error al cargar datos del estudio");
+    }
+}
+
+function showRescheduleModal() {
+    const studyId = document.getElementById('bonoStudySelect').value;
+    if (!studyId) {
+        alert("Primero seleccione un estudio");
+        return;
+    }
+    document.getElementById('rescheduleModal').style.display = 'flex';
+}
+
+async function submitReschedule() {
+    const studyId = document.getElementById('bonoStudySelect').value;
+    const newDate = document.getElementById('newClosingDate').value;
+    
+    if (!newDate) {
+        alert("Seleccione una fecha");
+        return;
+    }
+    
+    try {
+        // Convert local date to ISO midnight
+        const isoDate = new Date(newDate + "T00:00:00").toISOString();
+        
+        const res = await fetch(`/studies/${studyId}/reschedule`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ closing_date: isoDate })
+        });
+        
+        if (res.ok) {
+            alert("Fecha de cierre actualizada exitosamente");
+            document.getElementById('rescheduleModal').style.display = 'none';
+            loadBonoStudyData(); // Refresh info
+        } else {
+            const err = await res.json();
+            alert("Error: " + (err.detail || "No se pudo actualizar la fecha"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión");
+    }
+}
+
+async function finalizeAndDownloadBonos() {
+    const studyId = document.getElementById('bonoStudySelect').value;
+    const auxName = document.getElementById('bonoAuxiliarName').value.trim();
+    const bonoValue = document.getElementById('bonoValueSelect').value;
+    const archive = document.getElementById('bonoArchiveStudy').checked;
+    
+    if (!auxName) {
+        alert("Por favor ingrese el nombre del Auxiliar");
+        return;
+    }
+    if (!bonoValue) {
+        alert("Por favor seleccione el valor del bono");
+        return;
+    }
+    
+    if (!confirm(`¿Desea validar ${currentBonoCalls.length} registros con el bono de $${parseInt(bonoValue).toLocaleString()} y descargar el Excel?`)) return;
+    
+    try {
+        const res = await fetch(`/studies/${studyId}/finalize-bonos`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                auxiliar_name: auxName,
+                bonus_amount: parseInt(bonoValue),
+                archive_study: archive
+            })
+        });
+        
+        if (res.ok) {
+            alert("Datos guardados en la base de datos. Iniciando descarga...");
+            
+            // Generate Excel
+            const studyName = document.getElementById('bonoStudySelect').options[document.getElementById('bonoStudySelect').selectedIndex].text;
+            
+            const excelData = currentBonoCalls.map((c, i) => ({
+                "Consecutivo": i + 1,
+                "Teléfono": c.phone,
+                "Nombre": c.name || "---",
+                "Ciudad": c.city || "---",
+                "Bono": parseInt(bonoValue)
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(excelData);
+            
+            // Add Header Rows
+            XLSX.utils.sheet_add_aoa(ws, [
+                [`ESTUDIO: ${studyName}`],
+                [`AUXILIAR: ${auxName}`],
+                [] // Empty row
+            ], { origin: "A1" });
+            
+            // We need to shift the data or use a different approach for headers.
+            // Simplified: header row in data
+            const finalData = [
+                { "Consecutivo": `ESTUDIO: ${studyName}`, "Teléfono": "", "Nombre": "", "Ciudad": "", "Bono": "" },
+                { "Consecutivo": `AUXILIAR: ${auxName}`, "Teléfono": "", "Nombre": "", "Ciudad": "", "Bono": "" },
+                { "Consecutivo": "", "Teléfono": "", "Nombre": "", "Ciudad": "", "Bono": "" },
+                ...excelData
+            ];
+            const finalWs = XLSX.utils.json_to_sheet(finalData, { skipHeader: false });
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, finalWs, "Bonos");
+            XLSX.writeFile(wb, `Bonos_${studyName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+            
+            if (archive) {
+                alert("El estudio ha sido archivado.");
+                closeBonosEstudios();
+                loadStudies(); // Global refresh
+            }
+        } else {
+            const err = await res.json();
+            alert("Error al finalizar bonos: " + (err.detail || "Error desconocido"));
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión al finalizar");
     }
 }

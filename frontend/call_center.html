@@ -575,6 +575,11 @@
                     <i class="fas fa-search-plus" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Validador Duplicados
                 </button>
+                <button id="btnBonosEstudiosLanding" onclick="showBonosEstudios()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #ec4899; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-gift" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Bonos estudios
+                </button>
             </div>
         </div>
 
@@ -2016,6 +2021,94 @@
     <!-- Continuous alarm clock sound -->
     <audio id="alarmAudio" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"
         loop></audio>
+    <!-- BONOS ESTUDIOS MODAL -->
+    <div id="bonosEstudiosModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; color: #1e293b; padding: 2rem; border-radius: 12px; width: 1000px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 style="margin: 0; color: #1e293b;">Gestión de Bonos por Estudio</h2>
+                <button onclick="closeBonosEstudios()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div>
+                    <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Seleccionar Estudio:</label>
+                    <select id="bonoStudySelect" onchange="loadBonoStudyData()" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px;"></select>
+                    
+                    <div id="bonoClosingAlert" style="display: none; margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 6px; color: #b91c1c; font-weight: bold;">
+                        <i class="fas fa-exclamation-triangle"></i> EL ESTUDIO CIERRA HOY
+                    </div>
+                    <div id="bonoClosingInfo" style="margin-top: 5px; font-size: 0.85rem; color: #64748b;"></div>
+                    
+                    <button onclick="showRescheduleModal()" style="margin-top: 10px; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                        <i class="fas fa-calendar-alt"></i> Reagendar Cierre
+                    </button>
+                </div>
+                <div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Nombre del Auxiliar:</label>
+                        <input type="text" id="bonoAuxiliarName" placeholder="Nombre que aparecerá en el reporte" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div>
+                        <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Valor del Bono (para todo el estudio):</label>
+                        <select id="bonoValueSelect" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px;">
+                            <option value="">Seleccione Valor...</option>
+                            <option value="10000">10.000</option>
+                            <option value="15000">15.000</option>
+                            <option value="20000">20.000</option>
+                            <option value="30000">30.000</option>
+                            <option value="40000">40.000</option>
+                        </select>
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #475569; font-size: 0.9rem;">
+                            <input type="checkbox" id="bonoArchiveStudy" style="cursor: pointer;">
+                            Archivar estudio al finalizar
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div style="flex: 1; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 1.5rem;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                        <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #475569;">
+                            <th style="padding: 0.8rem; width: 50px;">#</th>
+                            <th style="padding: 0.8rem;">Celular</th>
+                            <th style="padding: 0.8rem;">Nombre</th>
+                            <th style="padding: 0.8rem;">Ciudad</th>
+                            <th style="padding: 0.8rem;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bonoCallsTableBody">
+                        <tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">Seleccione un estudio para ver los registros.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="closeBonosEstudios()" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cerrar</button>
+                <button id="btnDownloadBonoExcel" onclick="finalizeAndDownloadBonos()" disabled style="background: #10b981; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; opacity: 0.5;">
+                    <i class="fas fa-file-excel"></i> Validar y Descargar Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESCHEDULE MODAL -->
+    <div id="rescheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; color: #1e293b; padding: 2rem; border-radius: 12px; width: 350px;">
+            <h3 style="margin-top: 0; color: #1e293b;">Reagendar Cierre</h3>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #475569;">Nueva Fecha de Cierre</label>
+                <input type="date" id="newClosingDate" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('rescheduleModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="submitReschedule()" style="background: #6366f1; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">Guardar</button>
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
