@@ -2049,16 +2049,32 @@
                         <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Nombre del Auxiliar:</label>
                         <input type="text" id="bonoAuxiliarName" placeholder="Nombre que aparecerá en el reporte" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
                     </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Etapa del Estudio:</label>
+                            <select id="bonoStageSelect" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #fffbeb;">
+                                <option value="">Seleccione Etapa...</option>
+                                <option value="implantacion">Implantación</option>
+                                <option value="recogida1">Recogida 1</option>
+                                <option value="recogida_final">Recogida Final</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Fecha del Estudio:</label>
+                            <input type="date" id="bonoStudyDate" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; background: #fffbeb;">
+                        </div>
+                    </div>
                     <div>
-                        <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Valor del Bono (para todo el estudio):</label>
-                        <select id="bonoValueSelect" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px;">
+                        <select id="bonoValueSelect" onchange="toggleBonoValueOther(this.value)" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px;">
                             <option value="">Seleccione Valor...</option>
                             <option value="10000">10.000</option>
                             <option value="15000">15.000</option>
                             <option value="20000">20.000</option>
                             <option value="30000">30.000</option>
                             <option value="40000">40.000</option>
+                            <option value="otro">Otro (Escribir)...</option>
                         </select>
+                        <input type="number" id="bonoValueOther" placeholder="Ingrese valor..." style="display: none; width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 10px; box-sizing: border-box; background: #fffbeb;">
                     </div>
                     <div style="margin-top: 10px;">
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #475569; font-size: 0.9rem;">
