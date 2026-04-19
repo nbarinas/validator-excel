@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload, subqueryload
 import json
+import copy
 import pandas as pd
 import io
 import os
@@ -13,6 +14,8 @@ from pydantic import BaseModel
 import re
 import psutil
 import gc
+import openpyxl
+from openpyxl.styles import Border, Side
 
 def get_memory_usage():
     """Returns current RSS memory usage in MB."""
@@ -208,6 +211,8 @@ class StudyReschedule(BaseModel):
 class BonosFinalize(BaseModel):
     auxiliar_name: str
     bonus_amount: int
+    etapa: str
+    fecha_estudio: str
     archive_study: bool
 
 # --- DEBUG ENDPOINTS ---
@@ -1426,8 +1431,14 @@ def finalize_study_bonos(study_id: int, finalize: BonosFinalize, db: Session = D
     if not study:
         raise HTTPException(status_code=404, detail="Estudio no encontrado")
         
-    # Update calls
-    target_statuses = ["managed", "caida_desempeno"]
+    # Get relevant calls before updating (to ensure we have the list for the Excel)
+    target_statuses = ["managed", "caida_desempeno"] # "efectiva" is renamed to "managed" in statusMap
+    calls_for_bonos = db.query(models.Call).filter(
+        models.Call.study_id == study_id,
+        models.Call.status.in_(target_statuses)
+    ).all()
+
+    # Update calls in DB
     db.query(models.Call).filter(
         models.Call.study_id == study_id,
         models.Call.status.in_(target_statuses)
@@ -1442,7 +1453,78 @@ def finalize_study_bonos(study_id: int, finalize: BonosFinalize, db: Session = D
         study.status = "closed"
         
     db.commit()
-    return {"status": "ok"}
+
+    # --- GENERATE EXCEL FROM TEMPLATE ---
+    try:
+        template_filename = "Formato Bonos virtuales valuación diaria PANEL concentrado+ producto oct25.xlsx"
+        template_path = os.path.join(os.path.dirname(BASE_DIR), template_filename)
+        
+        if not os.path.exists(template_path):
+            # Fallback if template is missing but keep DB changes
+            print(f"WARNING: Template not found at {template_path}")
+            return {"status": "ok", "warning": "Template not found, DB updated but no file generated"}
+
+        wb = openpyxl.load_workbook(template_path)
+        ws = wb.active # Use the active sheet (e.g., "FRESA")
+
+        # Fill main info
+        ws['C4'] = study.name
+        try:
+            # Format date from YYYY-MM-DD to DD/MM/YYYY or similar if it's a date string
+            d = datetime.strptime(finalize.fecha_estudio, "%Y-%m-%d")
+            ws['C5'] = d.strftime("%d/%m/%Y")
+        except:
+            ws['C5'] = finalize.fecha_estudio # Fallback if not ISO date
+            
+        # Etapa del estudio (D6, D7, D8)
+        # Use Unicode checkbox symbols for a more "cuadrito" look
+        ws['D6'] = "☐"
+        ws['D7'] = "☐"
+        ws['D8'] = "☐"
+        
+        if finalize.etapa == 'implantacion':
+            ws['D6'] = "☑"
+        elif finalize.etapa == 'recogida1':
+            ws['D7'] = "☑"
+        elif finalize.etapa == 'recogida_final':
+            ws['D8'] = "☑"
+            
+        # Bonus value header
+        ws['A9'] = f"ENTREGA DE BONOS POR VALOR $ {finalize.bonus_amount}"
+
+        # Style a large range of rows (up to 100) to ensure consistency even in empty rows
+        start_row = 11
+        for r in range(start_row, 101):
+            # Copy border from column 3 to column 4 to keep it uniform
+            ws.cell(row=r, column=4).border = copy.copy(ws.cell(row=r, column=3).border)
+
+        # Fill data table with actual info
+        for i, call in enumerate(calls_for_bonos):
+            row = start_row + i
+            # N°
+            ws.cell(row=row, column=1, value=i + 1)
+            # NOMBRE
+            ws.cell(row=row, column=2, value=call.person_name or "---")
+            # NUMERO WHATSAPP
+            ws.cell(row=row, column=3, value=call.phone_number or "---")
+            # VALOR BONO
+            cell_value = ws.cell(row=row, column=4, value=finalize.bonus_amount)
+            cell_value.number_format = '"$"#,##0'
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename=Reporte_Bonos_{study.code}.xlsx"}
+        )
+
+    except Exception as e:
+        print(f"Error generating Excel: {str(e)}")
+        # We don't want to fail the whole request if DB was already updated and committed
+        # But for this case, the user expects the file.
+        raise HTTPException(status_code=500, detail=f"Error al generar el Excel: {str(e)}")
 
 @app.get("/calls/search-external")
 def search_external_calls(query: str = None, source_study_id: int = None, target_study_id: int = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):

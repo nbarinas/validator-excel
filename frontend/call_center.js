@@ -3946,18 +3946,42 @@ async function showBonosEstudios() {
     }
     modal.style.display = 'flex';
     
-    // Load study list
+    // Load study list (All studies, including inactive ones)
     try {
         const res = await fetch('/studies', { headers });
         if (res.ok) {
             const studies = await res.json();
             const sel = document.getElementById('bonoStudySelect');
-            sel.innerHTML = '<option value="">Seleccione un estudio...</option>';
-            studies.filter(s => s.is_active).forEach(s => {
+            
+            // Destroy existing TomSelect instance if it exists
+            if (sel.tomselect) sel.tomselect.destroy();
+
+            sel.innerHTML = '<option value="">Seleccione o escriba un estudio...</option>';
+            
+            // Sort: Active first, then inactive. Alphabetical within groups.
+            const sorted = studies.sort((a,b) => {
+                if (a.is_active === b.is_active) {
+                    return a.name.localeCompare(b.name);
+                }
+                return a.is_active ? -1 : 1;
+            });
+
+            sorted.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s.id;
-                opt.textContent = s.name;
+                opt.textContent = s.is_active ? s.name : `${s.name} (Archivado)`;
                 sel.appendChild(opt);
+            });
+
+            // Initialize TomSelect for searchability
+            new TomSelect(sel, {
+                create: false,
+                sortField: {
+                    field: "text",
+                    direction: "asc"
+                },
+                placeholder: "Escriba para buscar estudio...",
+                allowEmptyOption: true
             });
         }
     } catch (e) {
@@ -4084,19 +4108,33 @@ async function submitReschedule() {
 async function finalizeAndDownloadBonos() {
     const studyId = document.getElementById('bonoStudySelect').value;
     const auxName = document.getElementById('bonoAuxiliarName').value.trim();
-    const bonoValue = document.getElementById('bonoValueSelect').value;
+    const bonoValueSel = document.getElementById('bonoValueSelect').value;
+    const bonoValueOther = document.getElementById('bonoValueOther').value.trim();
+    const studyStage = document.getElementById('bonoStageSelect').value;
+    const studyDateText = document.getElementById('bonoStudyDate').value.trim();
     const archive = document.getElementById('bonoArchiveStudy').checked;
+    
+    // Determine final bonus amount
+    let finalBonoValue = bonoValueSel === 'otro' ? bonoValueOther : bonoValueSel;
     
     if (!auxName) {
         alert("Por favor ingrese el nombre del Auxiliar");
         return;
     }
-    if (!bonoValue) {
-        alert("Por favor seleccione el valor del bono");
+    if (!finalBonoValue) {
+        alert("Por favor seleccione o ingrese el valor del bono");
+        return;
+    }
+    if (!studyStage) {
+        alert("Por favor seleccione la etapa del estudio");
+        return;
+    }
+    if (!studyDateText) {
+        alert("Por favor ingrese la fecha del estudio");
         return;
     }
     
-    if (!confirm(`¿Desea validar ${currentBonoCalls.length} registros con el bono de $${parseInt(bonoValue).toLocaleString()} y descargar el Excel?`)) return;
+    if (!confirm(`¿Desea validar ${currentBonoCalls.length} registros con el bono de $${parseInt(finalBonoValue).toLocaleString()} y descargar el reporte?`)) return;
     
     try {
         const res = await fetch(`/studies/${studyId}/finalize-bonos`, {
@@ -4104,47 +4142,27 @@ async function finalizeAndDownloadBonos() {
             headers,
             body: JSON.stringify({
                 auxiliar_name: auxName,
-                bonus_amount: parseInt(bonoValue),
+                bonus_amount: parseInt(finalBonoValue),
+                etapa: studyStage,
+                fecha_estudio: studyDateText,
                 archive_study: archive
             })
         });
         
         if (res.ok) {
-            alert("Datos guardados en la base de datos. Iniciando descarga...");
+            alert("Datos guardados. Iniciando descarga del formato oficial...");
             
-            // Generate Excel
+            // Handle binary response
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
             const studyName = document.getElementById('bonoStudySelect').options[document.getElementById('bonoStudySelect').selectedIndex].text;
-            
-            const excelData = currentBonoCalls.map((c, i) => ({
-                "Consecutivo": i + 1,
-                "Teléfono": c.phone,
-                "Nombre": c.name || "---",
-                "Ciudad": c.city || "---",
-                "Bono": parseInt(bonoValue)
-            }));
-            
-            const ws = XLSX.utils.json_to_sheet(excelData);
-            
-            // Add Header Rows
-            XLSX.utils.sheet_add_aoa(ws, [
-                [`ESTUDIO: ${studyName}`],
-                [`AUXILIAR: ${auxName}`],
-                [] // Empty row
-            ], { origin: "A1" });
-            
-            // We need to shift the data or use a different approach for headers.
-            // Simplified: header row in data
-            const finalData = [
-                { "Consecutivo": `ESTUDIO: ${studyName}`, "Teléfono": "", "Nombre": "", "Ciudad": "", "Bono": "" },
-                { "Consecutivo": `AUXILIAR: ${auxName}`, "Teléfono": "", "Nombre": "", "Ciudad": "", "Bono": "" },
-                { "Consecutivo": "", "Teléfono": "", "Nombre": "", "Ciudad": "", "Bono": "" },
-                ...excelData
-            ];
-            const finalWs = XLSX.utils.json_to_sheet(finalData, { skipHeader: false });
-
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, finalWs, "Bonos");
-            XLSX.writeFile(wb, `Bonos_${studyName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+            a.download = `Reporte_Bonos_${studyName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
             
             if (archive) {
                 alert("El estudio ha sido archivado.");
@@ -4158,5 +4176,13 @@ async function finalizeAndDownloadBonos() {
     } catch (e) {
         console.error(e);
         alert("Error de conexión al finalizar");
+    }
+}
+
+function toggleBonoValueOther(val) {
+    const otherInput = document.getElementById('bonoValueOther');
+    if (otherInput) {
+        otherInput.style.display = val === 'otro' ? 'block' : 'none';
+        if (val === 'otro') otherInput.focus();
     }
 }
