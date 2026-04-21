@@ -209,6 +209,7 @@ class StudyReschedule(BaseModel):
     closing_date: str # ISO string
 
 class BonosFinalize(BaseModel):
+    codigo_estudio: str
     auxiliar_name: str
     bonus_amount: int
     etapa: str
@@ -1468,6 +1469,7 @@ def finalize_study_bonos(study_id: int, finalize: BonosFinalize, db: Session = D
         ws = wb.active # Use the active sheet (e.g., "FRESA")
 
         # Fill main info
+        ws['A4'] = finalize.codigo_estudio
         ws['C4'] = study.name
         try:
             # Format date from YYYY-MM-DD to DD/MM/YYYY or similar if it's a date string
@@ -1492,24 +1494,31 @@ def finalize_study_bonos(study_id: int, finalize: BonosFinalize, db: Session = D
         # Bonus value header
         ws['A9'] = f"ENTREGA DE BONOS POR VALOR $ {finalize.bonus_amount}"
 
-        # Style a large range of rows (up to 100) to ensure consistency even in empty rows
-        start_row = 11
-        for r in range(start_row, 101):
-            # Copy border from column 3 to column 4 to keep it uniform
-            ws.cell(row=r, column=4).border = copy.copy(ws.cell(row=r, column=3).border)
-
         # Fill data table with actual info
+        start_row = 11
+        
+        # Get template border from first data row (row 11) to replicate it
+        # We use column B as reference for the typical border
+        ref_border = copy.copy(ws.cell(row=11, column=2).border)
+        
         for i, call in enumerate(calls_for_bonos):
             row = start_row + i
             # N°
-            ws.cell(row=row, column=1, value=i + 1)
+            cell_num = ws.cell(row=row, column=1, value=i + 1)
+            cell_num.border = ref_border
+            
             # NOMBRE
-            ws.cell(row=row, column=2, value=call.person_name or "---")
+            cell_name = ws.cell(row=row, column=2, value=call.person_name or "---")
+            cell_name.border = ref_border
+            
             # NUMERO WHATSAPP
-            ws.cell(row=row, column=3, value=call.phone_number or "---")
+            cell_phone = ws.cell(row=row, column=3, value=call.phone_number or "---")
+            cell_phone.border = ref_border
+            
             # VALOR BONO
-            cell_value = ws.cell(row=row, column=4, value=finalize.bonus_amount)
-            cell_value.number_format = '"$"#,##0'
+            cell_bono = ws.cell(row=row, column=4, value=finalize.bonus_amount)
+            cell_bono.border = ref_border
+            cell_bono.number_format = '"$"#,##0'
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
