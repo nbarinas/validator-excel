@@ -3999,6 +3999,8 @@ async function loadBonoStudyData() {
     const btnDown = document.getElementById('btnDownloadBonoExcel');
     const alertDiv = document.getElementById('bonoClosingAlert');
     const infoDiv = document.getElementById('bonoClosingInfo');
+    const citySummaryDiv = document.getElementById('bonoCitySummary');
+    const studyCodeInput = document.getElementById('bonoStudyCode');
     
     if (!studyId) {
         tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">Seleccione un estudio para ver los registros.</td></tr>';
@@ -4006,6 +4008,8 @@ async function loadBonoStudyData() {
         btnDown.style.opacity = '0.5';
         alertDiv.style.display = 'none';
         infoDiv.textContent = '';
+        citySummaryDiv.innerHTML = '';
+        studyCodeInput.value = '';
         return;
     }
 
@@ -4036,6 +4040,25 @@ async function loadBonoStudyData() {
                 `).join('');
                 btnDown.disabled = false;
                 btnDown.style.opacity = '1';
+
+                // City Summary Calculation
+                const cityCounts = {};
+                currentBonoCalls.forEach(c => {
+                    const city = c.city ? c.city.toUpperCase().trim() : 'SIN CIUDAD';
+                    cityCounts[city] = (cityCounts[city] || 0) + 1;
+                });
+
+                citySummaryDiv.innerHTML = Object.entries(cityCounts)
+                    .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                    .map(([city, count]) => `
+                        <div style="background: #eff6ff; color: #1e40af; padding: 4px 10px; border-radius: 20px; border: 1px solid #bfdbfe; font-weight: 600;">
+                            ${city}: ${count}
+                        </div>
+                    `).join('') + `
+                        <div style="background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 20px; border: 1px solid #cbd5e1; font-weight: bold; margin-left: auto;">
+                            TOTAL: ${currentBonoCalls.length}
+                        </div>
+                    `;
             }
             
             // Check Closing Date
@@ -4107,6 +4130,7 @@ async function submitReschedule() {
 
 async function finalizeAndDownloadBonos() {
     const studyId = document.getElementById('bonoStudySelect').value;
+    const studyCode = document.getElementById('bonoStudyCode').value.trim();
     const auxName = document.getElementById('bonoAuxiliarName').value.trim();
     const bonoValueSel = document.getElementById('bonoValueSelect').value;
     const bonoValueOther = document.getElementById('bonoValueOther').value.trim();
@@ -4117,6 +4141,10 @@ async function finalizeAndDownloadBonos() {
     // Determine final bonus amount
     let finalBonoValue = bonoValueSel === 'otro' ? bonoValueOther : bonoValueSel;
     
+    if (!studyCode) {
+        alert("Por favor ingrese el Código del estudio");
+        return;
+    }
     if (!auxName) {
         alert("Por favor ingrese el nombre del Auxiliar");
         return;
@@ -4141,6 +4169,7 @@ async function finalizeAndDownloadBonos() {
             method: 'POST',
             headers,
             body: JSON.stringify({
+                codigo_estudio: studyCode,
                 auxiliar_name: auxName,
                 bonus_amount: parseInt(finalBonoValue),
                 etapa: studyStage,
