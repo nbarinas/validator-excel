@@ -1385,9 +1385,9 @@ def get_study_bonos_data(study_id: int, db: Session = Depends(database.get_db), 
     if not study:
         raise HTTPException(status_code=404, detail="Estudio no encontrado")
         
-    # User said: "en efectivo y caida por desempeño, las otras no"
     # Mapping: managed (Efectiva), caida_desempeno (Desempeño)
-    target_statuses = ["managed", "caida_desempeno"]
+    # Including 'campo' versions to cover all effective/drop registrations
+    target_statuses = ["managed", "efectiva_campo", "caida_desempeno", "caida_desempeno_campo"]
     
     calls = db.query(models.Call).filter(
         models.Call.study_id == study_id,
@@ -1433,7 +1433,7 @@ def finalize_study_bonos(study_id: int, finalize: BonosFinalize, db: Session = D
         raise HTTPException(status_code=404, detail="Estudio no encontrado")
         
     # Get relevant calls before updating (to ensure we have the list for the Excel)
-    target_statuses = ["managed", "caida_desempeno"] # "efectiva" is renamed to "managed" in statusMap
+    target_statuses = ["managed", "efectiva_campo", "caida_desempeno", "caida_desempeno_campo"]
     calls_for_bonos = db.query(models.Call).filter(
         models.Call.study_id == study_id,
         models.Call.status.in_(target_statuses)
