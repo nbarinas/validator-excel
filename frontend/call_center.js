@@ -3184,6 +3184,80 @@ function closeDailyReport() {
     document.getElementById('dailyReportModal').style.display = 'none';
 }
 
+async function downloadDailyReportExcel() {
+    const dateInput = document.getElementById('dailyReportDate');
+    const dateStr = dateInput ? dateInput.value : '';
+    const openOnly = document.getElementById('dailyReportOpenOnly') ? document.getElementById('dailyReportOpenOnly').checked : false;
+
+    let studyIds = null;
+    if (dailyReportStudyTS) {
+        studyIds = dailyReportStudyTS.getValue();
+        if (Array.isArray(studyIds)) studyIds = studyIds.join(',');
+    }
+
+    let agentIds = null;
+    if (dailyReportAgentTS) {
+        agentIds = dailyReportAgentTS.getValue();
+        if (Array.isArray(agentIds)) agentIds = agentIds.join(',');
+    }
+
+    let cityFilter = null;
+    if (dailyReportCityTS) {
+        cityFilter = dailyReportCityTS.getValue() || null;
+    }
+
+    let params = new URLSearchParams();
+    if (dateStr) params.append('date', dateStr);
+    if (openOnly) params.append('open_only', 'true');
+    if (studyIds) params.append('study_ids', studyIds);
+    if (agentIds) params.append('agent_ids', agentIds);
+    if (cityFilter) params.append('group_by_city', cityFilter);
+
+    const url = `/reports/daily-effectives/export?${params.toString()}`;
+    
+    try {
+        const btn = event ? event.currentTarget : null;
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+        }
+
+        const response = await fetch(url, { headers });
+        if (!response.ok) throw new Error('Error al generar el reporte');
+        
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = downloadUrl;
+        
+        const contentDisposition = response.headers.get('Content-Disposition');
+        let fileName = 'reporte_diario.xlsx';
+        if (contentDisposition) {
+            const match = contentDisposition.match(/filename="?(.+?)"?$/);
+            if (match) fileName = match[1];
+        }
+        
+        link.setAttribute('download', fileName);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-excel"></i> Descargar Excel';
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error al descargar el Excel");
+        const btn = event ? event.currentTarget : null;
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-file-excel"></i> Descargar Excel';
+        }
+    }
+}
+
 // --- ACTIVE ALARM SYSTEM ---
 let alertedCallIds = new Set();
 let alarmPollingInterval = null;
