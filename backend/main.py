@@ -4246,3 +4246,173 @@ def get_daily_effectives(
         })
         
     return output
+
+@app.get("/reports/daily-effectives/export")
+def export_daily_effectives(
+    date: Optional[str] = None,
+    open_only: bool = False,
+    study_ids: Optional[str] = None,
+    agent_ids: Optional[str] = None,
+    group_by_city: Optional[str] = None,
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    """
+    Export detailed and summary data of effective calls for a specific date/range in Excel format.
+    """
+    from sqlalchemy import text
+    import pandas as pd
+    import io
+    from fastapi.responses import StreamingResponse
+    
+    # --- 1. Date Range Logic (Copied from get_daily_effectives) ---
+    if date:
+        try:
+            if ' to ' in date:
+                parts = date.split(' to ')
+                start = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+                end_inclusive = datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+                end = end_inclusive + timedelta(days=1)
+            elif ' a ' in date:
+                parts = date.split(' a ')
+                start = datetime.strptime(parts[0].strip(), "%Y-%m-%d")
+                end_inclusive = datetime.strptime(parts[1].strip(), "%Y-%m-%d")
+                end = end_inclusive + timedelta(days=1)
+            else:
+                start = datetime.strptime(date, "%Y-%m-%d")
+                end = start + timedelta(days=1)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format")
+    else:
+        start = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+    
+    # --- 2. Filters Logic (Copied from get_daily_effectives) ---
+    filters = []
+    params = {"start_date": start, "end_date": end}
+
+    if open_only:
+        filters.append("s.status = 'open'")
+
+    if study_ids:
+        id_list = [int(x.strip()) for x in study_ids.split(",") if x.strip()]
+        if id_list:
+            filters.append(f"s.id IN ({','.join([':id'+str(i) for i in range(len(id_list))])})")
+            for i, val in enumerate(id_list): params[f"id{i}"] = val
+
+    if agent_ids:
+        agent_list = [int(x.strip()) for x in agent_ids.split(",") if x.strip()]
+        if agent_list:
+            filters.append(f"u.id IN ({','.join([':aid'+str(i) for i in range(len(agent_list))])})")
+            for i, val in enumerate(agent_list): params[f"aid{i}"] = val
+
+    if group_by_city:
+        filters.append("c.city = :city_filter")
+        params["city_filter"] = group_by_city
+
+    filter_sql = ""
+    if filters:
+        filter_sql = "AND " + " AND ".join(filters)
+
+    # --- 3. Summary Query (Same as get_daily_effectives) ---
+    sql_summary = text(f"""
+        SELECT 
+            s.name as study_name,
+            u.full_name as agent_name,
+            SUM(CASE WHEN c.status IN ('managed', 'efectiva_campo') THEN 1 ELSE 0 END) as count_effective,
+            SUM(CASE WHEN c.status IN ('caida_desempeno', 'caida_desempeno_campo') THEN 1 ELSE 0 END) as count_desempeno,
+            SUM(CASE WHEN c.status IN ('caida_logistica', 'caida_logistico_campo') THEN 1 ELSE 0 END) as count_logistico,
+            c.city
+        FROM calls c
+        JOIN users u ON c.user_id = u.id
+        JOIN studies s ON c.study_id = s.id
+        WHERE 
+            c.status IN ('managed', 'efectiva_campo', 'caida_desempeno', 'caida_desempeno_campo', 'caida_logistica', 'caida_logistico_campo')
+            AND c.realization_date >= :start_date
+            AND c.realization_date < :end_date
+            {filter_sql}
+        GROUP BY s.name, u.full_name, c.city
+        ORDER BY s.name, count_effective DESC
+    """)
+    
+    res_summary = db.execute(sql_summary, params).fetchall()
+    df_summary = pd.DataFrame(res_summary, columns=["Estudio", "Agente", "Efectivas", "Desempeño", "Logístico", "Ciudad"])
+
+    # --- 4. Detail Query ---
+    # Detect engine for GROUP_CONCAT syntax compatibility
+    is_sqlite = "sqlite" in str(db.get_bind().url)
+    group_concat_op = "text, ' | '" if is_sqlite else "text SEPARATOR ' | '"
+
+    sql_detail = text(f"""
+        SELECT 
+            c.realization_date as Fecha_Gestion,
+            s.name as Estudio,
+            u.full_name as Agente,
+            c.phone_number as Telefono,
+            c.person_name as Nombre,
+            c.city as Ciudad,
+            c.status as Estado,
+            c.census as Censo,
+            c.nse as NSE,
+            c.age as Edad,
+            c.neighborhood as Barrio,
+            c.implantation_pollster as Encuestador,
+            c.supervisor as Supervisor,
+            c.initial_observation as Obs_Inicial,
+            (SELECT GROUP_CONCAT({group_concat_op}) FROM observations o WHERE o.call_id = c.id) as Observaciones
+        FROM calls c
+        JOIN users u ON c.user_id = u.id
+        JOIN studies s ON c.study_id = s.id
+        WHERE 
+            c.status IN ('managed', 'efectiva_campo', 'caida_desempeno', 'caida_desempeno_campo', 'caida_logistica', 'caida_logistico_campo')
+            AND c.realization_date >= :start_date
+            AND c.realization_date < :end_date
+            {filter_sql}
+        ORDER BY c.realization_date DESC
+    """)
+    
+    res_detail = db.execute(sql_detail, params).fetchall()
+    df_detail = pd.DataFrame(res_detail, columns=[
+        "Fecha Gestión", "Estudio", "Agente", "Teléfono", "Nombre", "Ciudad", "Estado", 
+        "Censo", "NSE", "Edad", "Barrio", "Encuestador", "Supervisor", "Obs Inicial", "Observaciones"
+    ])
+
+    # Clean up dates for Excel
+    if not df_detail.empty:
+        # Ensure column is datetime (SQLite might return strings)
+        df_detail["Fecha Gestión"] = pd.to_datetime(df_detail["Fecha Gestión"], errors='coerce')
+        df_detail["Fecha Gestión"] = df_detail["Fecha Gestión"].dt.strftime('%Y-%m-%d %H:%M')
+
+    # --- 5. Generate Excel ---
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df_summary.to_excel(writer, index=False, sheet_name='Resumen')
+        df_detail.to_excel(writer, index=False, sheet_name='Detalle_Llamadas')
+        
+        # Apply some basic formatting
+        workbook = writer.book
+        for sheet in workbook.sheetnames:
+            ws = workbook[sheet]
+            for col in ws.columns:
+                max_length = 0
+                column = col[0].column_letter
+                for cell in col:
+                    try:
+                        if len(str(cell.value)) > max_length:
+                            max_length = len(str(cell.value))
+                    except:
+                        pass
+                ws.column_dimensions[column].width = min(max_length + 2, 50)
+
+    output.seek(0)
+    
+    filename = f"reporte_diario_{start.strftime('%Y%m%d')}.xlsx"
+    if ' to ' in (date or ''):
+        filename = f"reporte_rango_{start.strftime('%Y%m%d')}_a_{end_inclusive.strftime('%Y%m%d')}.xlsx"
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
