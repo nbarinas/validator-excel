@@ -3353,7 +3353,7 @@ function closeAlarmModal() {
 
 // Start polling every 10 minutes (600000 ms), ONLY for agents and auxiliaries
 function initAlarmPolling() {
-    if (currentUserRole && (currentUserRole === 'agent' || currentUserRole === 'auxiliar')) {
+    if (currentUserRole && (currentUserRole === 'agent' || currentUserRole === 'auxiliar' || currentUserRole === 'coordinator' || currentUserRole === 'superuser')) {
         setTimeout(() => {
             pollUpcomingCalls();
             // Poll every 10 minutes. Since the backend returns calls up to 12 minutes away, 
