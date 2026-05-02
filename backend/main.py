@@ -957,7 +957,7 @@ def toggle_study_status(study_id: int, db: Session = Depends(database.get_db), c
     return {"status": "updated", "new_state": status_str, "is_active": study.is_active}
 
 @app.post("/studies/{study_id}/duplicate-r2")
-def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+def duplicate_study_r2(study_id: int, target_stage: Optional[str] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "superuser" and current_user.role != "coordinator":
         raise HTTPException(status_code=403, detail="Not authorized")
         
@@ -966,49 +966,53 @@ def duplicate_study_r2(study_id: int, db: Session = Depends(database.get_db), cu
         raise HTTPException(status_code=404, detail="Source study not found")
 
     # 1. Generate New Name & Code
-    # Logic: Look for "R1" or "R+", replace with "Rf" if validation, else increment "R\d+".
-    # The user requested that Validation studies generate 'Rf' next, while Fatigue increment normally (R1 -> R2 -> R3).
-    
     new_name = source_study.name
-    import re
-    match = re.search(r'(R\+?|R\d+)', new_name)
-    
     new_stage = source_study.stage # Default to same if no logic
+    import re
     
-    # Check if study is validation (case insensitive)
-    is_validation = source_study.study_type and "validacion" in source_study.study_type.lower()
-    
-    if match:
-        stage_str = match.group(1) # e.g. "R1", "R2", "R+"
-        
-        if is_validation:
-            # If validation, the next stage is generally Rf
-            # e.g., "Estudio R+" -> "Estudio Rf"
-            new_name = re.sub(r'R\+?|R\d+', 'Rf', new_name)
-            new_stage = "Rf"
+    if target_stage:
+        # If user explicitly provided the target stage, use it
+        new_stage = target_stage
+        if re.search(r'(R\+?|R\d+|Rf|RF)', new_name):
+            new_name = re.sub(r'(R\+?|R\d+|Rf|RF)', target_stage, new_name)
         else:
-            # Fatigue or other: increment number
-            # If it's something like R+, we might just have to guess R2 or fallback
-            if stage_str == "R+":
-                new_name = new_name.replace("R+", "R2")
-                new_stage = "R2"
-            elif stage_str.startswith("R"):
-                try:
-                    number = int(stage_str[1:])
-                    new_number = number + 1
-                    new_name = re.sub(r'R\d+', f'R{new_number}', new_name)
-                    new_stage = f"R{new_number}"
-                except ValueError:
-                    new_name = f"{new_name} - R2"
-                    new_stage = "R2"
+            new_name = f"{new_name} - {target_stage}"
     else:
-        # Fallback if no R pattern found in name
-        if is_validation:
-            new_name = f"{new_name} - Rf"
-            new_stage = "Rf"
+        # Logic: Look for "R1" or "R+", replace with "Rf" if validation, else increment "R\d+".
+        match = re.search(r'(R\+?|R\d+)', new_name)
+        
+        # Check if study is validation (case insensitive)
+        is_validation = source_study.study_type and "validacion" in source_study.study_type.lower()
+        
+        if match:
+            stage_str = match.group(1) # e.g. "R1", "R2", "R+"
+            
+            if is_validation:
+                # If validation, the next stage is generally Rf
+                new_name = re.sub(r'R\+?|R\d+', 'Rf', new_name)
+                new_stage = "Rf"
+            else:
+                # Fatigue or other: increment number
+                if stage_str == "R+":
+                    new_name = new_name.replace("R+", "R2")
+                    new_stage = "R2"
+                elif stage_str.startswith("R"):
+                    try:
+                        number = int(stage_str[1:])
+                        new_number = number + 1
+                        new_name = re.sub(r'R\d+', f'R{new_number}', new_name)
+                        new_stage = f"R{new_number}"
+                    except ValueError:
+                        new_name = f"{new_name} - R2"
+                        new_stage = "R2"
         else:
-            new_name = f"{new_name} - R2"
-            new_stage = "R2"
+            # Fallback if no R pattern found in name
+            if is_validation:
+                new_name = f"{new_name} - Rf"
+                new_stage = "Rf"
+            else:
+                new_name = f"{new_name} - R2"
+                new_stage = "R2"
         
     start_code = source_study.code.split('_')[0] if '_' in source_study.code else source_study.code
     import random
