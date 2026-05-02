@@ -886,10 +886,27 @@ async function deleteStudy(id) {
 }
 
 async function duplicateStudyR2(id, currentName) {
-    if (!confirm(`¿Generar siguiente visita (R+) para "${currentName}"?\nSe duplicarán SOLO las llamadas EFECTIVAS.`)) return;
+    let defaultNext = "R2";
+    let match = currentName.match(/(R\+?|R\d+|Rf|RF)/i);
+    if (match) {
+        let val = match[0].toLowerCase();
+        if (val === 'rf') {
+            defaultNext = "Rf";
+        } else if (val.startsWith('r') && !isNaN(parseInt(val.substring(1)))) {
+            defaultNext = "R" + (parseInt(val.substring(1)) + 1);
+        }
+    }
+
+    const targetStage = prompt(`¿Qué etapa deseas crear para "${currentName}"?\nEjemplo: R2, R3, R4, Rf\n(Se duplicarán SOLO las llamadas EFECTIVAS)`, defaultNext);
+    
+    if (targetStage === null) return; // User cancelled
+    if (targetStage.trim() === "") {
+        alert("Debes ingresar una etapa válida.");
+        return;
+    }
 
     try {
-        const res = await fetch(`/studies/${id}/duplicate-r2`, {
+        const res = await fetch(`/studies/${id}/duplicate-r2?target_stage=${encodeURIComponent(targetStage.trim())}`, {
             method: 'POST',
             headers
         });
