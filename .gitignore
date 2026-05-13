@@ -38,3 +38,22 @@ wheels/
 # OS
 .DS_Store
 Thumbs.db
+
+# Data / Excel files
+*.xlsx
+*.xls
+*.csv
+
+# Backups
+backups/backup_*.xlsx
+
+# Scratch / temp
+scratch/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Logs
+*.log

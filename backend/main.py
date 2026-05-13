@@ -969,27 +969,43 @@ def duplicate_study_r2(study_id: int, target_stage: Optional[str] = None, db: Se
     new_name = source_study.name
     new_stage = source_study.stage # Default to same if no logic
     import re
+    # Check if study is validation (case insensitive)
+    is_validation = source_study.study_type and "validacion" in source_study.study_type.lower()
     
     if target_stage:
         # If user explicitly provided the target stage, use it
         new_stage = target_stage
-        if re.search(r'(R\+?|R\d+|Rf|RF)', new_name):
-            new_name = re.sub(r'(R\+?|R\d+|Rf|RF)', target_stage, new_name)
+        current_stage = source_study.stage
+        if current_stage and current_stage in new_name:
+            new_name = new_name.replace(current_stage, target_stage, 1)
+        elif 'R+' in new_name:
+            new_name = new_name.replace('R+', target_stage, 1)
+        elif re.search(r'R\d+', new_name):
+            new_name = re.sub(r'R\d+', target_stage, new_name, count=1)
         else:
             new_name = f"{new_name} - {target_stage}"
     else:
         # Logic: Look for "R1" or "R+", replace with "Rf" if validation, else increment "R\d+".
-        match = re.search(r'(R\+?|R\d+)', new_name)
-        
-        # Check if study is validation (case insensitive)
-        is_validation = source_study.study_type and "validacion" in source_study.study_type.lower()
+        match = None
+        current_stage = source_study.stage
+        if current_stage and current_stage in new_name:
+            match = re.search(re.escape(current_stage), new_name)
+        elif 'R+' in new_name:
+            match = re.search(r'R\+', new_name)
+        else:
+            match = re.search(r'R\d+', new_name)
         
         if match:
-            stage_str = match.group(1) # e.g. "R1", "R2", "R+"
+            stage_str = match.group(0) # e.g. "R1", "R2", "R+"
             
             if is_validation:
                 # If validation, the next stage is generally Rf
-                new_name = re.sub(r'R\+?|R\d+', 'Rf', new_name)
+                if current_stage and current_stage in new_name:
+                    new_name = new_name.replace(current_stage, 'Rf', 1)
+                elif 'R+' in new_name:
+                    new_name = new_name.replace('R+', 'Rf', 1)
+                else:
+                    new_name = re.sub(r'R\d+', 'Rf', new_name, count=1)
                 new_stage = "Rf"
             else:
                 # Fatigue or other: increment number
@@ -998,10 +1014,19 @@ def duplicate_study_r2(study_id: int, target_stage: Optional[str] = None, db: Se
                     new_stage = "R2"
                 elif stage_str.startswith("R"):
                     try:
-                        number = int(stage_str[1:])
-                        new_number = number + 1
-                        new_name = re.sub(r'R\d+', f'R{new_number}', new_name)
-                        new_stage = f"R{new_number}"
+                        # Extract number: handle case where stage_str might be "R1" or similar
+                        digits = "".join(filter(str.isdigit, stage_str))
+                        if digits:
+                            number = int(digits)
+                            new_number = number + 1
+                            if current_stage and current_stage in new_name:
+                                new_name = new_name.replace(current_stage, f'R{new_number}', 1)
+                            else:
+                                new_name = re.sub(r'R\d+', f'R{new_number}', new_name, count=1)
+                            new_stage = f"R{new_number}"
+                        else:
+                            new_name = f"{new_name} - R2"
+                            new_stage = "R2"
                     except ValueError:
                         new_name = f"{new_name} - R2"
                         new_stage = "R2"

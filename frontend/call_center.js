@@ -887,7 +887,7 @@ async function deleteStudy(id) {
 
 async function duplicateStudyR2(id, currentName) {
     let defaultNext = "R2";
-    let match = currentName.match(/(R\+?|R\d+|Rf|RF)/i);
+    let match = currentName.match(/(R\+|R\d+|Rf)/i);
     if (match) {
         let val = match[0].toLowerCase();
         if (val === 'rf') {
