@@ -39,21 +39,22 @@ wheels/
 .DS_Store
 Thumbs.db
 
-# Data / Excel files
+# Data and Backups (Folder level)
+data/
+backups/
+llamadas_export_*.xlsx
+
+# Excel and Data files (Generic)
 *.xlsx
 *.xls
 *.csv
 
-# Backups
-backups/backup_*.xlsx
-
 # Scratch / temp
 scratch/
 
-# Environment
-.env
-.env.local
-.env.production
+# Node (Future proofing)
+node_modules/
 
-# Logs
+# Environment and Logs
+.env*
 *.log
