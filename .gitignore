@@ -23,10 +23,11 @@ wheels/
 .installed.cfg
 *.egg
 
-# Local Database (SQLite - DO NOT COMMIT)
+# Local Database (SQLite)
 *.db
 *.sqlite
 *.sqlite3
+!az_marketing.db
 
 # IDE
 .vscode/
