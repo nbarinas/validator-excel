@@ -27,7 +27,6 @@ wheels/
 *.db
 *.sqlite
 *.sqlite3
-!az_marketing.db
 
 # IDE
 .vscode/
