@@ -59,6 +59,8 @@ class Study(Base):
     stage = Column(String(20), nullable=True) # 'R1', 'R2', 'Rf', etc.
     is_active = Column(Boolean, default=True) # Soft delete / Hide functionality
     closing_date = Column(DateTime, nullable=True) # New Field for closure alerts
+    last_migration_at = Column(DateTime, nullable=True) # Column from ClickPanda
+    last_migration_count = Column(Integer, nullable=True) # Column from ClickPanda
 
     calls = relationship("Call", back_populates="study")
     assistants = relationship("User", secondary=study_assignments, back_populates="assigned_studies")
@@ -148,6 +150,8 @@ class Call(Base):
     bonus_amount = Column(Integer, nullable=True)
     bonus_auxiliary = Column(String(100), nullable=True)
 
+    reminder_sent = Column(Boolean, default=False) # Column from ClickPanda
+    
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
