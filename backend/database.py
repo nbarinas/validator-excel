@@ -40,7 +40,7 @@ else:
 
 try:
     engine = create_engine(
-        SQLALCHEMY_DATABASE_URL, connect_args=connect_args, **engine_kwargs
+        SQLALCHEMY_DATABASE_URL, **engine_kwargs
     )
     # Test connection immediately to trigger fallback if needed
     with engine.connect() as conn:
