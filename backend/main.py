@@ -115,7 +115,13 @@ def debug_gc():
 # Startup: Create Tables & Seed Users
 @app.on_event("startup")
 def on_startup():
-    models.Base.metadata.create_all(bind=database.engine)
+    try:
+        models.Base.metadata.create_all(bind=database.engine)
+        print("INFO: Database tables verified/created.")
+    except Exception as e:
+        print(f"CRITICAL WARNING: Could not verify/create tables: {e}")
+        # We continue anyway because the app might still be able to serve static pages
+    
     db = database.SessionLocal()
     
     # Auto-migration for new columns
