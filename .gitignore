@@ -58,3 +58,4 @@ node_modules/
 # Environment and Logs
 .env*
 *.log
+scripts/
