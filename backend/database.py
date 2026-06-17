@@ -35,8 +35,12 @@ engine_kwargs = {
 if "sqlite" in SQLALCHEMY_DATABASE_URL:
     connect_args = {"check_same_thread": False}
 else:
-    # MySQL specific connection timeout (10 seconds) to avoid hanging
-    engine_kwargs["connect_args"] = {"connect_timeout": 10}
+    # MySQL specific timeouts to avoid connection drops during queries
+    engine_kwargs["connect_args"] = {
+        "connect_timeout": 30,
+        "read_timeout": 60,
+        "write_timeout": 60,
+    }
 
 try:
     engine = create_engine(

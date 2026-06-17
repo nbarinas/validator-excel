@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, sta
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session, joinedload, subqueryload, contains_eager, defer
+from sqlalchemy.orm import Session, joinedload, contains_eager, defer, selectinload
 import json
 import copy
 import pandas as pd
@@ -1297,11 +1297,14 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
     background_tasks.add_task(run_gc_task)
     # OPTIMIZATION: Eager load Study and User to prevent N+1. Use contains_eager for Study
     # since we already .join(models.Study), preventing a double join, and defer photo_base64.
+    # Use selectinload for observations (lighter than subqueryload for MySQL).
     query = db.query(models.Call).join(models.Study).options(
         contains_eager(models.Call.study),
         joinedload(models.Call.user).defer(models.User.photo_base64),
-        subqueryload(models.Call.observations).joinedload(models.Observation.user)
+        selectinload(models.Call.observations).joinedload(models.Observation.user).defer(models.User.photo_base64)
     )
+    # Safety limit to prevent MySQL timeouts
+    query = query.limit(500)
     
     if study_id:
         query = query.filter(models.Call.study_id == study_id)
