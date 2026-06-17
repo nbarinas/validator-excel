@@ -69,8 +69,8 @@ class Call(Base):
     __tablename__ = "calls"
 
     id = Column(Integer, primary_key=True, index=True)
-    study_id = Column(Integer, ForeignKey("studies.id"))
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    study_id = Column(Integer, ForeignKey("studies.id"), index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True, index=True)
     
     phone_number = Column(String(20), index=True)
     code = Column(String(50), nullable=True) # Codigo del registro (Excel)

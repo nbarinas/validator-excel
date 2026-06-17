@@ -2,7 +2,7 @@ from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, sta
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session, joinedload, subqueryload
+from sqlalchemy.orm import Session, joinedload, subqueryload, contains_eager, defer
 import json
 import copy
 import pandas as pd
@@ -1271,7 +1271,9 @@ def get_upcoming_calls(db: Session = Depends(database.get_db), current_user: mod
     # We provide a slightly larger window (15 mins) to ensure no calls are missed.
     window_end = now + timedelta(minutes=15)
     
-    upcoming = db.query(models.Call).filter(
+    upcoming = db.query(models.Call).options(
+        joinedload(models.Call.study)
+    ).filter(
         models.Call.user_id == current_user.id,
         models.Call.status.in_(["scheduled", "pending"]),
         models.Call.appointment_time >= now,
@@ -1293,13 +1295,13 @@ def get_upcoming_calls(db: Session = Depends(database.get_db), current_user: mod
 def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None, study_is_active: Optional[bool] = None, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     log_memory_usage("get_calls: START")
     background_tasks.add_task(run_gc_task)
-    # Join with Study to get status and name
-    # OPTIMIZATION: Eager load Study and User to prevent N+1
-    query = db.query(models.Call).options(
-        joinedload(models.Call.study),
-        joinedload(models.Call.user),
+    # OPTIMIZATION: Eager load Study and User to prevent N+1. Use contains_eager for Study
+    # since we already .join(models.Study), preventing a double join, and defer photo_base64.
+    query = db.query(models.Call).join(models.Study).options(
+        contains_eager(models.Call.study),
+        joinedload(models.Call.user).defer(models.User.photo_base64),
         subqueryload(models.Call.observations).joinedload(models.Observation.user)
-    ).join(models.Study)
+    )
     
     if study_id:
         query = query.filter(models.Call.study_id == study_id)
