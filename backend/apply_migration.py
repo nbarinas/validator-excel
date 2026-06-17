@@ -43,6 +43,18 @@ def migrate():
         
         print("Migration finished.")
 
+        # Migrate filter_groups: add survey_schema if missing
+        try:
+            existing_filter_cols = [c['name'] for c in inspector.get_columns('filter_groups')]
+            if 'survey_schema' not in existing_filter_cols:
+                print("Adding column survey_schema to filter_groups...")
+                connection.execute(text("ALTER TABLE filter_groups ADD COLUMN survey_schema TEXT NULL"))
+                print("Successfully added survey_schema.")
+            else:
+                print("Column survey_schema already exists in filter_groups.")
+        except Exception as e:
+            print(f"Error migrating filter_groups: {e}")
+
         # Create Association Table if not exists
         # We use strict SQL since we don't have metadata reflection setup easily here without importing everything
         try:
