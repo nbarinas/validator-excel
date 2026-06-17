@@ -1303,9 +1303,6 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
         joinedload(models.Call.user).defer(models.User.photo_base64),
         selectinload(models.Call.observations).joinedload(models.Observation.user).defer(models.User.photo_base64)
     )
-    # Safety limit to prevent MySQL timeouts
-    query = query.limit(500)
-    
     if study_id:
         query = query.filter(models.Call.study_id == study_id)
         # VISIBILITY LOGIC:
@@ -1346,7 +1343,7 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
     # We can rely on frontend fetching study name if we return a custom dict, or just include it.
     # Quick fix: return list of dicts with study_name
     
-    calls = query.all()
+    calls = query.limit(500).all()
     result = []
     for c in calls:
         c_dict = c.__dict__.copy()
