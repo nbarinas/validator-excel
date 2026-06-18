@@ -279,9 +279,10 @@ async def read_users_me(current_user: models.User = Depends(auth.get_current_use
     }
 
 @app.post("/users/heartbeat")
-async def heartbeat(current_user: models.User = Depends(auth.get_current_user)):
-    """Simple endpoint to trigger auth and update last_seen"""
-    return {"status": "alive", "last_seen": current_user.last_seen}
+def heartbeat(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    current_user.last_seen = datetime.utcnow()
+    db.commit()
+    return {"status": "alive", "last_seen": current_user.last_seen.isoformat()}
 
 @app.get("/users/status")
 def get_users_status(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -1169,6 +1170,10 @@ class DuplicateCheckItem(BaseModel):
 
 class DuplicateCheckRequest(BaseModel):
     items: List[DuplicateCheckItem]
+
+class ChatSendRequest(BaseModel):
+    receiver_id: int
+    message: str
 
 @app.post("/calls/check-duplicates")
 def check_duplicates(request: DuplicateCheckRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
@@ -4452,4 +4457,100 @@ def export_daily_effectives(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+# ─── Chat ────────────────────────────────────────────────
+
+@app.post("/chat/send")
+def chat_send(req: ChatSendRequest, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if not req.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    receiver = db.query(models.User).filter(models.User.id == req.receiver_id).first()
+    if not receiver:
+        raise HTTPException(status_code=404, detail="Receiver not found")
+    msg = models.ChatMessage(sender_id=current_user.id, receiver_id=req.receiver_id, message=req.message.strip())
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return {"id": msg.id, "created_at": msg.created_at.isoformat() if msg.created_at else None}
+
+@app.get("/chat/conversations")
+def chat_conversations(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    from sqlalchemy import or_
+    subq = db.query(
+        models.ChatMessage.receiver_id.label("other_id")
+    ).filter(models.ChatMessage.sender_id == current_user.id).union(
+        db.query(models.ChatMessage.sender_id.label("other_id"))
+        .filter(models.ChatMessage.receiver_id == current_user.id)
+    ).subquery()
+    users_with_chat = db.query(models.User).filter(models.User.id.in_(subq)).all()
+    result = []
+    for u in users_with_chat:
+        last = db.query(models.ChatMessage).filter(
+            or_(
+                (models.ChatMessage.sender_id == current_user.id) & (models.ChatMessage.receiver_id == u.id),
+                (models.ChatMessage.sender_id == u.id) & (models.ChatMessage.receiver_id == current_user.id)
+            )
+        ).order_by(models.ChatMessage.id.desc()).first()
+        unread = db.query(models.ChatMessage).filter(
+            models.ChatMessage.sender_id == u.id,
+            models.ChatMessage.receiver_id == current_user.id,
+            models.ChatMessage.read_at.is_(None)
+        ).count()
+        result.append({
+            "user_id": u.id,
+            "username": u.username,
+            "full_name": u.full_name,
+            "last_message": last.message if last else None,
+            "last_time": last.created_at.isoformat() if last and last.created_at else None,
+            "unread": unread
+        })
+    result.sort(key=lambda x: x["last_time"] or "", reverse=True)
+    return result
+
+@app.get("/chat/messages/{other_id}")
+def chat_messages(other_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    from sqlalchemy import or_
+    msgs = db.query(models.ChatMessage).filter(
+        or_(
+            (models.ChatMessage.sender_id == current_user.id) & (models.ChatMessage.receiver_id == other_id),
+            (models.ChatMessage.sender_id == other_id) & (models.ChatMessage.receiver_id == current_user.id)
+        )
+    ).order_by(models.ChatMessage.id.asc()).limit(100).all()
+    for m in msgs:
+        if m.sender_id == other_id and m.receiver_id == current_user.id and m.read_at is None:
+            m.read_at = datetime.utcnow()
+    db.commit()
+    return [{
+        "id": m.id,
+        "sender_id": m.sender_id,
+        "message": m.message,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+        "read_at": m.read_at.isoformat() if m.read_at else None
+    } for m in msgs]
+
+@app.get("/chat/unread-count")
+def chat_unread_count(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    count = db.query(models.ChatMessage).filter(
+        models.ChatMessage.receiver_id == current_user.id,
+        models.ChatMessage.read_at.is_(None)
+    ).count()
+    return {"unread": count}
+
+@app.get("/chat/users")
+def chat_users(online_only: bool = True, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    now = datetime.utcnow()
+    users = db.query(models.User).filter(models.User.id != current_user.id).all()
+    result = []
+    for u in users:
+        online = u.last_seen and (now - u.last_seen).total_seconds() < 120
+        if online_only and not online:
+            continue
+        result.append({
+            "id": u.id,
+            "username": u.username,
+            "full_name": u.full_name,
+            "role": u.role,
+            "online": online
+        })
+    return result
 

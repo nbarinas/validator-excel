@@ -36,6 +36,8 @@ class User(Base):
     assigned_studies = relationship("Study", secondary="study_assignments", back_populates="assistants")
     assigned_payrolls = relationship("PayrollPeriod", secondary="payroll_assignments", back_populates="supervisors")
     loans = relationship("Loan", back_populates="user")
+    sent_messages = relationship("ChatMessage", foreign_keys="ChatMessage.sender_id", back_populates="sender", lazy="dynamic")
+    received_messages = relationship("ChatMessage", foreign_keys="ChatMessage.receiver_id", back_populates="receiver", lazy="dynamic")
 
 from sqlalchemy import Table
 
@@ -408,3 +410,16 @@ class LoanPayment(Base):
     
     loan = relationship("Loan", back_populates="payments")
     payroll_record = relationship("PayrollRecord")
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    sender_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    receiver_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    message = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    read_at = Column(DateTime(timezone=True), nullable=True)
+
+    sender = relationship("User", foreign_keys=[sender_id], back_populates="sent_messages")
+    receiver = relationship("User", foreign_keys=[receiver_id], back_populates="received_messages")

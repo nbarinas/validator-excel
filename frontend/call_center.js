@@ -11,6 +11,7 @@ const headers = {
 let currentCallId = null;
 let currentUserRole = null;
 let currentUserName = null; // Store full name of current agent
+let currentUserId = null; // Store current user's ID
 let isClosedView = false; // Track if we are in Closed Studies mode
 let studySelectTS = null; // TomSelect instance for main study dropdown
 
@@ -71,6 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const user = await uRes.json();
             currentUserRole = user.role;
             currentUserName = user.full_name || user.username;
+            currentUserId = user.id;
             const infoDivs = ['userInfoDisplay', 'userInfoDisplayLanding'];
             infoDivs.forEach(id => {
                 const ui = document.getElementById(id);
@@ -148,6 +150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (typeof initAlarmPolling === 'function') {
                 initAlarmPolling();
             }
+            startHeartbeat();
 
             // Show Excel Button for Superuser/Auxiliar/Coordinator
             if (currentUserRole === 'superuser' || currentUserRole === 'auxiliar' || currentUserRole === 'coordinator') {
@@ -4306,3 +4309,258 @@ function toggleBonoValueOther(val) {
         if (val === 'otro') otherInput.focus();
     }
 }
+
+// ─── HEARTBEAT ──────────────────────────────────────────
+function startHeartbeat() {
+    fetch('/users/heartbeat', { method: 'POST', headers })
+        .catch(() => {});
+    setInterval(() => {
+        fetch('/users/heartbeat', { method: 'POST', headers })
+            .catch(() => {});
+    }, 60000);
+}
+
+// ─── CHAT ───────────────────────────────────────────────
+let chatCurrentUserId = null;
+let chatPollTimer = null;
+
+function toggleChatPanel() {
+    const panel = document.getElementById('chatPanel');
+    const isOpen = panel.style.display !== 'none';
+    panel.style.display = isOpen ? 'none' : 'flex';
+    if (!isOpen) {
+        showConversations();
+        startChatPolling();
+    } else {
+        stopChatPolling();
+    }
+}
+
+function showConversations() {
+    chatCurrentUserId = null;
+    document.getElementById('chatHeaderTitle').textContent = 'Chat';
+    document.getElementById('chatBackBtn').style.display = 'none';
+    document.getElementById('chatInputArea').style.display = 'none';
+    const body = document.getElementById('chatBody');
+    body.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">Cargando...</div>';
+    fetch('/chat/conversations', { headers })
+        .then(r => r.json())
+        .then(list => {
+            body.innerHTML = '';
+            if (currentUserRole === 'superuser') {
+                const btn = document.createElement('div');
+                btn.style.cssText = 'display:flex; align-items:center; padding:12px 16px; cursor:pointer; border-bottom:1px solid #e2e8f0; transition:0.15s; color:#6366f1; font-weight:600; font-size:14px;';
+                btn.onmouseenter = () => btn.style.background = '#eef2ff';
+                btn.onmouseleave = () => btn.style.background = 'transparent';
+                btn.onclick = showChatUserList;
+                btn.innerHTML = '<i class="fas fa-plus-circle" style="margin-right:10px; font-size:18px;"></i> Abrir un nuevo Chat';
+                body.appendChild(btn);
+            }
+            if (!list.length) {
+                if (currentUserRole !== 'superuser') {
+                    body.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px 20px;"><i class="fas fa-comments" style="font-size:40px; margin-bottom:12px; display:block; opacity:0.3;"></i>No hay conversaciones</div>';
+                }
+                return;
+            }
+            list.forEach(c => {
+                const div = document.createElement('div');
+                div.style.cssText = 'display:flex; align-items:center; padding:12px 16px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:0.15s;';
+                div.onmouseenter = () => div.style.background = '#f1f5f9';
+                div.onmouseleave = () => div.style.background = 'transparent';
+                div.onclick = () => openChat(c.user_id, c.full_name || c.username);
+                const name = c.full_name || c.username;
+                div.innerHTML = `
+                    <div style="width:40px; height:40px; border-radius:50%; background:#6366f1; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; flex-shrink:0;">${name.charAt(0).toUpperCase()}</div>
+                    <div style="margin-left:12px; flex:1; min-width:0;">
+                        <div style="font-weight:600; font-size:14px; color:#1e293b;">${name} <span style="font-weight:400; font-size:11px; color:#94a3b8; margin-left:8px;">${c.username}</span></div>
+                        <div style="font-size:12px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.last_message || 'Sin mensajes'}</div>
+                    </div>
+                    <div style="text-align:right; flex-shrink:0;">
+                        <div style="font-size:10px; color:#94a3b8; margin-bottom:4px;">${formatChatTime(c.last_time)}</div>
+                        ${c.unread ? `<span style="background:#ef4444; color:white; border-radius:50%; width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; font-size:10px; font-weight:bold;">${c.unread}</span>` : ''}
+                    </div>
+                `;
+                body.appendChild(div);
+            });
+        })
+        .catch(() => {
+            body.innerHTML = '<div style="text-align:center; color:#ef4444; padding:20px;">Error al cargar</div>';
+        });
+}
+
+function showChatUserList(showOffline = false) {
+    document.getElementById('chatHeaderTitle').textContent = showOffline ? 'Todos los usuarios' : 'Nuevo mensaje';
+    document.getElementById('chatBackBtn').style.display = 'inline';
+    document.getElementById('chatInputArea').style.display = 'none';
+    const body = document.getElementById('chatBody');
+    body.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">Cargando...</div>';
+    const url = showOffline ? '/chat/users?online_only=false' : '/chat/users';
+    fetch(url, { headers })
+        .then(r => r.json())
+        .then(users => {
+            body.innerHTML = '';
+            if (!users.length) {
+                if (!showOffline) {
+                    body.innerHTML = `
+                        <div style="text-align:center; color:#94a3b8; padding:40px 20px;">
+                            <i class="fas fa-circle" style="font-size:40px; margin-bottom:12px; display:block; opacity:0.2;"></i>
+                            No hay nadie en línea para enviar mensaje
+                        </div>
+                        <div style="padding:0 16px;">
+                            <button onclick="showChatUserList(true)" style="width:100%; padding:12px; background:#6366f1; color:white; border:none; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600;">
+                                <i class="fas fa-clock"></i> Enviar a usuarios fuera de línea
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    body.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px 20px;">No hay usuarios disponibles</div>';
+                }
+                return;
+            }
+            users.forEach(u => {
+                const div = document.createElement('div');
+                div.style.cssText = 'display:flex; align-items:center; padding:12px 16px; cursor:pointer; border-bottom:1px solid #f1f5f9; transition:0.15s;';
+                div.onmouseenter = () => div.style.background = '#f1f5f9';
+                div.onmouseleave = () => div.style.background = 'transparent';
+                div.onclick = () => openChat(u.id, u.full_name || u.username);
+                const name = u.full_name || u.username;
+                const roleLabel = {superuser: 'Superuser', coordinator: 'Coord.', agent: 'Agente', auxiliar: 'Aux.', bizage: 'Bizage'}[u.role] || u.role;
+                div.innerHTML = `
+                    <div style="width:40px; height:40px; border-radius:50%; background:${u.online ? '#6366f1' : '#cbd5e1'}; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; flex-shrink:0; position:relative;">
+                        ${name.charAt(0).toUpperCase()}
+                        ${u.online ? '<span style="position:absolute; bottom:0; right:0; width:10px; height:10px; border-radius:50%; background:#22c55e; border:2px solid white;"></span>' : ''}
+                    </div>
+                    <div style="margin-left:12px; flex:1; min-width:0;">
+                        <div style="font-weight:600; font-size:14px; color:#1e293b;">${name}</div>
+                        <div style="font-size:12px; color:#64748b;">${u.username} · ${roleLabel} ${u.online ? '<span style="color:#22c55e;">● En línea</span>' : '<span style="color:#94a3b8;">● Fuera de línea</span>'}</div>
+                    </div>
+                `;
+                body.appendChild(div);
+            });
+        })
+        .catch(() => {
+            body.innerHTML = '<div style="text-align:center; color:#ef4444; padding:20px;">Error al cargar usuarios</div>';
+        });
+}
+
+function openChat(userId, userName) {
+    chatCurrentUserId = userId;
+    document.getElementById('chatHeaderTitle').textContent = userName;
+    document.getElementById('chatBackBtn').style.display = 'inline';
+    document.getElementById('chatInputArea').style.display = 'block';
+    document.getElementById('chatInput').focus();
+    const body = document.getElementById('chatBody');
+    body.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:20px;">Cargando...</div>';
+    fetch('/chat/messages/' + userId, { headers })
+        .then(r => r.json())
+        .then(msgs => {
+            body.innerHTML = '';
+            if (!msgs.length) {
+                body.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px 20px;">Inicia la conversación</div>';
+                return;
+            }
+            msgs.forEach(m => appendMessage(m));
+            body.scrollTop = body.scrollHeight;
+        })
+        .catch(() => {
+            body.innerHTML = '<div style="text-align:center; color:#ef4444; padding:20px;">Error al cargar mensajes</div>';
+        });
+}
+
+function appendMessage(m) {
+    const body = document.getElementById('chatBody');
+    const isMine = m.sender_id === currentUserId;
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex; justify-content:' + (isMine ? 'flex-end' : 'flex-start') + '; padding:4px 16px;';
+    div.innerHTML = `
+        <div style="max-width:75%; padding:8px 14px; border-radius:${isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px'}; background:${isMine ? '#6366f1' : '#e2e8f0'}; color:${isMine ? 'white' : '#1e293b'}; font-size:13px; line-height:1.4; word-wrap:break-word;">
+            ${escapeHtml(m.message)}
+            <div style="font-size:10px; margin-top:4px; opacity:0.7; text-align:right;">${formatChatTime(m.created_at)}${m.read_at && isMine ? ' ✓✓' : ''}</div>
+        </div>
+    `;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+}
+
+function sendMessage() {
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if (!msg || !chatCurrentUserId) return;
+    input.value = '';
+    fetch('/chat/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...headers },
+        body: JSON.stringify({ receiver_id: chatCurrentUserId, message: msg })
+    })
+        .then(r => r.json())
+        .then(m => appendMessage({ id: m.id, sender_id: currentUserId, message: msg, created_at: m.created_at, read_at: null }))
+        .catch(() => {});
+}
+
+function formatChatTime(isoStr) {
+    if (!isoStr) return '';
+    const d = new Date(isoStr);
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    if (d.toDateString() === now.toDateString()) {
+        return pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+    return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+}
+
+function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+
+function startChatPolling() {
+    stopChatPolling();
+    chatPollTimer = setInterval(() => {
+        fetch('/chat/unread-count', { headers })
+            .then(r => r.json())
+            .then(d => updateChatBadge(d.unread))
+            .catch(() => {});
+        if (chatCurrentUserId) {
+            fetch('/chat/messages/' + chatCurrentUserId, { headers })
+                .then(r => r.json())
+                .then(msgs => {
+                    const body = document.getElementById('chatBody');
+                    const existingIds = new Set();
+                    body.querySelectorAll('[data-msg-id]').forEach(el => existingIds.add(parseInt(el.dataset.msgId)));
+                    msgs.forEach(m => {
+                        if (!existingIds.has(m.id)) {
+                            const div = appendMessage(m);
+                            if (div) div.dataset.msgId = m.id;
+                        }
+                    });
+                })
+                .catch(() => {});
+        }
+    }, 10000);
+}
+
+function stopChatPolling() {
+    if (chatPollTimer) { clearInterval(chatPollTimer); chatPollTimer = null; }
+}
+
+function updateChatBadge(count) {
+    const badge = document.getElementById('chatUnreadBadge');
+    if (count > 0) {
+        badge.style.display = 'flex';
+        badge.textContent = count > 99 ? '99+' : count;
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Poll for unread even when chat is closed
+setInterval(() => {
+    if (document.getElementById('chatPanel').style.display === 'none') {
+        fetch('/chat/unread-count', { headers })
+            .then(r => r.json())
+            .then(d => updateChatBadge(d.unread))
+            .catch(() => {});
+    }
+}, 15000);
+// ---- END CHAT ------------------------------------------
