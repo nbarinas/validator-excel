@@ -3730,11 +3730,11 @@ async function loadFilterLeads(id) {
         const tbody = document.getElementById('filterLeadsTableBody');
         tbody.innerHTML = leads.map(l => `
             <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 0.8rem; font-weight: 500;">${l.phone_number}</td>
-                <td style="padding: 0.8rem;">${l.person_name || '-'}</td>
-                <td style="padding: 0.8rem;">${l.city || '-'}</td>
-                <td style="padding: 0.8rem;">${l.interviewer_name || '-'}</td>
-                <td style="padding: 0.8rem;">${l.recruiter_name || '-'}</td>
+                <td style="padding: 0.8rem; font-weight: 500; color: #1e293b;">${l.phone_number}</td>
+                <td style="padding: 0.8rem; color: #1e293b;">${l.person_name || '-'}</td>
+                <td style="padding: 0.8rem; color: #1e293b;">${l.city || '-'}</td>
+                <td style="padding: 0.8rem; color: #1e293b;">${l.interviewer_name || '-'}</td>
+                <td style="padding: 0.8rem; color: #1e293b;">${l.recruiter_name || '-'}</td>
                 <td style="padding: 0.8rem;">
                     <span style="padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: bold;
                         background: ${l.status === 'qualified' ? '#dcfce7' : l.status === 'rejected' ? '#fee2e2' : '#f1f5f9'};
@@ -3965,7 +3965,7 @@ async function loadAgentFilterLeads() {
             <div onclick="showFilterLeadDetail(${l.id})" 
                  style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: 0.2s; 
                         border-left: 6px solid ${l.status === 'qualified' ? '#22c55e' : l.status === 'rejected' ? '#ef4444' : '#6366f1'};">
-                <div style="font-weight: bold;">${l.person_name || l.phone_number}</div>
+                <div style="font-weight: bold; color: #1e293b;">${l.person_name || l.phone_number}</div>
                 <div style="font-size: 0.8rem; color: #64748b;">${l.phone_number} - ${l.city || ''}</div>
                 <div style="font-size: 0.7rem; margin-top: 4px; font-weight: bold; color: ${l.status === 'pending' ? '#6366f1' : '#475569'};">
                     ${l.status.toUpperCase()}
@@ -3996,7 +3996,7 @@ function showFilterLeadDetail(leadId) {
         surveyDiv.innerHTML = Object.entries(data).map(([k, v]) => `
             <div style="background: #f8fafc; padding: 8px; border-radius: 4px; border: 1px solid #f1f5f9;">
                 <span style="font-weight: bold; font-size: 0.8rem; color: #64748b; text-transform: capitalize;">${k}:</span>
-                <span style="font-size: 0.9rem;">${v}</span>
+                <span style="font-size: 0.9rem; color: #1e293b;">${v}</span>
             </div>
         `).join('');
     } catch (e) { surveyDiv.innerHTML = 'Error al cargar encuesta'; }
@@ -4471,6 +4471,7 @@ function appendMessage(m) {
     const body = document.getElementById('chatBody');
     const isMine = m.sender_id === currentUserId;
     const div = document.createElement('div');
+    div.dataset.msgId = m.id;
     div.style.cssText = 'display:flex; justify-content:' + (isMine ? 'flex-end' : 'flex-start') + '; padding:4px 16px;';
     div.innerHTML = `
         <div style="max-width:75%; padding:8px 14px; border-radius:${isMine ? '18px 18px 4px 18px' : '18px 18px 18px 4px'}; background:${isMine ? '#6366f1' : '#e2e8f0'}; color:${isMine ? 'white' : '#1e293b'}; font-size:13px; line-height:1.4; word-wrap:break-word;">
@@ -4480,6 +4481,7 @@ function appendMessage(m) {
     `;
     body.appendChild(div);
     body.scrollTop = body.scrollHeight;
+    return div;
 }
 
 function sendMessage() {
