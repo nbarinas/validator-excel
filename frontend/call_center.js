@@ -4321,6 +4321,50 @@ function removeFilterUploadRow(idx) {
     renderFilterPreview();
 }
 
+function validateFilterRow(l) {
+    const errs = [];
+    if (!l.phone_number || !l.phone_number.trim()) errs.push('Teléfono vacío');
+    else if (l.phone_number.length > 50) errs.push('Teléfono muy largo (>50)');
+    else if (!/^[\d\s\+\-\(\)\/]+$/.test(l.phone_number)) errs.push('Teléfono inválido');
+    if (!l.person_name || !l.person_name.trim()) errs.push('Nombre vacío');
+    return errs;
+}
+
+function updatePreviewRow(idx) {
+    pendingFilterUploadData[idx].phone_number = document.getElementById(`pf_phone_${idx}`).value;
+    pendingFilterUploadData[idx].person_name = document.getElementById(`pf_name_${idx}`).value;
+    pendingFilterUploadData[idx].recruiter_name = document.getElementById(`pf_rec_${idx}`).value;
+    // Re-render just the validation column for this row
+    const row = document.querySelector(`tr[data-idx="${idx}"]`);
+    if (!row) return;
+    const l = pendingFilterUploadData[idx];
+    const dup = pendingFilterDuplicates;
+    const errs = validateFilterRow(l);
+    const isDupGroup = dup.in_group.includes(l.phone_number);
+    const isDupGlobal = dup.in_global.includes(l.phone_number);
+    const hasDup = isDupGlobal || isDupGroup;
+    const color = errs.length ? '#ef4444' : (isDupGlobal ? '#ef4444' : (isDupGroup ? '#f59e0b' : '#22c55e'));
+
+    const fmtDate = raw => raw ? new Date(raw).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-';
+    const detailsHtml = (phone) => {
+        const items = [...((dup.global_details || {})[phone] || []), ...((dup.group_details || {})[phone] || [])];
+        const seen = new Set();
+        return items.filter(i => { const k = i.study_name + '|' + i.date; if (seen.has(k)) return false; seen.add(k); return true; })
+            .map(i => `<div style="font-size:0.65rem; font-weight:400; line-height:1.3; margin-top:2px; color:inherit;">📋 ${i.study_name} (${fmtDate(i.date)})</div>`).join('');
+    };
+
+    let statusHtml = '';
+    if (errs.length) {
+        statusHtml = `<span style="color:#ef4444; font-weight:bold;">❌ ERROR</span>` +
+            errs.map(e => `<div style="font-size:0.6rem; color:#ef4444; font-weight:400;">⚠ ${e}</div>`).join('');
+    } else {
+        const icon = isDupGlobal ? '❌ GLOBAL' : (isDupGroup ? '⚠️ REPETIDO' : '✅ OK');
+        statusHtml = `<span style="color:${color}; font-weight:bold; font-size:0.7rem;">${icon}</span>${detailsHtml(l.phone_number)}`;
+    }
+    const td = row.querySelector('td:first-child');
+    if (td) td.innerHTML = statusHtml;
+}
+
 function renderFilterPreview() {
     const leads = pendingFilterUploadData;
     const dup = pendingFilterDuplicates;
@@ -4333,33 +4377,45 @@ function renderFilterPreview() {
     }
     const fmtDate = raw => raw ? new Date(raw).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-';
     const detailsHtml = (phone) => {
-        const globalItems = (dup.global_details || {})[phone] || [];
-        const groupItems = (dup.group_details || {})[phone] || [];
-        const items = [...globalItems, ...groupItems];
-        if (!items.length) return '';
+        const items = [...((dup.global_details || {})[phone] || []), ...((dup.group_details || {})[phone] || [])];
         const seen = new Set();
-        const unique = items.filter(i => {
-            const key = i.study_name + '|' + i.date;
-            if (seen.has(key)) return false;
-            seen.add(key);
-            return true;
-        });
-        return unique.map(i => `<div style="font-size:0.65rem; font-weight:400; line-height:1.3; margin-top:2px; color:inherit;">📋 ${i.study_name} (${fmtDate(i.date)})</div>`).join('');
+        return items.filter(i => { const k = i.study_name + '|' + i.date; if (seen.has(k)) return false; seen.add(k); return true; })
+            .map(i => `<div style="font-size:0.65rem; font-weight:400; line-height:1.3; margin-top:2px; color:inherit;">📋 ${i.study_name} (${fmtDate(i.date)})</div>`).join('');
     };
     const tbody = document.getElementById('filterPreviewTbody');
     tbody.innerHTML = leads.slice(0, 50).map((l, idx) => {
+        const errs = validateFilterRow(l);
         const isDupGroup = dup.in_group.includes(l.phone_number);
         const isDupGlobal = dup.in_global.includes(l.phone_number);
-        const statusIcon = isDupGlobal ? '❌ GLOBAL' : (isDupGroup ? '⚠️ REPETIDO' : '✅ OK');
-        const color = isDupGlobal ? '#ef4444' : (isDupGroup ? '#f59e0b' : '#22c55e');
+        const hasDup = isDupGlobal || isDupGroup;
+        const color = errs.length ? '#ef4444' : (isDupGlobal ? '#ef4444' : (isDupGroup ? '#f59e0b' : '#22c55e'));
+
+        let statusHtml = '';
+        if (errs.length) {
+            statusHtml = `<span style="color:#ef4444; font-weight:bold;">❌ ERROR</span>` +
+                errs.map(e => `<div style="font-size:0.6rem; color:#ef4444; font-weight:400;">⚠ ${e}</div>`).join('');
+        } else {
+            const icon = isDupGlobal ? '❌ GLOBAL' : (isDupGroup ? '⚠️ REPETIDO' : '✅ OK');
+            statusHtml = `<span style="color:${color}; font-weight:bold; font-size:0.7rem;">${icon}</span>${detailsHtml(l.phone_number)}`;
+        }
+
+        const inputStyle = 'width:100%; padding:4px; border:1px solid #cbd5e1; border-radius:4px; font-size:0.8rem; box-sizing:border-box; background:white;';
+        const rowErrs = validateFilterRow(l);
+        const hasPhoneErr = rowErrs.some(e => e.includes('Teléfono'));
+        const hasNameErr = rowErrs.some(e => e.includes('Nombre'));
+        const errStyle = (field) => {
+            if (field === 'phone' && hasPhoneErr) return ' border-color:#ef4444; background:#fef2f2;';
+            if (field === 'name' && hasNameErr) return ' border-color:#ef4444; background:#fef2f2;';
+            return '';
+        };
         return `
         <tr data-idx="${idx}">
-            <td style="padding: 0.5rem; border:1px solid #ddd; color:${color}; font-weight:bold; font-size:0.7rem;">${statusIcon}${detailsHtml(l.phone_number)}</td>
-            <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.phone_number}</td>
-            <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.person_name}</td>
-            <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.recruiter_name}</td>
-            <td style="padding: 0.5rem; border:1px solid #ddd; text-align:center;">
-                <button onclick="removeFilterUploadRow(${idx})" style="background:#fee2e2; border:none; border-radius:4px; color:#ef4444; cursor:pointer; padding:2px 8px; font-size:0.8rem; font-weight:bold;">✕ Quitar</button>
+            <td style="padding: 0.5rem; border:1px solid #ddd; vertical-align:top;">${statusHtml}</td>
+            <td style="padding: 0.3rem; border:1px solid #ddd;"><input id="pf_phone_${idx}" type="text" value="${escapeHtml(l.phone_number)}" style="${inputStyle}${errStyle('phone')}" onchange="updatePreviewRow(${idx})" oninput="updatePreviewRow(${idx})" placeholder="Teléfono"></td>
+            <td style="padding: 0.3rem; border:1px solid #ddd;"><input id="pf_name_${idx}" type="text" value="${escapeHtml(l.person_name)}" style="${inputStyle}${errStyle('name')}" onchange="updatePreviewRow(${idx})" oninput="updatePreviewRow(${idx})" placeholder="Nombre"></td>
+            <td style="padding: 0.3rem; border:1px solid #ddd;"><input id="pf_rec_${idx}" type="text" value="${escapeHtml(l.recruiter_name)}" style="${inputStyle}" onchange="updatePreviewRow(${idx})" oninput="updatePreviewRow(${idx})" placeholder="Reclutador"></td>
+            <td style="padding: 0.3rem; border:1px solid #ddd; text-align:center;">
+                <button onclick="removeFilterUploadRow(${idx})" style="background:#fee2e2; border:none; border-radius:4px; color:#ef4444; cursor:pointer; padding:4px 8px; font-size:0.75rem; font-weight:bold;">✕ Quitar</button>
             </td>
         </tr>`;
     }).join('');
@@ -4412,9 +4468,19 @@ async function handleFilterExcelFile(event) {
     reader.readAsArrayBuffer(file);
 }
 
+function countFilterErrors() {
+    let n = 0;
+    pendingFilterUploadData.forEach(l => { if (validateFilterRow(l).length) n++; });
+    return n;
+}
+
 async function submitFilterUpload() {
     if (!pendingFilterUploadData.length) return;
-    
+    const errCount = countFilterErrors();
+    if (errCount > 0) {
+        alert(`Hay ${errCount} fila(s) con errores. Corríjalas antes de cargar.`);
+        return;
+    }
     const res = await fetch('/filters/upload', {
         method: 'POST',
         headers,
@@ -4428,6 +4494,9 @@ async function submitFilterUpload() {
         alert("Leads cargados exitosamente");
         document.getElementById('filterUploadModal').style.display = 'none';
         loadFilterLeads(currentFilterGroupId);
+    } else {
+        const text = await res.text();
+        alert("Error al cargar leads: " + text.slice(0, 300));
     }
 }
 
