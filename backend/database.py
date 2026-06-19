@@ -29,7 +29,9 @@ else:
 connect_args = {}
 engine_kwargs = {
     "pool_pre_ping": True,
-    "pool_recycle": 280
+    "pool_recycle": 280,
+    "pool_size": 5,
+    "max_overflow": 5
 }
 
 if "sqlite" in SQLALCHEMY_DATABASE_URL:
@@ -37,9 +39,9 @@ if "sqlite" in SQLALCHEMY_DATABASE_URL:
 else:
     # MySQL specific timeouts to avoid connection drops during queries
     engine_kwargs["connect_args"] = {
-        "connect_timeout": 30,
-        "read_timeout": 60,
-        "write_timeout": 60,
+        "connect_timeout": 60,
+        "read_timeout": 120,
+        "write_timeout": 120,
     }
 
 try:
