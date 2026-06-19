@@ -2220,21 +2220,55 @@ def create_filter_group(group: FilterGroupCreate, db: Session = Depends(database
 @app.post("/filters/check-duplicates")
 def check_filter_duplicates(group_id: int, phone_numbers: List[str], db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     # 1. Check in same group
-    existing_in_group = db.query(models.FilterLead.phone_number).filter(
+    existing_in_group = db.query(
+        models.FilterLead.phone_number,
+        models.FilterLead.person_name,
+        models.FilterLead.created_at,
+        models.FilterGroup.name.label("study_name")
+    ).join(models.FilterGroup, models.FilterLead.group_id == models.FilterGroup.id).filter(
         models.FilterLead.group_id == group_id,
         models.FilterLead.phone_number.in_(phone_numbers)
     ).all()
-    in_group_set = {r[0] for r in existing_in_group}
-    
+    in_group_set = {r.phone_number for r in existing_in_group}
+    group_details = {}
+    for r in existing_in_group:
+        phone = r.phone_number
+        if phone not in group_details:
+            group_details[phone] = []
+        if len(group_details[phone]) < 3:
+            group_details[phone].append({
+                "study_name": r.study_name or "Mismo grupo",
+                "date": r.created_at.isoformat() if r.created_at else None,
+                "person_name": r.person_name
+            })
+
     # 2. Check in global calls
-    existing_in_global = db.query(models.Call.phone_number).filter(
+    existing_in_global = db.query(
+        models.Call.phone_number,
+        models.Call.person_name,
+        models.Call.created_at,
+        models.Study.name.label("study_name")
+    ).join(models.Study, models.Call.study_id == models.Study.id).filter(
         models.Call.phone_number.in_(phone_numbers)
     ).all()
-    global_set = {r[0] for r in existing_in_global}
-    
+    global_details = {}
+    for r in existing_in_global:
+        phone = r.phone_number
+        if phone not in global_details:
+            global_details[phone] = []
+        if len(global_details[phone]) < 3:
+            global_details[phone].append({
+                "study_name": r.study_name or "Desconocido",
+                "date": r.created_at.isoformat() if r.created_at else None,
+                "person_name": r.person_name
+            })
+    global_set = set(global_details.keys())
+
     return {
         "in_group": list(in_group_set),
-        "in_global": list(global_set)
+        "in_global": list(global_set),
+        "group_details": group_details,
+        "global_details": global_details
     }
 
 @app.post("/filters/upload")

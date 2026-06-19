@@ -4331,6 +4331,21 @@ function renderFilterPreview() {
         document.getElementById('btnFinalFilterUpload').style.opacity = '0.5';
         return;
     }
+    const fmtDate = raw => raw ? new Date(raw).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric'}) : '-';
+    const detailsHtml = (phone) => {
+        const globalItems = (dup.global_details || {})[phone] || [];
+        const groupItems = (dup.group_details || {})[phone] || [];
+        const items = [...globalItems, ...groupItems];
+        if (!items.length) return '';
+        const seen = new Set();
+        const unique = items.filter(i => {
+            const key = i.study_name + '|' + i.date;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+        return unique.map(i => `<div style="font-size:0.65rem; font-weight:400; line-height:1.3; margin-top:2px; color:inherit;">📋 ${i.study_name} (${fmtDate(i.date)})</div>`).join('');
+    };
     const tbody = document.getElementById('filterPreviewTbody');
     tbody.innerHTML = leads.slice(0, 50).map((l, idx) => {
         const isDupGroup = dup.in_group.includes(l.phone_number);
@@ -4339,7 +4354,7 @@ function renderFilterPreview() {
         const color = isDupGlobal ? '#ef4444' : (isDupGroup ? '#f59e0b' : '#22c55e');
         return `
         <tr data-idx="${idx}">
-            <td style="padding: 0.5rem; border:1px solid #ddd; color:${color}; font-weight:bold;">${statusIcon}</td>
+            <td style="padding: 0.5rem; border:1px solid #ddd; color:${color}; font-weight:bold; font-size:0.7rem;">${statusIcon}${detailsHtml(l.phone_number)}</td>
             <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.phone_number}</td>
             <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.person_name}</td>
             <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.recruiter_name}</td>
@@ -4533,9 +4548,9 @@ async function loadAgentFilterLeads() {
             <div onclick="showFilterLeadDetail(${l.id})" 
                  style="padding: 1rem; background: white; border: 1px solid #e2e8f0; border-radius: 8px; cursor: pointer; transition: 0.2s; 
                         border-left: 6px solid ${l.status === 'qualified' ? '#22c55e' : l.status === 'rejected' ? '#ef4444' : '#6366f1'};">
-                <div style="font-weight: bold; color: #1e293b;">${l.person_name || l.phone_number}</div>
-                <div style="font-size: 0.8rem; color: #64748b;">${l.phone_number} - ${l.city || ''}</div>
-                <div style="font-size: 0.7rem; margin-top: 4px; font-weight: bold; color: ${l.status === 'pending' ? '#6366f1' : '#475569'};">
+                <div style="font-weight: bold; color: #1e293b; font-size: 1rem;">${l.person_name || l.phone_number}</div>
+                <div style="font-size: 0.9rem; color: #64748b; margin-top: 4px;">${l.phone_number} - ${l.city || ''}</div>
+                <div style="font-size: 0.8rem; margin-top: 6px; font-weight: bold; color: ${l.status === 'pending' ? '#6366f1' : '#475569'};">
                     ${l.status.toUpperCase()}
                 </div>
             </div>
