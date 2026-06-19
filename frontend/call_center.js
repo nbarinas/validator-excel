@@ -127,17 +127,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (btnClosed) btnClosed.style.display = 'inline-block'; // or block/flex depending on css
                 }
                 
-                // Add a "Atender Filtros" button for agents/auxiliars on landing if desired
-                // For now, they enter via CRM or we add a button here
-                if (currentUserRole === 'agent' || currentUserRole === 'bizage' || currentUserRole === 'auxiliar') {
-                    // If they are on landing, let's give them a way to enter filters
-                }
-            } else {
-                // Normal User
-                // Hide Create Study Button
+            }
+            
+            if (currentUserRole !== 'superuser' && currentUserRole !== 'coordinator' && currentUserRole !== 'auxiliar') {
+                // Normal User (agent, bizage, etc.) — hide CRM-only buttons they don't need
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = 'none';
                 loadStudies();
+            }
+
+            // Show filter access bar for all non-superuser roles
+            if (currentUserRole !== 'superuser') {
+                const bar = document.getElementById('filterAccessBar');
+                if (bar) bar.style.display = 'flex';
             }
 
             // Ensure search is visible for EVERYONE
@@ -3697,20 +3699,78 @@ function closeFiltersManager() {
     document.getElementById('filterManagerModal').style.display = 'none';
 }
 
-async function loadFilterGroups() {
-    const res = await fetch('/filters/groups', { headers });
+async function loadFilterGroups(includeInactive = false) {
+    const res = await fetch(`/filters/groups?include_inactive=${includeInactive}`, { headers });
     if (res.ok) {
         const groups = await res.json();
+        const active = groups.filter(g => g.is_active);
+        const inactive = groups.filter(g => !g.is_active);
         const list = document.getElementById('filterGroupsList');
-        list.innerHTML = groups.map(g => `
-            <div onclick="selectFilterGroup(${g.id}, '${g.name}')" 
+        const showInactive = includeInactive;
+        let html = '';
+        active.forEach(g => {
+            html += `
+            <div onclick="selectFilterGroup(${g.id}, '${g.name.replace(/'/g, "\\'")}')" 
                  style="padding: 0.8rem; background: ${currentFilterGroupId == g.id ? '#eef2ff' : '#f8fafc'}; 
                         border: 1px solid ${currentFilterGroupId == g.id ? '#6366f1' : '#e2e8f0'}; 
-                        border-radius: 6px; cursor: pointer; transition: 0.2s;">
+                        border-radius: 6px; cursor: pointer; transition: 0.2s; position:relative;">
                 <div style="font-weight: bold; color: #1e293b;">${g.name}</div>
                 <div style="font-size: 0.75rem; color: #64748b;">ID: ${g.id} - ${new Date(g.created_at).toLocaleDateString()}</div>
-            </div>
-        `).join('');
+                <button onclick="event.stopPropagation(); closeFilterGroupFromManager(${g.id})"
+                    style="position:absolute; top:4px; right:4px; background:#fee2e2; border:none; border-radius:4px; color:#ef4444; cursor:pointer; padding:2px 6px; font-size:0.7rem; font-weight:bold;">Cerrar</button>
+            </div>`;
+        });
+        if (inactive.length && showInactive) {
+            html += `<div style="padding:0.5rem 0.8rem; font-size:0.75rem; font-weight:bold; color:#64748b; text-transform:uppercase; letter-spacing:0.5px; margin-top:0.5rem;">Cerrados</div>`;
+            inactive.forEach(g => {
+                html += `
+                <div onclick="selectFilterGroup(${g.id}, '${g.name.replace(/'/g, "\\'")}')" 
+                     style="padding: 0.8rem; background: #f1f5f9; 
+                            border: 1px solid #cbd5e1; 
+                            border-radius: 6px; cursor: pointer; transition: 0.2s; opacity:0.7; position:relative;">
+                    <div style="font-weight: bold; color: #64748b;">${g.name}</div>
+                    <div style="font-size: 0.75rem; color: #94a3b8;">ID: ${g.id} - ${new Date(g.created_at).toLocaleDateString()}</div>
+                    <button onclick="event.stopPropagation(); reactivateFilterGroup(${g.id})"
+                        style="position:absolute; top:4px; right:4px; background:#dcfce7; border:none; border-radius:4px; color:#16a34a; cursor:pointer; padding:2px 6px; font-size:0.7rem; font-weight:bold;">Reabrir</button>
+                </div>`;
+            });
+        }
+        if (!showInactive) {
+            html += `<div style="text-align:center; margin-top:0.5rem;">
+                <button onclick="loadFilterGroups(true)" style="background:none; border:1px dashed #cbd5e1; border-radius:4px; color:#64748b; cursor:pointer; padding:4px 12px; font-size:0.75rem;">Mostrar Cerrados</button>
+            </div>`;
+        } else {
+            html += `<div style="text-align:center; margin-top:0.5rem;">
+                <button onclick="loadFilterGroups()" style="background:none; border:1px dashed #cbd5e1; border-radius:4px; color:#64748b; cursor:pointer; padding:4px 12px; font-size:0.75rem;">Mostrar solo activos</button>
+            </div>`;
+        }
+        list.innerHTML = html;
+    }
+}
+
+async function closeFilterGroupFromManager(id) {
+    if (!confirm('¿Cerrar este grupo de filtro? Los leads pendientes quedarán como NO CALIFICA.')) return;
+    const res = await fetch(`/filters/groups/${id}/close`, { method: 'PUT', headers });
+    if (res.ok) {
+        currentFilterGroupId = null;
+        document.getElementById('filterLeadsView').style.display = 'none';
+        document.getElementById('filterDetailsPlaceholder').style.display = 'flex';
+        loadFilterGroups(true);
+    } else {
+        alert('Error al cerrar el filtro');
+    }
+}
+
+async function reactivateFilterGroup(id) {
+    if (!confirm('¿Reabrir este grupo de filtro?')) return;
+    const res = await fetch(`/filters/groups/${id}/reactivate`, { method: 'PUT', headers });
+    if (res.ok) {
+        currentFilterGroupId = null;
+        document.getElementById('filterLeadsView').style.display = 'none';
+        document.getElementById('filterDetailsPlaceholder').style.display = 'flex';
+        loadFilterGroups(true);
+    } else {
+        alert('Error al reabrir el filtro');
     }
 }
 
@@ -3748,6 +3808,376 @@ async function loadFilterLeads(id) {
     }
 }
 
+// ─── SURVEY EDITOR ─────────────────────────────────────
+let editingSurveyGroupId = null;
+
+function showSurveyEditor() {
+    if (!currentFilterGroupId) return alert('Seleccione un grupo de filtro primero.');
+    editingSurveyGroupId = currentFilterGroupId;
+    document.getElementById('surveyEditorTitle').textContent = 'Editar Encuesta - ' + document.getElementById('currentFilterName').innerText.replace('Filtro: ', '');
+    const list = document.getElementById('surveyQuestionsList');
+    list.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:2rem;">Cargando...</div>';
+    document.getElementById('surveyEditorModal').style.display = 'flex';
+
+    fetch('/filters/groups/' + editingSurveyGroupId + '/leads', {
+        method: 'GET',
+        headers: { ...headers, 'X-Schema-Only': '1' }
+    })
+    .then(r => r.json())
+    .catch(() => null);
+
+    // Load existing schema
+    fetch('/filters/groups', { headers })
+        .then(r => r.json())
+        .then(groups => {
+            const group = groups.find(g => g.id === editingSurveyGroupId);
+            let schema = [];
+            try { schema = JSON.parse(group.survey_schema || '[]'); } catch(e) {}
+            renderSurveyQuestions(schema);
+        })
+        .catch(() => {
+            renderSurveyQuestions([]);
+        });
+}
+
+function closeSurveyEditor() {
+    document.getElementById('surveyEditorModal').style.display = 'none';
+}
+
+function renderSurveyQuestions(schema) {
+    const list = document.getElementById('surveyQuestionsList');
+    if (!schema.length) {
+        list.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:2rem; background:#f8fafc; border-radius:8px; border:1px dashed #e2e8f0;"><i class="fas fa-plus-circle" style="font-size:2rem; display:block; margin-bottom:0.5rem; opacity:0.3;"></i>No hay preguntas aún. Agregue la primera.</div>';
+        return;
+    }
+    list.innerHTML = schema.map((q, i) => `
+        <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; position:relative;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+                <span style="font-weight:bold; color:#6366f1; font-size:0.8rem;">Pregunta ${i + 1}</span>
+                <button onclick="removeSurveyQuestion(${i})" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.2rem; padding:0;">&times;</button>
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
+                <div>
+                    <label style="font-size:0.75rem; color:#64748b;">Label</label>
+                    <input type="text" class="sq-label" value="${escapeHtml(q.label)}" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; box-sizing:border-box;">
+                </div>
+                <div>
+                    <label style="font-size:0.75rem; color:#64748b;">Tipo</label>
+                    <select class="sq-type" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem;">
+                        <option value="text" ${q.type === 'text' ? 'selected' : ''}>Texto corto</option>
+                        <option value="textarea" ${q.type === 'textarea' ? 'selected' : ''}>Texto largo</option>
+                        <option value="number" ${q.type === 'number' ? 'selected' : ''}>Número</option>
+                        <option value="select" ${q.type === 'select' ? 'selected' : ''}>Lista (select)</option>
+                        <option value="radio" ${q.type === 'radio' ? 'selected' : ''}>Opción única (radio)</option>
+                        <option value="checkbox" ${q.type === 'checkbox' ? 'selected' : ''}>Múltiple (checkbox)</option>
+                        <option value="date" ${q.type === 'date' ? 'selected' : ''}>Fecha</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+                <label style="font-size:0.75rem; color:#64748b; display:flex; align-items:center; gap:0.3rem;">
+                    <input type="checkbox" class="sq-required" ${q.required ? 'checked' : ''}> Requerido
+                </label>
+            </div>
+            <div class="sq-options-wrapper" style="display:${q.type === 'select' || q.type === 'radio' || q.type === 'checkbox' ? 'block' : 'none'};">
+                <label style="font-size:0.75rem; color:#64748b;">Opciones (una por línea)</label>
+                <textarea class="sq-options" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; min-height:50px; box-sizing:border-box;">${(q.options || []).join('\n')}</textarea>
+            </div>
+        </div>
+    `).join('');
+
+    // Show/hide options on type change
+    list.querySelectorAll('.sq-type').forEach((sel, i) => {
+        sel.addEventListener('change', () => {
+            const wrapper = sel.closest('div[style]').querySelector('.sq-options-wrapper');
+            if (wrapper) {
+                wrapper.style.display = (sel.value === 'select' || sel.value === 'radio' || sel.value === 'checkbox') ? 'block' : 'none';
+            }
+        });
+    });
+}
+
+function addSurveyQuestion() {
+    const list = document.getElementById('surveyQuestionsList');
+    const empty = list.querySelector('div[style*="text-align:center"]');
+    if (empty) empty.remove();
+    const existing = list.querySelectorAll('.sq-label');
+    const idx = existing.length;
+    const div = document.createElement('div');
+    div.style.cssText = 'background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:1rem; position:relative;';
+    div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+            <span style="font-weight:bold; color:#6366f1; font-size:0.8rem;">Pregunta ${idx + 1}</span>
+            <button onclick="this.closest('div[style]').remove()" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:1.2rem; padding:0;">&times;</button>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; margin-bottom:0.5rem;">
+            <div>
+                <label style="font-size:0.75rem; color:#64748b;">Label</label>
+                <input type="text" class="sq-label" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; box-sizing:border-box;" placeholder="Ej: ¿Usa shampoo?">
+            </div>
+            <div>
+                <label style="font-size:0.75rem; color:#64748b;">Tipo</label>
+                <select class="sq-type" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem;">
+                    <option value="text">Texto corto</option>
+                    <option value="textarea">Texto largo</option>
+                    <option value="number">Número</option>
+                    <option value="select">Lista (select)</option>
+                    <option value="radio">Opción única (radio)</option>
+                    <option value="checkbox">Múltiple (checkbox)</option>
+                    <option value="date">Fecha</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex; gap:0.5rem; align-items:center; margin-bottom:0.5rem;">
+            <label style="font-size:0.75rem; color:#64748b; display:flex; align-items:center; gap:0.3rem;">
+                <input type="checkbox" class="sq-required"> Requerido
+            </label>
+        </div>
+        <div class="sq-options-wrapper" style="display:none;">
+            <label style="font-size:0.75rem; color:#64748b;">Opciones (una por línea)</label>
+            <textarea class="sq-options" style="width:100%; padding:0.4rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; min-height:50px; box-sizing:border-box;" placeholder="Opción 1&#10;Opción 2&#10;Opción 3"></textarea>
+        </div>
+    `;
+    div.querySelector('.sq-type').addEventListener('change', function() {
+        const wrapper = div.querySelector('.sq-options-wrapper');
+        wrapper.style.display = (this.value === 'select' || this.value === 'radio' || this.value === 'checkbox') ? 'block' : 'none';
+    });
+    list.appendChild(div);
+    // Renumber
+    list.querySelectorAll('span[style*="color:#6366f1"]').forEach((el, i) => {
+        el.textContent = 'Pregunta ' + (i + 1);
+    });
+}
+
+function removeSurveyQuestion(index) {
+    const cards = document.getElementById('surveyQuestionsList').querySelectorAll('div[style*="background:#f8fafc"]');
+    if (cards[index]) cards[index].remove();
+    // Renumber
+    document.getElementById('surveyQuestionsList').querySelectorAll('span[style*="color:#6366f1"]').forEach((el, i) => {
+        el.textContent = 'Pregunta ' + (i + 1);
+    });
+}
+
+async function saveSurveySchema() {
+    const cards = document.getElementById('surveyQuestionsList').querySelectorAll('div[style*="background:#f8fafc"]');
+    const schema = [];
+    cards.forEach((card, i) => {
+        const label = card.querySelector('.sq-label').value.trim();
+        if (!label) return;
+        schema.push({
+            id: 'q_' + Date.now() + '_' + i,
+            label: label,
+            type: card.querySelector('.sq-type').value,
+            required: card.querySelector('.sq-required').checked,
+            options: (card.querySelector('.sq-options')?.value || '')
+                .split('\n').map(s => s.trim()).filter(Boolean)
+        });
+    });
+
+    if (!schema.length) {
+        if (!confirm('No hay preguntas definidas. ¿Guardar encuesta vacía?')) return;
+    }
+
+    const res = await fetch('/filters/groups/' + editingSurveyGroupId + '/schema', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ survey_schema: JSON.stringify(schema) })
+    });
+
+    if (res.ok) {
+        alert('Encuesta guardada correctamente.');
+        closeSurveyEditor();
+    } else {
+        alert('Error al guardar la encuesta.');
+    }
+}
+
+// ─── DYNAMIC SURVEY FORM RENDERING (agent view) ─────────
+function updateSequentialState() {
+    const schema = surveySchemaCache || [];
+    for (let i = 0; i < schema.length; i++) {
+        const q = schema[i];
+        const container = document.getElementById(`sf_q_${q.id}`);
+        if (!container) continue;
+        const inputs = container.querySelectorAll('.sf-input');
+        // Check if all previous required questions have a value
+        let prevFilled = true;
+        for (let j = 0; j < i; j++) {
+            const prevQ = schema[j];
+            if (!prevQ.required) continue;
+            const prevContainer = document.getElementById(`sf_q_${prevQ.id}`);
+            if (!prevContainer) continue;
+            const prevInputs = prevContainer.querySelectorAll('.sf-input');
+            let hasValue = false;
+            prevInputs.forEach(inp => {
+                if (inp.type === 'checkbox') {
+                    if (inp.checked) hasValue = true;
+                } else if (inp.type === 'radio') {
+                    if (inp.checked) hasValue = true;
+                } else {
+                    if (inp.value.trim()) hasValue = true;
+                }
+            });
+            if (!hasValue) { prevFilled = false; break; }
+        }
+        inputs.forEach(inp => {
+            if (prevFilled) {
+                inp.removeAttribute('disabled');
+                container.style.opacity = '1';
+            } else {
+                inp.setAttribute('disabled', 'disabled');
+                container.style.opacity = '0.4';
+            }
+        });
+    }
+}
+
+function renderSurveyForm(schema, data) {
+    surveySchemaCache = schema;
+    const div = document.getElementById('detFilterSurvey');
+    if (!schema || !schema.length) {
+        div.innerHTML = '<div style="color:#94a3b8; font-style:italic; padding:1rem; text-align:center;">No hay preguntas definidas para este filtro.</div>';
+        return;
+    }
+    div.innerHTML = schema.map(q => {
+        const value = data ? data[q.id] || '' : '';
+        const req = q.required ? ' required' : '';
+        const label = `<label style="font-weight:600; font-size:0.85rem; color:#1e293b; display:block; margin-bottom:2px;">${q.label}${q.required ? ' <span style="color:#ef4444;">*</span>' : ''}</label>`;
+
+        let input = '';
+        switch (q.type) {
+            case 'textarea':
+                input = `<textarea class="sf-input" data-qid="${q.id}" oninput="updateSequentialState()" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; min-height:60px; box-sizing:border-box;">${escapeHtml(value)}</textarea>`;
+                break;
+            case 'number':
+                input = `<input type="number" class="sf-input" data-qid="${q.id}" value="${escapeHtml(value)}" oninput="updateSequentialState()" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; box-sizing:border-box;">`;
+                break;
+            case 'date':
+                input = `<input type="date" class="sf-input" data-qid="${q.id}" value="${escapeHtml(value)}" onchange="updateSequentialState()" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; box-sizing:border-box;">`;
+                break;
+            case 'select':
+                const opts = q.options || [];
+                input = `<select class="sf-input" data-qid="${q.id}" onchange="updateSequentialState()" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; box-sizing:border-box;">
+                    <option value="">Seleccione...</option>
+                    ${opts.map(o => `<option value="${escapeHtml(o)}" ${value === o ? 'selected' : ''}>${escapeHtml(o)}</option>`).join('')}
+                </select>`;
+                break;
+            case 'radio':
+                input = `<div style="display:flex; gap:1rem; flex-wrap:wrap;">${(q.options || []).map(o => `
+                    <label style="display:flex; align-items:center; gap:4px; font-size:0.85rem; cursor:pointer;">
+                        <input type="radio" class="sf-input" data-qid="${q.id}" name="sf_${q.id}" value="${escapeHtml(o)}" ${value === o ? 'checked' : ''} onchange="updateSequentialState()"> ${escapeHtml(o)}
+                    </label>
+                `).join('')}</div>`;
+                break;
+            case 'checkbox':
+                const vals = (value || '').split(',').map(v => v.trim());
+                input = `<div style="display:flex; gap:1rem; flex-wrap:wrap;">${(q.options || []).map(o => `
+                    <label style="display:flex; align-items:center; gap:4px; font-size:0.85rem; cursor:pointer;">
+                        <input type="checkbox" class="sf-input" data-qid="${q.id}" value="${escapeHtml(o)}" ${vals.includes(o) ? 'checked' : ''} onchange="updateSequentialState()"> ${escapeHtml(o)}
+                    </label>
+                `).join('')}</div>`;
+                break;
+            default: // text
+                input = `<input type="text" class="sf-input" data-qid="${q.id}" value="${escapeHtml(value)}" oninput="updateSequentialState()" style="width:100%; padding:0.5rem; border:1px solid #cbd5e1; border-radius:4px; font-size:0.85rem; box-sizing:border-box;">`;
+        }
+
+        return `
+            <div id="sf_q_${q.id}" style="margin-bottom:0.8rem; padding:0.5rem 0; border-bottom:1px solid #f1f5f9;">
+                ${label}
+                ${input}
+            </div>
+        `;
+    }).join('') + `
+    <div id="sfSequentialMsg" style="display:none; padding:0.5rem; background:#fffbeb; border:1px solid #fde68a; border-radius:4px; color:#b45309; font-size:0.8rem; margin-bottom:0.5rem;">
+        <i class="fas fa-info-circle"></i> Las preguntas deben responderse en orden. Complete la pregunta anterior para habilitar la siguiente.
+    </div>
+
+    <button onclick="saveSurveyResponses()" style="width:100%; padding:0.6rem; background:#6366f1; border:none; border-radius:6px; color:white; font-weight:bold; cursor:pointer; font-size:0.9rem;">
+        <i class="fas fa-save"></i> Guardar respuestas
+    </button>`;
+}
+
+async function saveSurveyResponses() {
+    if (!activeFilterLead) return;
+    // Check sequential order: no gap allowed in required questions
+    const schema = surveySchemaCache || [];
+    for (let i = 0; i < schema.length; i++) {
+        const q = schema[i];
+        if (!q.required) continue;
+        const container = document.getElementById(`sf_q_${q.id}`);
+        if (!container) continue;
+        const inputs = container.querySelectorAll('.sf-input');
+        let hasValue = false;
+        inputs.forEach(inp => {
+            if (inp.type === 'checkbox') { if (inp.checked) hasValue = true; }
+            else if (inp.type === 'radio') { if (inp.checked) hasValue = true; }
+            else { if (inp.value.trim()) hasValue = true; }
+        });
+        if (!hasValue) break; // found first unanswered required question
+        // Check that all PREVIOUS required questions also have values (should be guaranteed by UI, but double-check)
+    }
+    // Check that there are no answered questions after the first gap
+    let foundGap = false;
+    for (let i = 0; i < schema.length; i++) {
+        const q = schema[i];
+        const container = document.getElementById(`sf_q_${q.id}`);
+        if (!container) continue;
+        const inputs = container.querySelectorAll('.sf-input');
+        let hasValue = false;
+        inputs.forEach(inp => {
+            if (inp.type === 'checkbox') { if (inp.checked) hasValue = true; }
+            else if (inp.type === 'radio') { if (inp.checked) hasValue = true; }
+            else { if (inp.value.trim()) hasValue = true; }
+        });
+        if (!hasValue && q.required) { foundGap = true; continue; }
+        if (foundGap && hasValue) {
+            alert('Debe responder las preguntas en orden. Complete las preguntas anteriores primero.');
+            return;
+        }
+    }
+
+    const inputs = document.querySelectorAll('.sf-input');
+    const data = {};
+    // For radio, we need to get the checked value per group
+    const radioGroups = {};
+    inputs.forEach(inp => {
+        const qid = inp.dataset.qid;
+        if (inp.type === 'radio') {
+            if (!radioGroups[qid]) radioGroups[qid] = '';
+            if (inp.checked) radioGroups[qid] = inp.value;
+        } else if (inp.type === 'checkbox') {
+            if (!data[qid]) data[qid] = [];
+            if (inp.checked) data[qid].push(inp.value);
+        } else {
+            data[qid] = inp.value;
+        }
+    });
+    // Merge radio values
+    Object.keys(radioGroups).forEach(k => { data[k] = radioGroups[k]; });
+    // Convert checkbox arrays to comma-separated
+    Object.keys(data).forEach(k => {
+        if (Array.isArray(data[k])) data[k] = data[k].join(', ');
+    });
+
+    const res = await fetch('/filters/leads/' + activeFilterLead.id + '/data', {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify({ survey_data: data })
+    });
+
+    if (res.ok) {
+        alert('Respuestas guardadas.');
+    } else {
+        alert('Error al guardar respuestas.');
+    }
+}
+
+function escapeHtml(t) {
+    const d = document.createElement('div');
+    d.textContent = t;
+    return d.innerHTML;
+}
+
 function showCreateFilter() {
     document.getElementById('filterCreateModal').style.display = 'flex';
 }
@@ -3773,20 +4203,47 @@ function showFilterUpload() {
     document.getElementById('filterUploadModal').style.display = 'flex';
     document.getElementById('filterPasteArea').value = '';
     document.getElementById('filterPreviewContainer').style.display = 'none';
+    document.getElementById('filterExcelInput').value = '';
+    document.getElementById('filterExcelFileName').textContent = '';
+    document.getElementById('btnFinalFilterUpload').disabled = true;
+    document.getElementById('btnFinalFilterUpload').style.opacity = '0.5';
+    const oldMsg = document.getElementById('autoSchemaMsg');
+    if (oldMsg) oldMsg.remove();
     pendingFilterUploadData = [];
 }
 
-async function handleFilterPasteData() {
-    const text = document.getElementById('filterPasteArea').value;
-    if (!text) return;
-    
-    const rows = text.trim().split('\n').map(r => r.split('\t'));
-    if (rows.length < 2) return;
-    
-    const headers_row = rows[0].map(h => h.trim().toLowerCase());
-    const data = rows.slice(1);
-    
-    // Attempt mapping
+function buildSurveySchemaFromHeaders(headers_row, colIdx) {
+    const extraCols = [];
+    headers_row.forEach((h, i) => {
+        if (!Object.values(colIdx).includes(i)) {
+            extraCols.push(h);
+        }
+    });
+    if (!extraCols.length) return [];
+    return extraCols.map((label, idx) => ({
+        id: 'col_' + Date.now() + '_' + idx,
+        label: label.charAt(0).toUpperCase() + label.slice(1),
+        type: 'text',
+        required: false,
+        options: []
+    }));
+}
+
+async function saveSurveySchemaAuto(schema) {
+    try {
+        await fetch('/filters/groups/' + currentFilterGroupId + '/schema', {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ survey_schema: JSON.stringify(schema) })
+        });
+    } catch(e) {}
+}
+
+async function processFilterRows(headers_row, dataRows) {
+    // Remove old auto-schema message if present
+    const oldMsg = document.getElementById('autoSchemaMsg');
+    if (oldMsg) oldMsg.remove();
+
     const colIdx = {
         phone: headers_row.findIndex(h => h.includes('tel') || h.includes('cel') || h.includes('llamada')),
         name: headers_row.findIndex(h => h.includes('nom') || h.includes('person')),
@@ -3800,27 +4257,32 @@ async function handleFilterPasteData() {
         return;
     }
 
-    const leads = data.map(row => {
+    const leads = dataRows.map(row => {
         const lead = {
-            phone_number: row[colIdx.phone],
-            person_name: colIdx.name !== -1 ? row[colIdx.name] : '',
-            city: colIdx.city !== -1 ? row[colIdx.city] : '',
-            interviewer_name: colIdx.interviewer !== -1 ? row[colIdx.interviewer] : '',
-            recruiter_name: colIdx.recruiter !== -1 ? row[colIdx.recruiter] : '',
+            phone_number: row[colIdx.phone] ? row[colIdx.phone].toString().trim() : '',
+            person_name: colIdx.name !== -1 ? (row[colIdx.name] || '').toString().trim() : '',
+            city: colIdx.city !== -1 ? (row[colIdx.city] || '').toString().trim() : '',
+            interviewer_name: colIdx.interviewer !== -1 ? (row[colIdx.interviewer] || '').toString().trim() : '',
+            recruiter_name: colIdx.recruiter !== -1 ? (row[colIdx.recruiter] || '').toString().trim() : '',
             survey_data: {}
         };
         
-        // Put everything else in survey_data
         headers_row.forEach((h, i) => {
             if (!Object.values(colIdx).includes(i)) {
-                lead.survey_data[h] = row[i];
+                lead.survey_data[h] = (row[i] || '').toString().trim();
             }
         });
         return lead;
     });
 
-    // Check duplicates against backend
-    const phoneNumbers = leads.map(l => l.phone_number);
+    // Auto-generate survey schema from extra columns
+    const schema = buildSurveySchemaFromHeaders(headers_row, colIdx);
+    if (schema.length) {
+        await saveSurveySchemaAuto(schema);
+    }
+
+    // Check duplicates
+    const phoneNumbers = leads.map(l => l.phone_number).filter(Boolean);
     const dupRes = await fetch(`/filters/check-duplicates?group_id=${currentFilterGroupId}`, {
         method: 'POST',
         headers,
@@ -3831,39 +4293,108 @@ async function handleFilterPasteData() {
     if (dupRes.ok) duplicates = await dupRes.json();
     
     pendingFilterUploadData = leads;
+    pendingFilterDuplicates = duplicates;
     
     // Show Preview
     const container = document.getElementById('filterPreviewContainer');
     container.style.display = 'flex';
+    renderFilterPreview();
     
-    const thead = document.getElementById('filterPreviewThead');
-    thead.innerHTML = `<tr>
-        <th style="padding: 0.5rem; border:1px solid #ddd;">Validación</th>
-        <th style="padding: 0.5rem; border:1px solid #ddd;">Teléfono</th>
-        <th style="padding: 0.5rem; border:1px solid #ddd;">Nombre</th>
-        <th style="padding: 0.5rem; border:1px solid #ddd;">Reclutador</th>
-    </tr>`;
-    
-    const tbody = document.getElementById('filterPreviewTbody');
-    tbody.innerHTML = leads.slice(0, 50).map(l => {
-        const isDupGroup = duplicates.in_group.includes(l.phone_number);
-        const isDupGlobal = duplicates.in_global.includes(l.phone_number);
-        const statusIcon = isDupGlobal ? '❌ GLOBAL' : (isDupGroup ? '⚠️ REPETIDO' : '✅ OK');
-        const color = isDupGlobal ? '#ef4444' : (isDupGroup ? '#f59e0b' : '#22c55e');
-        
-        return `
-            <tr>
-                <td style="padding: 0.5rem; border:1px solid #ddd; color: ${color}; font-weight: bold;">${statusIcon}</td>
-                <td style="padding: 0.5rem; border:1px solid #ddd;">${l.phone_number}</td>
-                <td style="padding: 0.5rem; border:1px solid #ddd;">${l.person_name}</td>
-                <td style="padding: 0.5rem; border:1px solid #ddd;">${l.recruiter_name}</td>
-            </tr>
-        `;
-    }).join('');
+    if (schema.length) {
+        const msg = document.createElement('div');
+        msg.id = 'autoSchemaMsg';
+        msg.style.cssText = 'padding:0.5rem 1rem; background:#eef2ff; border:1px solid #6366f1; border-radius:6px; color:#4338ca; font-size:0.85rem; margin-bottom:0.5rem;';
+        msg.innerHTML = `<i class="fas fa-poll"></i> Se crearon <strong>${schema.length}</strong> preguntas de encuesta automáticamente desde las columnas del archivo.`;
+        container.parentNode.insertBefore(msg, container);
+    }
     
     const btn = document.getElementById('btnFinalFilterUpload');
     btn.disabled = false;
     btn.style.opacity = '1';
+}
+
+let pendingFilterDuplicates = { in_group: [], in_global: [] };
+let surveySchemaCache = null;
+
+function removeFilterUploadRow(idx) {
+    pendingFilterUploadData.splice(idx, 1);
+    renderFilterPreview();
+}
+
+function renderFilterPreview() {
+    const leads = pendingFilterUploadData;
+    const dup = pendingFilterDuplicates;
+    const container = document.getElementById('filterPreviewContainer');
+    if (!leads.length) {
+        container.style.display = 'none';
+        document.getElementById('btnFinalFilterUpload').disabled = true;
+        document.getElementById('btnFinalFilterUpload').style.opacity = '0.5';
+        return;
+    }
+    const tbody = document.getElementById('filterPreviewTbody');
+    tbody.innerHTML = leads.slice(0, 50).map((l, idx) => {
+        const isDupGroup = dup.in_group.includes(l.phone_number);
+        const isDupGlobal = dup.in_global.includes(l.phone_number);
+        const statusIcon = isDupGlobal ? '❌ GLOBAL' : (isDupGroup ? '⚠️ REPETIDO' : '✅ OK');
+        const color = isDupGlobal ? '#ef4444' : (isDupGroup ? '#f59e0b' : '#22c55e');
+        return `
+        <tr data-idx="${idx}">
+            <td style="padding: 0.5rem; border:1px solid #ddd; color:${color}; font-weight:bold;">${statusIcon}</td>
+            <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.phone_number}</td>
+            <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.person_name}</td>
+            <td style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">${l.recruiter_name}</td>
+            <td style="padding: 0.5rem; border:1px solid #ddd; text-align:center;">
+                <button onclick="removeFilterUploadRow(${idx})" style="background:#fee2e2; border:none; border-radius:4px; color:#ef4444; cursor:pointer; padding:2px 8px; font-size:0.8rem; font-weight:bold;">✕ Quitar</button>
+            </td>
+        </tr>`;
+    }).join('');
+    document.getElementById('filterPreviewThead').innerHTML = `<tr>
+        <th style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">Validación</th>
+        <th style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">Teléfono</th>
+        <th style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">Nombre</th>
+        <th style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b;">Reclutador</th>
+        <th style="padding: 0.5rem; border:1px solid #ddd; color:#1e293b; width:60px;"></th>
+    </tr>`;
+}
+
+async function handleFilterPasteData() {
+    const text = document.getElementById('filterPasteArea').value;
+    if (!text) return;
+    const rows = text.trim().split('\n').map(r => r.split('\t'));
+    if (rows.length < 2) return;
+    const headers_row = rows[0].map(h => h.trim().toLowerCase());
+    const data = rows.slice(1);
+    await processFilterRows(headers_row, data);
+}
+
+async function handleFilterExcelFile(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    document.getElementById('filterExcelFileName').textContent = file.name;
+    document.getElementById('filterPasteArea').value = '';
+    
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+            
+            if (json.length < 2) {
+                alert("El archivo Excel no tiene suficientes filas.");
+                return;
+            }
+            
+            const headers_row = json[0].map(h => String(h).trim().toLowerCase());
+            const dataRows = json.slice(1);
+            await processFilterRows(headers_row, dataRows);
+        } catch(err) {
+            alert("Error al leer el archivo Excel: " + err.message);
+        }
+    };
+    reader.readAsArrayBuffer(file);
 }
 
 async function submitFilterUpload() {
@@ -3904,7 +4435,7 @@ async function loadAgentsIntoSelect(id) {
         const agents = await res.json();
         const select = document.getElementById(id);
         const currentId = select.value;
-        select.innerHTML = agents.map(a => `<option value="${a.id}">${a.name} (${a.role})</option>`).join('');
+        select.innerHTML = agents.map(a => `<option value="${a.id}">${a.full_name || a.username}</option>`).join('');
         if (currentId) select.value = currentId;
     }
 }
@@ -3928,17 +4459,44 @@ async function submitFilterAssign() {
 // AGENT WORKFLOW
 function showFilterCalling() {
     document.getElementById('superuserLanding').style.display = 'none';
-    document.getElementById('crmInterface').style.display = 'none';
+    document.getElementById('crmInterface').style.display = 'grid';
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('callsGridView').style.display = 'none';
+    document.getElementById('callDetailView').style.display = 'none';
     document.getElementById('filterCallingView').style.display = 'flex';
+    const bar = document.getElementById('filterAccessBar');
+    if (bar) bar.style.display = 'none';
     loadAgentFilterGroups();
 }
 
 function backToCRM() {
     document.getElementById('filterCallingView').style.display = 'none';
+    document.getElementById('filterLeadDetail').style.display = 'none';
     if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar') {
+        document.getElementById('crmInterface').style.display = 'none';
         document.getElementById('superuserLanding').style.display = 'flex';
     } else {
-        document.getElementById('crmInterface').style.display = 'grid';
+        document.getElementById('callsGridView').style.display = 'block';
+        const bar = document.getElementById('filterAccessBar');
+        if (bar) bar.style.display = 'flex';
+    }
+    loadAgentFilterGroups(); // Refresh groups list (closed group will disappear)
+}
+
+async function closeFilterGroup() {
+    const groupId = document.getElementById('filterGroupSelectAgent').value;
+    if (!groupId) return;
+    if (!confirm('¿Cerrar este filtro? Los leads pendientes se marcarán como rechazados.')) return;
+
+    const res = await fetch('/filters/groups/' + groupId + '/close', {
+        method: 'PUT',
+        headers
+    });
+    if (res.ok) {
+        alert('Filtro cerrado correctamente.');
+        backToCRM();
+    } else {
+        alert('Error al cerrar el filtro.');
     }
 }
 
@@ -3952,10 +4510,20 @@ async function loadAgentFilterGroups() {
     }
 }
 
+let currentSurveySchema = [];
+
 async function loadAgentFilterLeads() {
     const groupId = document.getElementById('filterGroupSelectAgent').value;
     if (!groupId) return;
     
+    // Also load group schema
+    const schemaRes = await fetch('/filters/groups', { headers });
+    if (schemaRes.ok) {
+        const groups = await schemaRes.json();
+        const group = groups.find(g => g.id == groupId);
+        try { currentSurveySchema = JSON.parse(group?.survey_schema || '[]'); } catch(e) { currentSurveySchema = []; }
+    }
+
     const res = await fetch(`/filters/groups/${groupId}/leads`, { headers });
     if (res.ok) {
         const leads = await res.json();
@@ -3993,12 +4561,8 @@ function showFilterLeadDetail(leadId) {
     const surveyDiv = document.getElementById('detFilterSurvey');
     try {
         const data = JSON.parse(lead.survey_data || '{}');
-        surveyDiv.innerHTML = Object.entries(data).map(([k, v]) => `
-            <div style="background: #f8fafc; padding: 8px; border-radius: 4px; border: 1px solid #f1f5f9;">
-                <span style="font-weight: bold; font-size: 0.8rem; color: #64748b; text-transform: capitalize;">${k}:</span>
-                <span style="font-size: 0.9rem; color: #1e293b;">${v}</span>
-            </div>
-        `).join('');
+        renderSurveyForm(currentSurveySchema, data);
+        updateSequentialState();
     } catch (e) { surveyDiv.innerHTML = 'Error al cargar encuesta'; }
 }
 
@@ -4347,19 +4911,15 @@ function showConversations() {
         .then(r => r.json())
         .then(list => {
             body.innerHTML = '';
-            if (currentUserRole === 'superuser') {
-                const btn = document.createElement('div');
-                btn.style.cssText = 'display:flex; align-items:center; padding:12px 16px; cursor:pointer; border-bottom:1px solid #e2e8f0; transition:0.15s; color:#6366f1; font-weight:600; font-size:14px;';
-                btn.onmouseenter = () => btn.style.background = '#eef2ff';
-                btn.onmouseleave = () => btn.style.background = 'transparent';
-                btn.onclick = showChatUserList;
-                btn.innerHTML = '<i class="fas fa-plus-circle" style="margin-right:10px; font-size:18px;"></i> Abrir un nuevo Chat';
-                body.appendChild(btn);
-            }
+            const btn = document.createElement('div');
+            btn.style.cssText = 'display:flex; align-items:center; padding:12px 16px; cursor:pointer; border-bottom:1px solid #e2e8f0; transition:0.15s; color:#6366f1; font-weight:600; font-size:14px;';
+            btn.onmouseenter = () => btn.style.background = '#eef2ff';
+            btn.onmouseleave = () => btn.style.background = 'transparent';
+            btn.onclick = showChatUserList;
+            btn.innerHTML = '<i class="fas fa-plus-circle" style="margin-right:10px; font-size:18px;"></i> Abrir un nuevo Chat';
+            body.appendChild(btn);
             if (!list.length) {
-                if (currentUserRole !== 'superuser') {
-                    body.innerHTML = '<div style="text-align:center; color:#94a3b8; padding:40px 20px;"><i class="fas fa-comments" style="font-size:40px; margin-bottom:12px; display:block; opacity:0.3;"></i>No hay conversaciones</div>';
-                }
+                body.innerHTML += '<div style="text-align:center; color:#94a3b8; padding:40px 20px;"><i class="fas fa-comments" style="font-size:40px; margin-bottom:12px; display:block; opacity:0.3;"></i>No hay conversaciones</div>';
                 return;
             }
             list.forEach(c => {

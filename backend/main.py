@@ -2177,9 +2177,37 @@ def update_filter_lead_data(lead_id: int, update: FilterLeadDataUpdate, db: Sess
     db.commit()
     return {"status": "ok"}
 
+@app.put("/filters/groups/{group_id}/close")
+def close_filter_group(group_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_group = db.query(models.FilterGroup).filter(models.FilterGroup.id == group_id).first()
+    if not db_group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    
+    # Mark remaining pending leads as rejected
+    db.query(models.FilterLead).filter(
+        models.FilterLead.group_id == group_id,
+        models.FilterLead.status == "pending"
+    ).update({"status": "rejected"})
+    
+    db_group.is_active = False
+    db.commit()
+    return {"status": "ok"}
+
 @app.get("/filters/groups")
-def get_filter_groups(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
-    return db.query(models.FilterGroup).filter(models.FilterGroup.is_active == True).order_by(models.FilterGroup.id.desc()).all()
+def get_filter_groups(include_inactive: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    q = db.query(models.FilterGroup)
+    if not include_inactive:
+        q = q.filter(models.FilterGroup.is_active == True)
+    return q.order_by(models.FilterGroup.id.desc()).all()
+
+@app.put("/filters/groups/{group_id}/reactivate")
+def reactivate_filter_group(group_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    db_group = db.query(models.FilterGroup).filter(models.FilterGroup.id == group_id).first()
+    if not db_group:
+        raise HTTPException(status_code=404, detail="Group not found")
+    db_group.is_active = True
+    db.commit()
+    return {"status": "ok"}
 
 @app.post("/filters/groups")
 def create_filter_group(group: FilterGroupCreate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):

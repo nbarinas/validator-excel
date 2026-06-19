@@ -725,6 +725,9 @@
                                 <button onclick="showFilterAssign()" style="background: #f59e0b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
                                     <i class="fas fa-user-plus"></i> Asignar
                                 </button>
+                                <button onclick="showSurveyEditor()" style="background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                    <i class="fas fa-poll"></i> Editar Encuesta
+                                </button>
                             </div>
                         </div>
 
@@ -771,11 +774,25 @@
     <div id="filterUploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
         <div style="background: white; padding: 2rem; border-radius: 12px; width: 900px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
             <h2 style="margin-top: 0; color: #1e293b;">Cargar Datos al Filtro</h2>
-            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Pegue los datos de Excel. El sistema validará duplicados con la base global de llamadas automáticamente.</p>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Cargue un archivo Excel o pegue datos copiados desde Excel. El sistema validará duplicados automáticamente y creará preguntas de encuesta desde las columnas adicionales.</p>
             
+            <div style="border: 2px dashed #cbd5e1; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; text-align: center; background: #f8fafc;">
+                <input type="file" id="filterExcelInput" accept=".xlsx,.xls" onchange="handleFilterExcelFile(event)" style="display: none;">
+                <button onclick="document.getElementById('filterExcelInput').click()" style="background: #6366f1; color: white; border: none; padding: 0.7rem 1.5rem; border-radius: 6px; cursor: pointer; font-weight: bold;">
+                    <i class="fas fa-file-excel"></i> Seleccionar archivo Excel
+                </button>
+                <span id="filterExcelFileName" style="margin-left: 1rem; color: #64748b; font-size: 0.85rem;"></span>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.5rem;">
+                <span style="flex:1; border-top:1px solid #e2e8f0;"></span>
+                <span style="color:#94a3b8; font-size:0.8rem;">O pegar datos (TSV)</span>
+                <span style="flex:1; border-top:1px solid #e2e8f0;"></span>
+            </div>
+
             <textarea id="filterPasteArea" oninput="handleFilterPasteData()"
                     placeholder="Ctrl+V para pegar desde Excel..."
-                    style="width: 100%; height: 100px; padding: 1rem; font-family: monospace; border: 2px dashed #cbd5e1; border-radius: 8px; resize: none; box-sizing: border-box; margin-bottom: 1rem;"></textarea>
+                    style="width: 100%; height: 80px; padding: 1rem; font-family: monospace; border: 2px dashed #cbd5e1; border-radius: 8px; resize: none; box-sizing: border-box; margin-bottom: 1rem;"></textarea>
 
             <div id="filterPreviewContainer" style="display: none; flex: 1; flex-direction: column; overflow: hidden; margin-bottom:1rem;">
                 <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">Validación de Carga</h4>
@@ -811,6 +828,31 @@
             <div style="display: flex; justify-content: flex-end; gap: 1rem;">
                 <button onclick="document.getElementById('filterAssignModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
                 <button onclick="submitFilterAssign()" style="background: #f59e0b; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">Asignar Ahora</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SURVEY EDITOR MODAL -->
+    <div id="surveyEditorModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 1.5rem; border-radius: 12px; width: 700px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h3 style="margin:0; color:#6366f1;"><i class="fas fa-poll"></i> <span id="surveyEditorTitle">Editar Encuesta</span></h3>
+                <button onclick="closeSurveyEditor()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#94a3b8;">&times;</button>
+            </div>
+            <p style="color:#64748b; font-size:0.85rem; margin-bottom:1rem;">Define las preguntas que verán los encuestadores al atender este filtro.</p>
+            <div id="surveyQuestionsList" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:0.8rem; margin-bottom:1rem; min-height:200px;">
+                <!-- Questions rendered by JS -->
+            </div>
+            <div style="display:flex; justify-content:space-between; gap:0.5rem; border-top:1px solid #e2e8f0; padding-top:1rem;">
+                <button onclick="addSurveyQuestion()" style="background:#f1f5f9; border:1px dashed #cbd5e1; padding:0.6rem 1rem; border-radius:6px; cursor:pointer; color:#475569; font-weight:600;">
+                    <i class="fas fa-plus"></i> Agregar Pregunta
+                </button>
+                <div style="display:flex; gap:0.5rem;">
+                    <button onclick="closeSurveyEditor()" style="background:#94a3b8; border:none; padding:0.6rem 1.5rem; border-radius:6px; color:white; cursor:pointer;">Cancelar</button>
+                    <button onclick="saveSurveySchema()" style="background:#6366f1; border:none; padding:0.6rem 1.5rem; border-radius:6px; color:white; cursor:pointer; font-weight:bold;">
+                        <i class="fas fa-save"></i> Guardar Encuesta
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -978,6 +1020,12 @@
                 </button>
             </div>
 
+            <div class="form-group" id="filterCallAction" style="margin-bottom: 1rem;">
+                <button class="btn-submit" onclick="showFilterCalling()" style="width: 100%; background: #e11d48;">
+                    <i class="fas fa-clipboard-list"></i> Atención de Filtros
+                </button>
+            </div>
+
             <div class="form-group">
                 <label>Estudio Activo</label>
                 <select id="studySelect" class="form-input">
@@ -1043,6 +1091,16 @@
                 <!-- Users injected here -->
             </div>
 
+            <!-- FILTER ACCESS BAR (visible for all non-superuser roles) -->
+            <div id="filterAccessBar" style="display: none; background: #eef2ff; border: 1px solid #6366f1; border-radius: 8px; padding: 0.6rem 1rem; margin-bottom: 1rem; align-items: center; justify-content: space-between;">
+                <span style="color:#4338ca; font-weight:600; font-size:0.9rem;">
+                    <i class="fas fa-clipboard-list"></i> Tiene filtros asignados
+                </span>
+                <button onclick="showFilterCalling()" style="background:#6366f1; border:none; padding:0.4rem 1rem; border-radius:6px; color:white; cursor:pointer; font-weight:bold; font-size:0.85rem;">
+                    <i class="fas fa-filter"></i> Atención de Filtros
+                </button>
+            </div>
+
             <!-- EMPTY STATE -->
             <div id="emptyState" style="text-align: center; margin-top: 5rem; color: #666;">
                 <i class="fas fa-arrow-left" style="font-size: 3rem; margin-bottom: 1rem;"></i>
@@ -1054,9 +1112,14 @@
             <div id="filterCallingView" style="display: none; flex-direction: column; gap: 1.5rem;">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h2 style="margin:0; color: #e11d48;"><i class="fas fa-filter"></i> Atención de Filtros</h2>
-                    <button onclick="backToCRM()" style="background: #94a3b8; border: none; padding: 0.5rem 1rem; border-radius: 6px; color: white; cursor: pointer;">
-                        <i class="fas fa-times"></i> Salir de Filtros
-                    </button>
+                    <div style="display:flex; gap:0.5rem;">
+                        <button onclick="closeFilterGroup()" style="background: #22c55e; border: none; padding: 0.5rem 1rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">
+                            <i class="fas fa-check-circle"></i> Cerrar Filtro
+                        </button>
+                        <button onclick="backToCRM()" style="background: #94a3b8; border: none; padding: 0.5rem 1rem; border-radius: 6px; color: white; cursor: pointer;">
+                            <i class="fas fa-times"></i> Salir
+                        </button>
+                    </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem;">
