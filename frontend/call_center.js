@@ -5016,7 +5016,7 @@ function showConversations() {
                 div.innerHTML = `
                     <div style="width:40px; height:40px; border-radius:50%; background:#6366f1; color:white; display:flex; align-items:center; justify-content:center; font-weight:bold; flex-shrink:0;">${name.charAt(0).toUpperCase()}</div>
                     <div style="margin-left:12px; flex:1; min-width:0;">
-                        <div style="font-weight:600; font-size:14px; color:#1e293b;">${name} <span style="font-weight:400; font-size:11px; color:#94a3b8; margin-left:8px;">${c.username}</span></div>
+                        <div style="font-weight:600; font-size:14px; color:#1e293b;">${name}</div>
                         <div style="font-size:12px; color:#64748b; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${c.last_message || 'Sin mensajes'}</div>
                     </div>
                     <div style="text-align:right; flex-shrink:0;">
@@ -5076,7 +5076,7 @@ function showChatUserList(showOffline = false) {
                     </div>
                     <div style="margin-left:12px; flex:1; min-width:0;">
                         <div style="font-weight:600; font-size:14px; color:#1e293b;">${name}</div>
-                        <div style="font-size:12px; color:#64748b;">${u.username} · ${roleLabel} ${u.online ? '<span style="color:#22c55e;">● En línea</span>' : '<span style="color:#94a3b8;">● Fuera de línea</span>'}</div>
+                        <div style="font-size:12px; color:#64748b;">${roleLabel} ${u.online ? '<span style="color:#22c55e;">● En línea</span>' : '<span style="color:#94a3b8;">● Fuera de línea</span>'}</div>
                     </div>
                 `;
                 body.appendChild(div);
