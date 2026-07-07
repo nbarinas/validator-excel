@@ -1,1 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+pandas
+openpyxl
+
+sqlalchemy
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==3.2.0
+psycopg2-binary
 pymysql
+psutil
