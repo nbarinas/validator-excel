@@ -2,6 +2,7 @@ import socket
 import time
 import os
 import pymysql
+from http.server import HTTPServer, BaseHTTPRequestHandler
 
 host = "162.254.201.255"
 port = 3306
@@ -14,15 +15,21 @@ safe_url = db_url.split("@")[-1] if "@" in db_url else db_url
 print(f"DATABASE_URL (sin credenciales): {safe_url}")
 print("=" * 60)
 
+results = []
+
 # Ping TCP
 try:
     start = time.time()
     sock = socket.create_connection((host, port), timeout=10)
     elapsed = round(time.time() - start, 2)
-    print(f"TCP OK: conexion en {elapsed}s")
+    msg = f"TCP OK: conexion en {elapsed}s"
+    print(msg)
+    results.append(msg)
     sock.close()
 except Exception as e:
-    print(f"TCP FAIL: {e}")
+    msg = f"TCP FAIL: {e}"
+    print(msg)
+    results.append(msg)
 
 # MySQL
 try:
@@ -34,15 +41,37 @@ try:
         database="zoidusho_az_db",
         connect_timeout=10
     )
-    print("MYSQL OK")
+    msg = "MYSQL OK"
+    print(msg)
+    results.append(msg)
     conn.close()
 except Exception as e:
-    print(f"MYSQL FAIL: {e}")
+    msg = f"MYSQL FAIL: {e}"
+    print(msg)
+    results.append(msg)
 
 print("=" * 60)
-print("Test finalizado. Manteniendo el proceso activo para logs...")
+print("Test finalizado. Levantando servidor HTTP para Render...")
 print("=" * 60)
 
-# Mantener el proceso vivo para que Render no lo reinicie
-while True:
-    time.sleep(60)
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain")
+        self.end_headers()
+        body = "Diagnostico Render -> ClickPanda MySQL\n\n"
+        body += f"DATABASE_URL (sin credenciales): {safe_url}\n\n"
+        for r in results:
+            body += r + "\n"
+        self.wfile.write(body.encode())
+
+    def log_message(self, format, *args):
+        # Silenciar logs de requests HTTP para no saturar
+        pass
+
+
+server_port = int(os.getenv("PORT", "10000"))
+server = HTTPServer(("0.0.0.0", server_port), Handler)
+print(f"Servidor HTTP escuchando en puerto {server_port}")
+server.serve_forever()
