@@ -1,0 +1,2145 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Center - AZ Marketing</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Flatpickr -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" type="text/css" href="https://npmcdn.com/flatpickr/dist/themes/dark.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/es.js"></script>
+
+    <!-- TomSelect -->
+    <link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
+    <style>
+        .crm-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 2rem;
+            padding: 2rem;
+            width: 95vw;
+            height: 95vh;
+            margin: 2.5vh auto;
+            /* Center vertically and horizontally */
+            background: var(--card-bg, rgba(255, 255, 255, 0.95));
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            box-sizing: border-box;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            /* Ensure inner content doesn't spill out */
+        }
+
+        .sidebar {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            color: #333;
+        }
+
+        .main-content {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            color: #333;
+        }
+
+        .form-section {
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        .form-section h3 {
+            color: #1a73e8;
+            margin-bottom: 1rem;
+        }
+
+        .obs-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .obs-item {
+            border-bottom: 1px solid #ddd;
+            padding: 0.5rem 0;
+            font-size: 0.9rem;
+        }
+
+        .obs-meta {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .alert-badge {
+            background: #ffc107;
+            color: black;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+            display: none;
+        }
+
+        .header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        /* COMPACT MODE OVERRIDES */
+        html,
+        body {
+            font-size: 0.9rem;
+            display: block !important;
+            min-height: 100vh;
+            width: 100%;
+            overflow-x: hidden !important;
+            /* Strictly prevent horizontal scrollbar */
+            padding: 0 !important;
+            margin: 0 !important;
+            background: var(--bg-color);
+        }
+
+        .crm-container {
+            gap: 1rem;
+            padding: 1rem;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+        }
+
+        h3 {
+            font-size: 1rem;
+        }
+
+        /* Compact Table */
+        table th,
+        table td {
+            font-size: 0.8rem;
+            padding: 0.5rem;
+        }
+
+        .btn-submit {
+            padding: 0.4rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        input,
+        select,
+        textarea {
+            padding: 0.4rem;
+            font-size: 0.85rem;
+        }
+
+        .sidebar {
+            padding: 1rem;
+            gap: 0.5rem;
+        }
+
+        .main-content {
+            padding: 1rem;
+        }
+
+        /* Filter Popup Compact */
+        #filterPopup {
+            font-size: 0.8rem;
+            z-index: 10000;
+            /* Ensure on top */
+            background: white;
+            /* Ensure visibility */
+            color: #333;
+            border: 1px solid #ccc;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #filterOptions label {
+            padding: 2px 0;
+            display: block;
+        }
+
+        #filterOptions label:hover {
+            background: #f0f0f0;
+        }
+
+        /* Online Status Bar Styles - Light Theme Update */
+        .online-header-bar {
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+            overflow-x: auto;
+            width: 100%;
+            scrollbar-width: thin;
+            margin-bottom: 1rem;
+        }
+
+        .status-pill {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #1e293b;
+            white-space: nowrap;
+            background: white;
+            border: 1px solid #cbd5e1;
+            padding: 2px 8px;
+            border-radius: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: grey;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .status-green {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .status-yellow {
+            background: #eab308;
+            box-shadow: 0 0 8px #eab308;
+        }
+
+        .status-red {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        /* CUSTOM MULTI-SELECT */
+        .multiselect-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .multiselect-btn {
+            width: 100%;
+            padding: 2px;
+            font-size: 0.7rem;
+            text-align: left;
+            cursor: pointer;
+            background: white;
+            border: 1px solid #767676;
+            border-radius: 2px;
+            height: 22px;
+            /* Match other inputs */
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .multiselect-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+            z-index: 9999;
+            /* High z-index */
+            border: 1px solid #ddd;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .multiselect-content label {
+            color: black;
+            padding: 8px 12px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .multiselect-content label:hover {
+            background-color: #f1f1f1;
+        }
+
+        .multiselect-content.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+
+            /* 1. Superuser Landing (Card Grid) */
+            #superuserLanding {
+                height: auto !important;
+                /* Allow scrolling */
+                padding: 1rem !important;
+                overflow-y: auto !important;
+            }
+
+            /* Header Layout */
+            #superuserLanding>div:first-child {
+                flex-direction: column;
+                gap: 1rem;
+                margin-bottom: 1.5rem !important;
+            }
+
+            #superuserLanding>div:first-child>div {
+                width: 100%;
+                display: flex;
+                justify-content: center !important;
+                text-align: center !important;
+            }
+
+            #superuserLanding h1 {
+                font-size: 1.5rem !important;
+            }
+
+            /* Cards Container */
+            #superuserLanding>div:nth-child(2) {
+                flex-direction: column;
+                /* Stack buttons */
+                height: auto !important;
+                gap: 1rem !important;
+                align-items: stretch !important;
+                /* Full width */
+            }
+
+            /* Card Buttons */
+            #superuserLanding button {
+                width: 100% !important;
+                height: auto !important;
+                min-height: 80px;
+                padding: 1.5rem !important;
+                font-size: 1.1rem !important;
+                display: flex !important;
+                align-items: center;
+                /* Row layout for icon + text */
+                flex-direction: row;
+                justify-content: flex-start;
+                text-align: left;
+            }
+
+            #superuserLanding button i {
+                font-size: 2rem !important;
+                margin-bottom: 0 !important;
+                margin-right: 1.5rem !important;
+                /* Space between icon and text */
+            }
+
+            /* 2. CRM Interface (Sidebar + Content) */
+            .crm-container {
+                grid-template-columns: 1fr !important;
+                height: auto !important;
+                /* Allow growing */
+                min-height: 100vh !important;
+                padding: 0.5rem !important;
+                margin: 0 !important;
+                width: 100% !important;
+                border: none !important;
+                border-radius: 0 !important;
+                box-shadow: none !important;
+                display: block !important;
+                /* Stacking simply */
+                overflow: visible !important;
+                /* UNLOCK SCROLL */
+            }
+
+            .sidebar {
+                width: 100%;
+                border-radius: 8px;
+                margin-bottom: 1rem;
+            }
+
+            /* Compact specific elements */
+            .main-content {
+                box-shadow: none !important;
+                padding: 0.5rem !important;
+                height: auto !important;
+                /* Allow growing */
+                overflow: visible !important;
+            }
+
+            /* Mobile Sidebar Toggle - FORCE HIDDEN */
+            #mobileFilterBtn {
+                display: none !important;
+            }
+
+            /* Removing old button style */
+            #mobileToolbar {
+                display: flex !important;
+                /* Show new toolbar */
+            }
+
+            .sidebar {
+                display: none !important;
+                /* Force hide */
+            }
+
+            .sidebar.active {
+                display: block !important;
+                /* Force show */
+            }
+
+            /* Header Compact & Collapsible */
+            .header-collapsible {
+                display: none !important;
+                /* Hide header by default on mobile */
+            }
+
+            .header-collapsible.active {
+                display: block !important;
+            }
+
+            .header-collapsible>div {
+                flex-direction: column !important;
+                gap: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+                margin-bottom: 0.5rem !important;
+            }
+
+            .header-collapsible h1 {
+                font-size: 1.2rem !important;
+                margin: 0 !important;
+            }
+
+            .header-collapsible>div>div {
+                justify-content: center !important;
+                width: 100%;
+            }
+
+            .header-collapsible a {
+                font-size: 0.9rem !important;
+            }
+
+            /* Bulk Actions Collapsible */
+            #bulkActions {
+                display: none !important;
+            }
+
+            #bulkActions.active {
+                display: block !important;
+            }
+        }
+
+        /* Clickable Phone Fields removed */
+        #phoneNumber,
+        #whatsappNumber {
+            cursor: text;
+        }
+
+        /* Copy Button Styles */
+        .btn-copy {
+            background: #f8fafc;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 8px 12px;
+            cursor: pointer;
+            color: #64748b;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 38px;
+            margin-top: 0;
+        }
+
+        .btn-copy:hover {
+            background: #f1f5f9;
+            color: #1a73e8;
+            border-color: #1a73e8;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-copy:active {
+            transform: scale(0.95);
+        }
+
+        .input-group-copy {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .input-group-copy input {
+            flex: 1;
+            margin-bottom: 0 !important;
+        }
+    </style>
+    <script>
+        function toggleSidebar() {
+            document.getElementById('crmSidebar').classList.toggle('active');
+        }
+        function toggleHeaderOptions() {
+            document.getElementById('mobileHeaderCollapsible').classList.toggle('active');
+            const bulk = document.getElementById('bulkActions');
+            if (bulk) bulk.classList.toggle('active');
+        }
+    </script>
+</head>
+
+<body>
+    <!-- Layout Wrapper -->
+    <div style="width: 100%; padding: 1rem 2rem;">
+        <!-- Top Nav -->
+        <!-- Top Nav -->
+        <!-- Top Nav (Consolidated Header) -->
+        <!-- Top Nav (Consolidated Header) Removed - Moved to Main Content -->
+
+        <!-- Standalone H1 Removed -->
+
+        <!-- System Title -->
+        <!-- SUPERUSER LANDING (Hidden by default) -->
+        <div id="superuserLanding" style="display: none; flex-direction: column; height: 100vh; padding: 1rem;">
+
+            <!-- Landing Header -->
+            <div
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; padding: 0.5rem 1rem; color: white;">
+                <!-- Left: Back -->
+                <div style="flex: 1;">
+                    <a id="btnBackToDashboard" href="/"
+                        style="text-decoration: none; color: #818cf8; font-weight: bold; font-size: 1.1rem; display: flex; align-items: center; gap: 0.5rem;">
+                        <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                    </a>
+                </div>
+                <!-- Center: Title -->
+                <div style="flex: 1; text-align: center;">
+                    <h1 style="margin: 0; font-size: 1.8rem; color: white;">Panel de Coordinación</h1>
+                </div>
+                <!-- Right: User -->
+                <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                    <div id="userInfoDisplayLanding"
+                        style="color: white; font-size: 1rem; display: flex; align-items: center; gap: 10px;"></div>
+                </div>
+            </div>
+
+            <div style="flex: 1; display: flex; gap: 2rem; justify-content: center; align-items: center;">
+                <button id="btnUploadExcelLanding" onclick="showUploadModal()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #6366f1; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-file-upload" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Cargar Base (Excel)
+                </button>
+                <button id="btnUploadExcelExistingLanding" onclick="showUploadModal(true)"
+                    style="display: none; padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #14b8a6; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-layer-group" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Cargar a existente
+                </button>
+                <button id="btnManageStudiesLanding" onclick="showManageStudies()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #f59e0b; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-database" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Base de Datos
+                </button>
+                <button onclick="enterCRM()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #22c55e; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-desktop" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Ver Estudios en Curso
+                </button>
+                <button id="btnClosedStudies" onclick="enterCRM(true)"
+                    style="display:none; padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #64748b; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-archive" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Estudios ya cerrados
+                </button>
+                <button id="btnDailyReportLanding" onclick="showDailyReport()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #0ea5e9; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-chart-line" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Reporte Diario
+                </button>
+                <button id="btnFiltersLanding" onclick="showFiltersManager()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #e11d48; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-filter" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Gestión de Filtros
+                </button>
+                <button id="btnDuplicateValidator" onclick="showDuplicateValidatorModal()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #8b5cf6; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-search-plus" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Validador Duplicados
+                </button>
+                <button id="btnBonosEstudiosLanding" onclick="showBonosEstudios()"
+                    style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #ec4899; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-gift" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Bonos estudios
+                </button>
+            </div>
+        </div>
+
+        <!-- MANAGE STUDIES MODAL -->
+        <div id="manageStudiesModal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+            <div
+                style="background: white; padding: 2rem; border-radius: 12px; width: 600px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+                <h2 style="margin-top: 0; color: #1e293b;">Gestionar Bases de Datos</h2>
+                <p class="obs-meta" style="margin-bottom: 1rem; color: #475569;">Active o desactive bases para que sean
+                    visibles a los
+                    agentes.</p>
+
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="background: #f1f5f9; text-align: left; color: #334155;">
+                            <th style="padding: 0.5rem;">ID</th>
+                            <th style="padding: 0.5rem;">Nombre</th>
+                            <th style="padding: 0.5rem;">Tipo / Etapa</th>
+                            <th style="padding: 0.5rem;">Estado</th>
+                            <th style="padding: 0.5rem;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="manageStudiesBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem;">
+                    <button onclick="closeManageStudies()"
+                        style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DAILY REPORT MODAL -->
+    <div id="dailyReportModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; padding: 1.5rem; border-radius: 12px; width: 95%; max-width: 1200px; max-height: 90vh; overflow-y: auto;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <div style="display: flex; align-items: center; gap: 1rem;">
+                    <h2 style="margin: 0; color: #1e293b;">Reporte Diario</h2>
+                    <button onclick="downloadDailyReportExcel()" 
+                        style="background: #10b981; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                        <i class="fas fa-file-excel"></i> Descargar Excel
+                    </button>
+                </div>
+                <button onclick="closeDailyReport()"
+                    style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <p style="text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Llamadas
+                Efectivas, de Desempeño y Logísticas hoy</p>
+            <div
+                style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 1.5rem; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <input type="date" id="dailyReportDate" onchange="showDailyReport()"
+                    style="padding: 5px 10px; border: 1px solid #cbd5e1; border-radius: 4px; font-family: inherit; width: 100%; max-width: 250px;">
+
+                <div style="width: 100%; max-width: 400px; margin-top: 5px;">
+                    <label style="display: block; color: #475569; font-size: 0.85rem; margin-bottom: 5px;">Filtrar por
+                        Estudios (opcional):</label>
+                    <select id="dailyReportStudySelect" multiple placeholder="Todos los estudios..."
+                        style="width: 100%;">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div style="width: 100%; max-width: 400px; margin-top: 5px;">
+                    <label style="display: block; color: #475569; font-size: 0.85rem; margin-bottom: 5px;">Filtrar por
+                        Agentes (opcional):</label>
+                    <select id="dailyReportAgentSelect" multiple placeholder="Todos los agentes..."
+                        style="width: 100%;">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div style="width: 100%; max-width: 400px; margin-top: 5px;">
+                    <label style="display: block; color: #475569; font-size: 0.85rem; margin-bottom: 5px;">Agrupar por
+                        Ciudad (opcional):</label>
+                    <select id="dailyReportCitySelect" placeholder="Sin agrupar" style="width: 100%;">
+                        <!-- Populated by JS -->
+                        <option value="">(Sin agrupar)</option>
+                    </select>
+                </div>
+
+                <label
+                    style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #475569; font-size: 0.9rem; margin-top: 5px;">
+                    <input type="checkbox" id="dailyReportOpenOnly"
+                        onchange="initDailyReportStudySelect(); initDailyReportAgentSelect(); refreshDailyReport();"
+                        style="cursor: pointer;">
+                    Solo estudios abiertos
+                </label>
+            </div>
+
+            <div id="dailyReportContent">
+                <!-- Injected by JS -->
+                <div style="text-align:center;">Cargando...</div>
+            </div>
+
+            <div style="display: flex; justify-content: center; margin-top: 1.5rem;">
+                <button onclick="closeDailyReport()"
+                    style="background: #94a3b8; border: none; padding: 0.8rem 2rem; border-radius: 6px; color: white; cursor: pointer; font-size: 1rem;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTERS MANAGER MODAL -->
+    <div id="filterManagerModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 1100px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 style="margin: 0; color: #1e293b;">Gestión de Filtros (Pre-screening)</h2>
+                <button onclick="closeFiltersManager()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; flex: 1; overflow: hidden;">
+                <!-- Left: List of Filters -->
+                <div style="border-right: 1px solid #e2e8f0; padding-right: 1rem; overflow-y: auto; display: flex; flex-direction: column;">
+                    <button onclick="showCreateFilter()" style="width: 100%; padding: 0.8rem; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 1rem; font-weight: bold;">
+                        <i class="fas fa-plus"></i> Nuevo Filtro
+                    </button>
+                    <div id="filterGroupsList" style="display: flex; flex-direction: column; gap: 0.5rem; flex: 1; overflow-y: auto;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Right: Details & Upload -->
+                <div id="filterDetailsView" style="display: flex; flex-direction: column; overflow: hidden;">
+                    <div id="filterDetailsPlaceholder" style="text-align: center; padding: 4rem; color: #64748b; flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                        <i class="fas fa-filter" style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.3;"></i>
+                        <p>Seleccione un filtro para gestionar sus datos o asignar agentes.</p>
+                    </div>
+                    
+                    <div id="filterLeadsView" style="display: none; flex: 1; flex-direction: column; overflow: hidden;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee;">
+                            <h3 id="currentFilterName" style="margin: 0; color: #1e293b;">Filtro: ...</h3>
+                            <div style="display: flex; gap: 0.5rem;">
+                                <button onclick="showFilterUpload()" style="background: #3b82f6; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                    <i class="fas fa-upload"></i> Cargar Excel
+                                </button>
+                                <button onclick="showFilterAssign()" style="background: #f59e0b; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                    <i class="fas fa-user-plus"></i> Asignar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                                <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                                    <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #475569;">
+                                        <th style="padding: 0.8rem;">Teléfono</th>
+                                        <th style="padding: 0.8rem;">Nombre</th>
+                                        <th style="padding: 0.8rem;">Ciudad</th>
+                                        <th style="padding: 0.8rem;">Encuestador</th>
+                                        <th style="padding: 0.8rem;">Reclutador</th>
+                                        <th style="padding: 0.8rem;">Estado</th>
+                                        <th style="padding: 0.8rem;">Asignado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="filterLeadsTableBody">
+                                    <!-- Populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE FILTER MODAL -->
+    <div id="filterCreateModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 400px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2);">
+            <h3 style="margin-top: 0; color: #1e293b;">Crear Nuevo Filtro</h3>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #475569;">Nombre del Listado</label>
+                <input type="text" id="newFilterGroupName" placeholder="Ej: Shampoo Mayo 2024" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('filterCreateModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="submitCreateFilter()" style="background: #22c55e; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">Crear Filtro</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER UPLOAD MODAL -->
+    <div id="filterUploadModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 900px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <h2 style="margin-top: 0; color: #1e293b;">Cargar Datos al Filtro</h2>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">Pegue los datos de Excel. El sistema validará duplicados con la base global de llamadas automáticamente.</p>
+            
+            <textarea id="filterPasteArea" oninput="handleFilterPasteData()"
+                    placeholder="Ctrl+V para pegar desde Excel..."
+                    style="width: 100%; height: 100px; padding: 1rem; font-family: monospace; border: 2px dashed #cbd5e1; border-radius: 8px; resize: none; box-sizing: border-box; margin-bottom: 1rem;"></textarea>
+
+            <div id="filterPreviewContainer" style="display: none; flex: 1; flex-direction: column; overflow: hidden; margin-bottom:1rem;">
+                <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">Validación de Carga</h4>
+                <div style="overflow: auto; flex: 1; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.75rem; white-space: nowrap;">
+                        <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                            <tr id="filterPreviewThead"></tr>
+                        </thead>
+                        <tbody id="filterPreviewTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('filterUploadModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button id="btnFinalFilterUpload" onclick="submitFilterUpload()" disabled style="background: #22c55e; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; opacity: 0.5;">Cargar registros</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTER ASSIGN MODAL -->
+    <div id="filterAssignModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 450px;">
+            <h3 style="margin-top: 0; color: #1e293b;">Asignar Leads a Agente</h3>
+            <div class="form-group" style="margin-bottom: 1rem;">
+                <label style="display: block; margin-bottom: 0.5rem;">Agente</label>
+                <select id="filterAssignUser" style="width: 100%; padding: 0.6rem; border-radius: 4px; border: 1px solid #ccc;"></select>
+            </div>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem;">Cantidad de registros (Disponibles: <span id="filterAvailableCount">0</span>)</label>
+                <input type="number" id="filterAssignCount" value="20" style="width: 100%; padding: 0.6rem; border-radius: 4px; border: 1px solid #ccc;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('filterAssignModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="submitFilterAssign()" style="background: #f59e0b; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">Asignar Ahora</button>
+            </div>
+        </div>
+    </div>
+        </div>
+    </div>
+
+    <!-- ASSIGN AUXILIARIES MODAL -->
+    <div id="assignAuxModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1001; justify-content: center; align-items: center;">
+        <div
+            style="background: white; padding: 2rem; border-radius: 12px; width: 400px; max-width: 90%; max-height: 80vh; overflow-y: auto;">
+            <h2 style="margin-top: 0; color: #1e293b;">Asignar Auxiliares</h2>
+            <h4 id="assignAuxTitle" style="color: #6366f1; margin-bottom: 1rem;">Estudio: ...</h4>
+            <p class="obs-meta" style="margin-bottom: 1rem;">Seleccione los auxiliares que verán este estudio:</p>
+
+            <div id="assignAuxList" style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 2rem;">
+                <!-- Checkboxes injected by JS -->
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="closeAssignAux()"
+                    style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="saveStudyAssistants()"
+                    style="background: #22c55e; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Guardar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPLOAD MODAL -->
+    <div id="uploadModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; padding: 2rem; border-radius: 12px; width: 900px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <h2 style="margin-top: 0; color: #1e293b;">Cargar Base de Llamadas (Copiar y Pegar Excel)</h2>
+
+            <div style="display:flex; gap:10px; align-items:center; margin: 0 0 1rem 0; flex-wrap: wrap;">
+                <span style="color:#475569; font-size:0.9rem; font-weight:600;">Destino</span>
+                <button id="btnUploadModeNew" onclick="setUploadMode('new')" type="button"
+                    style="padding: 6px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #6366f1; color: white; cursor: pointer;">
+                    Nuevo estudio
+                </button>
+                <button id="btnUploadModeExisting" onclick="setUploadMode('existing')" type="button"
+                    style="padding: 6px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: white; color: #0f172a; cursor: pointer;">
+                    Estudio existente
+                </button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div class="form-group">
+                    <label style="color: #475569;">Nombre del Nuevo Estudio</label>
+                    <input type="text" id="uploadStudyName" placeholder="Ej: Estudio Diciembre 2025"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                </div>
+                <div class="form-group" id="uploadExistingStudyGroup" style="display:none;">
+                    <label style="color: #475569;">Seleccionar Estudio (Abierto o Cerrado)</label>
+                    <select id="uploadExistingStudySelect"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"
+                        onchange="validateParsedData()">
+                        <option value="">Seleccione...</option>
+                    </select>
+                    <div style="margin-top:6px; font-size:0.8rem; color:#64748b;">
+                        Se anexarán los registros al estudio seleccionado (no crea uno nuevo).
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label style="color: #475569;">Categoría de Datos</label>
+                    <select id="uploadCategory"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"
+                        onchange="updateUploadHints()">
+                        <option value="general">General</option>
+                        <option value="cabello">Cabello (Shampoo, Acondicionador...)</option>
+                        <option value="mascotas">Mascotas (Perros)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="color: #475569;">Tipo de Estudio</label>
+                    <select id="uploadStudyType"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="validacion">Validación</option>
+                        <option value="fatiga">Fatiga</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label style="color: #475569;">Etapa (R)</label>
+                    <select id="uploadStudyStage"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+                        <option value="R1">R1</option>
+                        <option value="R2">R2</option>
+                        <option value="R3">R3</option>
+                        <option value="R4">R4</option>
+                        <option value="R5">R5</option>
+                        <option value="Rf">Rf (Final)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div
+                style="flex: 1; display: flex; flex-direction: column; gap: 1rem; min-height: 250px; margin-bottom: 1rem; overflow: hidden;">
+                <div id="uploadHints"
+                    style="background: #f1f5f9; padding: 1rem; border-left: 4px solid #3b82f6; font-size: 0.9rem; color: #334155;">
+                    <!-- Injected by JS -->
+                </div>
+
+                <textarea id="pasteArea" oninput="handlePasteData()"
+                    placeholder="Selecciona TODAS las celdas en Excel incluyendo cabeceras (Ctrl+C) y pégalas aquí (Ctrl+V)..."
+                    style="width: 100%; flex: 0 0 80px; padding: 1rem; font-family: monospace; border: 2px dashed #cbd5e1; border-radius: 8px; resize: vertical; box-sizing: border-box;"></textarea>
+
+                <div id="previewContainer"
+                    style="display: none; flex: 1; flex-direction: column; overflow: hidden; position: relative;">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #1e293b;">Vista Previa (<span id="previewCount"
+                            style="color:#22c55e;">0</span> filas, <span id="previewColCount"
+                            style="color:#3b82f6;">0</span> columnas detectadas)</h4>
+                    <div
+                        style="overflow: auto; flex: 1; border: 1px solid #e2e8f0; border-radius: 4px; position: relative;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 0.8rem; white-space: nowrap;">
+                            <thead
+                                style="background: #f8fafc; position: sticky; top: 0; box-shadow: 0 1px 0 #cbd5e1; z-index: 10;">
+                                <tr id="previewThead"></tr>
+                            </thead>
+                            <tbody id="previewTbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Warning Box for Missing Columns -->
+            <div id="uploadAlertBox"
+                style="display: none; padding: 10px; border-radius: 4px; background: #fffbeb; color: #b45309; border: 1px solid #fde68a; margin-bottom: 1rem; font-size: 0.9rem;">
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; align-items: center;">
+                <span id="uploadError" style="color: red; font-size: 0.9rem; display: none;">Debe pegar datos y asignar
+                    un nombre al estudio.</span>
+                <button onclick="closeUploadModal()"
+                    style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button id="btnFinalUpload" onclick="uploadParsedData()" disabled
+                    style="background: #6366f1; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; opacity: 0.5; transition: 0.2s;">
+                    <i class="fas fa-upload" style="margin-right: 5px;"></i> Cargar Datos
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="crm-container" id="crmInterface">
+        <!-- MOBILE TOOLBAR (Visible only on mobile) -->
+        <div id="mobileToolbar" style="display:none; gap: 10px; margin-bottom: 10px;">
+            <button onclick="toggleSidebar()"
+                style="flex: 1; background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
+                <i class="fas fa-filter"></i> Filtros
+            </button>
+            <button onclick="toggleHeaderOptions()"
+                style="flex: 1; background:#64748b; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
+                <i class="fas fa-cog"></i> Opciones
+            </button>
+        </div>
+
+        <!-- SIDEBAR: Selection & Search -->
+        <div class="sidebar" id="crmSidebar" style="height: 100%; border-radius: 0;">
+            <div class="form-group" id="importAction" style="display: none; margin-bottom: 1rem; gap: 0.5rem; flex-direction: column;">
+                <button class="btn-submit" onclick="openImportModal()" style="width: 100%; background: #6366f1;">
+                    <i class="fas fa-file-import"></i> Traer de otro estudio
+                </button>
+                <button class="btn-submit" onclick="showFiltersManager()" style="width: 100%; background: #e11d48;">
+                    <i class="fas fa-filter"></i> Gestión de Filtros
+                </button>
+            </div>
+
+            <div class="form-group">
+                <label>Estudio Activo</label>
+                <select id="studySelect" class="form-input">
+                    <option value="">Seleccione Estudio...</option>
+                </select>
+            </div>
+
+            <div class="form-group" id="searchPanel">
+                <label>Filtros</label>
+                <!-- Date Filters Removed -->
+                <select id="filterStatus" style="margin-bottom: 0.5rem; width: 100%;">
+                    <option value="">Estado: Todos</option>
+                    <option value="pending">Pendiente</option>
+                    <option value="managed">Gestionado</option>
+                    <option value="scheduled">Agendado</option>
+                    <option value="done">Terminado</option>
+                    <option value="caidas">Caídas</option>
+                    <option value="en campo">En Campo</option>
+                </select>
+
+                <input type="text" placeholder="Buscar por teléfono, nombre..." id="searchPhone">
+                <button class="btn-submit" onclick="searchCalls()">Buscar</button>
+            </div>
+
+            <div id="callsList" style="flex: 1; overflow-y: auto;">
+                <!-- List of recent calls -->
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT: Grid & Detail -->
+        <div class="main-content" style="position: relative;">
+
+            <!-- Context Header (Collapsible on Mobile) -->
+            <div id="mobileHeaderCollapsible" class="header-collapsible">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee;">
+                    <!-- Left: Back Button -->
+                    <div style="flex: 1; display: flex; justify-content: flex-start;">
+                        <a href="/"
+                            style="text-decoration: none; color: #1a73e8; font-weight: bold; font-size: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                        </a>
+                    </div>
+
+                    <!-- Center: Title -->
+                    <div
+                        style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <h1 style="margin: 0; font-size: 1.5rem; color: #1e293b; text-align: center;">Call Center CRM
+                        </h1>
+                    </div>
+
+                    <!-- Right: User Info -->
+                    <div style="flex: 1; display: flex; justify-content: flex-end; align-items: center;">
+                        <div id="userInfoDisplay"
+                            style="color: #334155; font-size: 1rem; display: flex; align-items: center; gap: 10px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Online Users Bar (CRM Version - Top of Panel) -->
+            <div id="onlineHeaderBar_CRM" class="online-header-bar" style="display: none;">
+                <!-- Users injected here -->
+            </div>
+
+            <!-- EMPTY STATE -->
+            <div id="emptyState" style="text-align: center; margin-top: 5rem; color: #666;">
+                <i class="fas fa-arrow-left" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <h2>Seleccione un Estudio</h2>
+                <p>Elija una campaña del menú lateral para ver las llamadas disponibles.</p>
+            </div>
+
+            <!-- FILTER CALLING VIEW (Agent View) -->
+            <div id="filterCallingView" style="display: none; flex-direction: column; gap: 1.5rem;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 style="margin:0; color: #e11d48;"><i class="fas fa-filter"></i> Atención de Filtros</h2>
+                    <button onclick="backToCRM()" style="background: #94a3b8; border: none; padding: 0.5rem 1rem; border-radius: 6px; color: white; cursor: pointer;">
+                        <i class="fas fa-times"></i> Salir de Filtros
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem;">
+                    <!-- Left: Lead List -->
+                    <div style="background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; height: 70vh;">
+                        <div style="padding: 1rem; border-bottom: 1px solid #e2e8f0; background: white; border-radius: 12px 12px 0 0;">
+                            <select id="filterGroupSelectAgent" onchange="loadAgentFilterLeads()" style="width: 100%; padding: 0.8rem; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: bold;"></select>
+                        </div>
+                        <div id="filterAgentLeadsList" style="flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
+                            <!-- Assigned leads here -->
+                        </div>
+                    </div>
+
+                    <!-- Right: detail and action -->
+                    <div id="filterLeadDetail" style="background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 1.5rem; display: none; flex-direction: column; height: 70vh;">
+                        <h3 id="detFilterName" style="margin-top:0;">Nombre: ...</h3>
+                        <div style="font-size: 1.2rem; font-weight: bold; color: #1e293b; margin-bottom: 1rem; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-phone"></i> <span id="detFilterPhone">...</span>
+                            <button onclick="copyToClipboard(document.getElementById('detFilterPhone').innerText)" style="background:none; border:none; color:#3b82f6; cursor:pointer;"><i class="fas fa-copy"></i></button>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                            <div>
+                                <label style="font-size:0.8rem; color:#64748b;">Ciudad</label>
+                                <div id="detFilterCity" style="font-weight: 500;">...</div>
+                            </div>
+                            <div>
+                                <label style="font-size:0.8rem; color:#64748b;">Reclutador</label>
+                                <div id="detFilterRecruiter" style="font-weight: 500;">...</div>
+                            </div>
+                        </div>
+
+                        <div style="flex: 1; overflow-y: auto; margin-bottom: 1.5rem;">
+                            <h4 style="margin-bottom: 0.5rem; border-bottom: 1px solid #eee; padding-bottom: 5px;">Datos de Filtro / Encuesta</h4>
+                            <div id="detFilterSurvey" style="display: flex; flex-direction: column; gap: 0.5rem;">
+                                <!-- Dynamic fields from JSON -->
+                            </div>
+                        </div>
+
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <button onclick="updateFilterStatus('rejected')" style="padding: 1rem; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                <i class="fas fa-times-circle"></i> No Califica
+                            </button>
+                            <button onclick="updateFilterStatus('qualified')" style="padding: 1rem; background: #22c55e; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">
+                                <i class="fas fa-check-circle"></i> CALIFICA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRID VIEW: List of Calls -->
+            <div id="callsGridView" style="display: none;">
+
+                <!-- Bulk Actions (Superuser only) -->
+                <div id="bulkActions"
+                    style="display: none; background: #eef2ff; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #6366f1;">
+                    <span style="font-weight: bold; color: #6366f1;">Acciones Masivas:</span>
+                    <select id="bulkAgentSelect"
+                        style="padding: 0.5rem; margin-left: 1rem; border-radius: 4px; border: 1px solid #ddd;"></select>
+                    <button onclick="bulkAssign()"
+                        style="background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar
+                        Seleccionados</button>
+                </div>
+
+                <div class="header-nav">
+                    <div>
+                        <h3 style="display: inline-block; margin-right: 10px;">Listado de Llamadas</h3>
+                        <span id="callCounter" style="font-size: 0.9rem; color: #666; font-weight: normal;">(0
+                            registros)</span>
+                    </div>
+                    <div>
+                        <button id="btnExportExcel" onclick="exportToExcel()"
+                            style="display: none; cursor: pointer; background: #22c55e; border: 1px solid #16a34a; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: white;">
+                            <i class="fas fa-file-excel"></i> Descargar Excel
+                        </button>
+                        <button onclick="resetFilters()"
+                            style="cursor: pointer; background: #e2e8f0; border: 1px solid #cbd5e1; padding: 4px 10px; border-radius: 4px; font-size: 0.8rem; margin-right: 10px; color: #334155;">
+                            <i class="fas fa-undo"></i> Restablecer Filtros
+                        </button>
+                        <span class="obs-meta">Seleccione una llamada para gestionar</span>
+                    </div>
+                </div>
+
+                <!-- FILTER POPUP COMPONENT (Hidden) -->
+                <div id="filterPopup"
+                    style="display: none; position: absolute; background: white; border: 1px solid #ccc; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 10px; border-radius: 4px; width: 200px; z-index: 1000;">
+                    <input type="text" id="filterSearch" placeholder="Buscar..."
+                        style="width: 100%; padding: 4px; margin-bottom: 5px; box-sizing: border-box;">
+                    <div id="filterOptions" style="max-height: 150px; overflow-y: auto; margin-bottom: 5px;">
+                        <!-- Checkboxes will go here -->
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <button onclick="applyFilter()"
+                            style="background: #22c55e; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">Aplicar</button>
+                        <button onclick="closeFilter()"
+                            style="background: #ef4444; color: white; border: none; padding: 4px 8px; border-radius: 3px; cursor: pointer; font-size: 0.8rem;">Cerrar</button>
+                    </div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 30px;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()">
+                            </th>
+                            <th>
+                                Teléfono
+                                <input type="text" id="colFilterPhone" placeholder="Buscar..."
+                                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+                            </th>
+                            <th>
+                                Fecha Original
+                                <div style="display: flex; gap: 2px; flex-direction: column;">
+                                    <input type="date" id="colFilterDateStart" title="Desde"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                    <input type="date" id="colFilterDateEnd" title="Hasta"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                </div>
+                            </th>
+                            <th>
+                                Fecha Realización
+                                <div style="display: flex; gap: 2px; flex-direction: column;">
+                                    <input type="date" id="colFilterRealizationStart" title="Desde"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                    <input type="date" id="colFilterRealizationEnd" title="Hasta"
+                                        style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 1px;">
+                                </div>
+                            </th>
+                            <th>
+                                Fecha Próxima Recogida
+                                <div style="display: flex; gap: 2px; flex-direction: column;">
+                                    <!-- Sort removed -->
+                                </div>
+            </div>
+            </th>
+            <th>
+                Estudio
+                <div id="colFilterStudyContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Agente
+                <div id="colFilterAgentContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <!-- JS will inject here -->
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Agente Anterior
+                <div id="colFilterPreviousAgentContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <!-- JS will inject here -->
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Nombre
+                <input type="text" id="colFilterName" placeholder="Buscar..."
+                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px;">
+            </th>
+            <th>
+                Ciudad
+                <div id="colFilterCityContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <button class="multiselect-btn">Todas</button>
+                </div>
+            </th>
+            <th>
+                Agenda/Alerta
+                <button onclick="toggleSort('appointment_time')"
+                    style="background:none; border:none; cursor:pointer; color:#64748b;" title="Ordenar por Hora">
+                    <i class="fas fa-sort"></i>
+                </button>
+            </th>
+            <!-- Old Observaciones Pos -->
+            <th>
+                Estado
+                <div id="colFilterStatusContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <!-- JS will inject here -->
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th>
+            <th>
+                Censo
+                <input type="text" id="colFilterCensus" placeholder="Buscar..."
+                    style="width: 100%; font-size: 0.7rem; margin-top: 2px; padding: 2px; box-sizing: border-box;">
+            </th>
+
+
+
+            <!-- Removed NSE, Edad, Barrio -->
+            <th>Hora Original</th>
+
+            <!-- New Requested Columns -->
+            <th>
+                Cantidad Shampoo
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <button onclick="toggleSort('shampoo_quantity')"
+                        style="background:none; border:none; cursor:pointer; color:#64748b;" title="Ordenar">
+                        <i class="fas fa-sort"></i>
+                    </button>
+                </div>
+                <div id="colFilterShampooContainer" class="multiselect-container" style="margin-top: 2px;">
+                    <button class="multiselect-btn">Todos</button>
+                </div>
+            </th> <!-- Added Sort -->
+
+
+            <!-- New Temp Columns - Visibility handled by JS? No, just render them, hide if needed in JS. -->
+            <th class="col-temp-armando" style="display:none; background:#ffedd5;">Temp Armando</th>
+            <th class="col-temp-auxiliar" style="display:none; background:#dbeafe;">Temp Auxiliar
+            </th>
+
+            <th>Observaciones</th>
+            </tr>
+            </thead>
+            <tbody id="callsGridBody">
+                <!-- Populated by JS -->
+            </tbody>
+            </table>
+        </div>
+
+        <!-- DETAIL VIEW: Single Call -->
+        <div id="callDetailView" style="display: none;">
+            <button onclick="showGridView()"
+                style="margin-bottom: 1rem; background: transparent; color: #1a73e8; border: none; cursor: pointer; font-weight: bold;">
+                <i class="fas fa-arrow-left"></i> Volver a la Lista
+            </button>
+
+            <div class="header-nav">
+                <div>
+                    <h3 id="callDetailTitle"
+                        style="text-align: center; font-size: 1.5rem; width: 100%; background: linear-gradient(to right, #818cf8, #c084fc); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent; margin:0;">
+                        Detalle de Llamada</h3>
+
+                    <!-- Code & ID -->
+                    <div style="margin-top: 0.5rem; font-size: 0.9rem; color: #64748b; text-align: center;">
+                        <span <span
+                            style="background: #e2e8f0; padding: 2px 8px; border-radius: 4px; font-weight: bold;">ID:
+                            <span id="callIdDisplay">-</span></span>
+                    </div>
+                </div>
+
+                <span id="callStatusBadge" class="alert-badge">Programada</span>
+            </div>
+
+            <div class="form-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                <div class="form-group">
+                    <label>Nombre Persona</label>
+                    <input type="text" id="personName" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Ciudad</label>
+                    <input type="text" id="personCity" readonly style="background: #f9fafb;">
+                </div>
+
+                <!-- NEW: HAIR STUDY DATA (Read Only / Reference) -->
+                <div class="form-group"
+                    style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #ccc;">
+                    <label style="color:#d946ef; font-weight:bold; display:block; margin-bottom:10px;">Datos de
+                        Estudio Capilar</label>
+                    <!-- Grid layout adjusted for longer labels: 2 columns -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
+
+                        <!-- Shampoo -->
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Marca Shampoo:</span>
+                            <span id="hairShampooBrand" style="color:#111;">-</span>
+                        </div>
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Variedad Shampoo:</span>
+                            <span id="hairShampooVar" style="color:#111;">-</span>
+                        </div>
+
+                        <!-- Acondicionador -->
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Marca Acondicionador:</span>
+                            <span id="hairCondBrand" style="color:#111;">-</span>
+                        </div>
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Variedad Acondicionador:</span>
+                            <span id="hairCondVar" style="color:#111;">-</span>
+                        </div>
+
+                        <!-- Tratamiento -->
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Marca Tratamiento:</span>
+                            <span id="hairTreatBrand" style="color:#111;">-</span>
+                        </div>
+                        <div style="border-bottom:1px solid #eee; padding-bottom:5px;">
+                            <span style="font-weight:600; color:#374151;">Variedad Tratamiento:</span>
+                            <span id="hairTreatVar" style="color:#111;">-</span>
+                        </div>
+
+                        <!-- Otros -->
+                        <div><span style="font-weight:600;">Frecuencia Lavado:</span> <span id="hairFreq">-</span>
+                        </div>
+                        <div><span style="font-weight:600;">Frecuencia Compra:</span> <span
+                                id="hairPurchaseFreq">-</span>
+                        </div>
+                        <div><span style="font-weight:600;">Tipo Cabello:</span> <span id="hairType">-</span></div>
+                        <div><span style="font-weight:600;">Forma Cabello:</span> <span id="hairShape">-</span>
+                        </div>
+                        <div><span style="font-weight:600;">Largo Cabello:</span> <span id="hairLength">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- NEW: IMPLANTATION DATA (Encuestador, Supervisor, Fecha) -->
+                <div class="form-group"
+                    style="grid-column: span 2; background: #fff; padding: 10px; border: 1px dashed #94a3b8;">
+                    <label style="color:#475569; font-weight:bold; display:block; margin-bottom:10px;">Datos de
+                        Implante</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.8rem; font-size: 0.85rem;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Fecha Implante</label>
+                            <input type="text" id="implantationDate" readonly style="background: #f1f5f9; width:100%;">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Encuestador</label>
+                            <input type="text" id="implantationPollster" readonly
+                                style="background: #f1f5f9; width:100%;">
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-size:0.8rem;">Supervisor</label>
+                            <input type="text" id="implantationSupervisor" readonly
+                                style="background: #f1f5f9; width:100%;">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Código del Producto</label>
+                    <input type="text" id="personBrand" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Observación Inicial</label>
+                    <input type="text" id="initialObs" readonly style="background: #f9fafb;">
+                </div>
+                <div class="form-group">
+                    <label>Hora Cita (Original)</label>
+                    <select id="apptTime" class="form-control">
+                        <option value="">-- Seleccione --</option>
+                        <option value="Escribir antes">Escribir antes</option>
+                        <option value="En la mañana">En la mañana</option>
+                        <option value="En la tarde">En la tarde</option>
+                        <option value="Durante el día">Durante el día</option>
+                        <optgroup label="Horas Específicas">
+                            <option value="07:00 AM">07:00 AM</option>
+                            <option value="07:30 AM">07:30 AM</option>
+                            <option value="08:00 AM">08:00 AM</option>
+                            <option value="08:30 AM">08:30 AM</option>
+                            <option value="09:00 AM">09:00 AM</option>
+                            <option value="09:30 AM">09:30 AM</option>
+                            <option value="10:00 AM">10:00 AM</option>
+                            <option value="10:30 AM">10:30 AM</option>
+                            <option value="11:00 AM">11:00 AM</option>
+                            <option value="11:30 AM">11:30 AM</option>
+                            <option value="12:00 PM">12:00 PM</option>
+                            <option value="12:30 PM">12:30 PM</option>
+                            <option value="01:00 PM">01:00 PM</option>
+                            <option value="01:30 PM">01:30 PM</option>
+                            <option value="02:00 PM">02:00 PM</option>
+                            <option value="02:30 PM">02:30 PM</option>
+                            <option value="03:00 PM">03:00 PM</option>
+                            <option value="03:30 PM">03:30 PM</option>
+                            <option value="04:00 PM">04:00 PM</option>
+                            <option value="04:30 PM">04:30 PM</option>
+                            <option value="05:00 PM">05:00 PM</option>
+                            <option value="05:30 PM">05:30 PM</option>
+                            <option value="06:00 PM">06:00 PM</option>
+                            <option value="06:30 PM">06:30 PM</option>
+                            <option value="07:00 PM">07:00 PM</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Info Extra</label>
+                    <input type="text" id="extraPhone" placeholder="Otro dato...">
+                </div>
+            </div>
+
+            <!-- NEW DOG DATA SECTION (Sibate) -->
+            <div class="form-section" id="dogSection"
+                style="background: #fff7ed; padding: 1rem; border-radius: 8px; border: 1px solid #ffedd5; display: none;">
+                <h4 style="color: #9a3412; margin-top: 0;">Datos del Perro <span
+                        style="font-size:0.8rem; color:#c2410c; font-weight:normal;">(Sibate)</span></h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                    <div class="form-group">
+                        <label>Nombre del Perro</label>
+                        <input type="text" id="dogName" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group">
+                        <label>Raza</label>
+                        <input type="text" id="dogBreed" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group">
+                        <label>Tamaño</label>
+                        <input type="text" id="dogSize" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group">
+                        <label>Tipo de Usuario</label>
+                        <input type="text" id="dogUserType" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Textura Popó</label>
+                        <input type="text" id="stoolTexture" readonly style="background: #fff7ed;">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Estado de Salud</label>
+                        <input type="text" id="healthStatus" readonly style="background: #fff7ed;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- NEW CENSUS DATA SECTION -->
+            <div class="form-section" id="censusSection"
+                style="background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h4 style="color: #475569; margin-top: 0;">Datos Demográficos / Censo</h4>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem;">
+                    <div class="form-group">
+                        <label>Censo / ID</label>
+                        <input type="text" id="censusId" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>NSE</label>
+                        <input type="text" id="censusNSE" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Edad</label>
+                        <input type="text" id="censusAge" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Rango Edad</label>
+                        <input type="text" id="censusAgeRange" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Barrio</label>
+                        <input type="text" id="censusNeighborhood" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" id="censusAddress" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Vivienda</label>
+                        <input type="text" id="censusHousing" readonly style="background: #e2e8f0;">
+                    </div>
+                    <div class="form-group">
+                        <label>Hijos</label>
+                        <input type="text" id="censusChildren" readonly style="background: #e2e8f0;">
+                    </div>
+                    <!-- More fields if needed -->
+                </div>
+            </div>
+
+
+
+            <div class="form-section">
+                <h4>Contactabilidad</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Número de Celular</label>
+                        <div class="input-group-copy">
+                            <input type="text" id="phoneNumber" readonly>
+                            <button class="btn-copy" onclick="copyToClipboard('phoneNumber', event)" title="Copiar número">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Celular Corregido / Nuevo</label>
+                        <div class="input-group-copy">
+                            <input type="text" id="correctedPhone" placeholder="Nuevo número si aplica">
+                            <button class="btn-copy" onclick="copyToClipboard('correctedPhone', event)" title="Copiar número">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>CC Persona</label>
+                        <input type="text" id="personCC">
+                    </div>
+                    <div class="form-group">
+                        <label>WhatsApp</label>
+                        <div class="input-group-copy">
+                            <input type="text" id="whatsappNumber" placeholder="Número de WhatsApp" readonly style="background: #e2e8f0;">
+                            <button class="btn-copy" onclick="copyToClipboard('whatsappNumber', event)" title="Copiar número">
+                                <i class="far fa-copy"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-submit" onclick="saveCallHeader()" style="margin-top: 1rem;">Actualizar Datos
+                    Contacto</button>
+            </div>
+
+            <!-- NEW SECTION: Second Collection & Shampoo -->
+            <div class="form-section"
+                style="background: #f0fdf4; padding: 1rem; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 1rem;">
+                <h4
+                    style="color: #166534; margin-top: 0; display: flex; justify-content: space-between; align-items: center;">
+                    Segunda Recogida y Producto
+                    <button class="btn-submit" onclick="saveSecondPickup()"
+                        style="background: #166534; font-size: 0.8rem; padding: 4px 12px; width: auto; margin: 0;">Guardar</button>
+                </h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label>Fecha 2da Recogida</label>
+                        <input type="date" id="secondDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Hora 2da Recogida</label>
+                        <select id="secondTime" class="form-control" required>
+                            <option value="">-- Seleccione Hora --</option>
+                            <option value="Escribir antes">Escribir antes</option>
+                            <option value="En la mañana">En la mañana</option>
+                            <option value="En la tarde">En la tarde</option>
+                            <option value="Durante el día">Durante el día</option>
+                            <optgroup label="Horas Específicas">
+                                <option value="07:00 AM">07:00 AM</option>
+                                <option value="07:30 AM">07:30 AM</option>
+                                <option value="08:00 AM">08:00 AM</option>
+                                <option value="08:30 AM">08:30 AM</option>
+                                <option value="09:00 AM">09:00 AM</option>
+                                <option value="09:30 AM">09:30 AM</option>
+                                <option value="10:00 AM">10:00 AM</option>
+                                <option value="10:30 AM">10:30 AM</option>
+                                <option value="11:00 AM">11:00 AM</option>
+                                <option value="11:30 AM">11:30 AM</option>
+                                <option value="12:00 PM">12:00 PM</option>
+                                <option value="12:30 PM">12:30 PM</option>
+                                <option value="01:00 PM">01:00 PM</option>
+                                <option value="01:30 PM">01:30 PM</option>
+                                <option value="02:00 PM">02:00 PM</option>
+                                <option value="02:30 PM">02:30 PM</option>
+                                <option value="03:00 PM">03:00 PM</option>
+                                <option value="03:30 PM">03:30 PM</option>
+                                <option value="04:00 PM">04:00 PM</option>
+                                <option value="04:30 PM">04:30 PM</option>
+                                <option value="05:00 PM">05:00 PM</option>
+                                <option value="05:30 PM">05:30 PM</option>
+                                <option value="06:00 PM">06:00 PM</option>
+                                <option value="06:30 PM">06:30 PM</option>
+                                <option value="07:00 PM">07:00 PM</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group" style="position: relative;">
+                        <label>Cantidad de Shampoo</label>
+                        <select id="shampooQty" class="form-control" onchange="toggleShampooOtros(this.value)">
+                            <option value="">-- Seleccione (Opcional) --</option>
+                            <option value="para 1 lavada">para 1 lavada</option>
+                            <option value="para 2 lavadas">para 2 lavadas</option>
+                            <option value="para 3 lavadas">para 3 lavadas</option>
+                            <option value="para 4 lavadas">para 4 lavadas</option>
+                            <option value="ya no tiene shampo">ya no tiene shampo</option>
+                            <option value="Otros">Otros (Escribir)</option>
+                        </select>
+                        <input type="text" id="shampooQtyOtros" class="form-control" style="display:none; margin-top: 5px;" placeholder="Especifique cantidad...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Observations -->
+            <div class="form-section" id="obsSection" style="display: none;">
+                <h3>Observaciones (Progresivo)</h3>
+                <div class="obs-list" id="obsFeed">
+                    <!-- Javascript will populate -->
+                </div>
+                
+                <!-- Observation Shortcuts -->
+                <div id="observation-shortcuts" class="observation-shortcuts">
+                    <!-- Categorized buttons will be injected by JS -->
+                </div>
+
+                <textarea id="newObs" rows="3" placeholder="Escriba el resultado de la llamada..."
+                    style="width: 100%; border-color: #ddd;"></textarea>
+                <button class="btn-submit" onclick="addObservation()">Agregar Observación</button>
+            </div>
+
+            <!-- Scheduling -->
+            <div class="form-section" id="scheduleSection" style="display: none;">
+                <h3>Programar Alerta</h3>
+                <div class="form-group">
+                    <label>Fecha y Hora Alerta</label>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <input type="date" id="scheduleDate" class="form-control" style="flex: 1;">
+                        <select id="scheduleTimeSelect" class="form-control" style="flex: 1;">
+                            <option value="">-- Hora --</option>
+                            <option value="Escribir antes">Escribir antes</option>
+                            <option value="En la mañana">En la mañana</option>
+                            <option value="En la tarde">En la tarde</option>
+                            <option value="Durante el día">Durante el día</option>
+                            <optgroup label="Horas Específicas">
+                                <option value="07:00">07:00 AM</option>
+                                <option value="07:30">07:30 AM</option>
+                                <option value="08:00">08:00 AM</option>
+                                <option value="08:30">08:30 AM</option>
+                                <option value="09:00">09:00 AM</option>
+                                <option value="09:30">09:30 AM</option>
+                                <option value="10:00">10:00 AM</option>
+                                <option value="10:30">10:30 AM</option>
+                                <option value="11:00">11:00 AM</option>
+                                <option value="11:30">11:30 AM</option>
+                                <option value="12:00">12:00 PM</option>
+                                <option value="12:30">12:30 PM</option>
+                                <option value="13:00">01:00 PM</option>
+                                <option value="13:30">01:30 PM</option>
+                                <option value="14:00">02:00 PM</option>
+                                <option value="14:30">02:30 PM</option>
+                                <option value="15:00">03:00 PM</option>
+                                <option value="15:30">03:30 PM</option>
+                                <option value="16:00">04:00 PM</option>
+                                <option value="16:30">04:30 PM</option>
+                                <option value="17:00">05:00 PM</option>
+                                <option value="17:30">05:30 PM</option>
+                                <option value="18:00">06:00 PM</option>
+                                <option value="18:30">06:30 PM</option>
+                                <option value="19:00">07:00 PM</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar
+                    Llamada</button>
+            </div>
+
+            <!-- ADMIN: Assign Agent -->
+            <div class="form-section" id="adminControls"
+                style="display: none; border-top: 2px solid #6366f1; background: #eef2ff; padding: 1rem; border-radius: 8px;">
+                <h3 style="color: #6366f1;">Administración</h3>
+                <p>Agente Asignado: <span id="currentAgentName" style="font-weight: bold;">-</span></p>
+                <div class="form-group">
+                    <label>Asignar a:</label>
+                    <select id="agentSelect" class="form-input"></select>
+                    <button onclick="assignAgent()"
+                        style="margin-top: 0.5rem; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">Asignar</button>
+                </div>
+            </div>
+
+            <!-- Actions Footer -->
+            <div style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;">
+
+                <!-- NEW DYNAMIC ACTION BUTTONS -->
+                <div id="actionButtons"
+                    style="display: flex; gap: 1rem; justify-content: flex-end; margin-bottom: 1rem;">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div style="display: flex; justify-content: space-between;">
+                    <button onclick="showGridView()"
+                        style="background: transparent; color: #64748b; border: 1px solid #cbd5e1; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer;">
+                        Cancelar / Volver</button>
+
+                    <button id="btnCloseCall" onclick="finishCall()"
+                        style="background: #ef4444; color: white; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; cursor: pointer; display: none;">Legacy
+                        Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+    </div>
+    </div>
+    </div>
+
+    <!-- IMPORT FROM OTHER STUDY MODAL -->
+    <div id="importExternalModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+        <div style="background: white; padding: 2rem; border-radius: 12px; width: 800px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                <h2 style="margin: 0; color: #0f172a; font-weight: 700;">Traer Personas de otros Estudios</h2>
+                <button onclick="closeImportModal()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color: #64748b;">&times;</button>
+            </div>
+            <div id="importTargetInfo" style="margin-bottom: 1.5rem; padding: 0.75rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; color: #0369a1; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-arrow-right"></i> Importar al estudio: <span id="targetStudyLabel">Cargando...</span>
+            </div>
+
+            <div style="margin-bottom: 1rem; display: flex; gap: 1rem;">
+                <div style="flex: 1;">
+                    <label style="display: block; margin-bottom: 0.5rem; color: #475569; font-weight: 500;">1. Seleccione Estudio Origen:</label>
+                    <select id="importSourceStudy" style="width: 100%; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none; background: white;">
+                        <option value="">-- Seleccione un estudio --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #475569; font-weight: 500;">2. Buscar por Nombre, Teléfono o Cédula (Opcional):</label>
+                <div style="display: flex; gap: 0.5rem;">
+                    <input type="text" id="importSearchInput" placeholder="Ej: 3001234567 o Maria Perez" style="flex: 1; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; outline: none;">
+                    <button class="btn-submit" onclick="searchExternalPerson()" style="background: #3b82f6; padding: 0 1.5rem;">Buscar</button>
+                </div>
+            </div>
+
+            <div style="flex: 1; overflow-y: auto; margin-bottom: 1.5rem; border: 1px solid #e2e8f0; border-radius: 8px;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 1;">
+                        <tr style="text-align: left; border-bottom: 2px solid #e2e8f0;">
+                            <th style="padding: 0.75rem; color: #1e293b;">Nombre</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Teléfono</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Cédula</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Estudio Origen</th>
+                            <th style="padding: 0.75rem; color: #1e293b;">Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody id="importSearchResults">
+                        <tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">Use el buscador arriba para encontrar personas.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div id="importListContainer" style="display: none; border-top: 2px solid #e2e8f0; padding-top: 1rem;">
+                <h3 style="margin-bottom: 1rem; color: #1e293b;">Personas a Importar</h3>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                        <thead style="background: #f8fafc;">
+                            <tr style="text-align: left; border-bottom: 1px solid #e2e8f0;">
+                                <th style="padding: 0.5rem; color: #111827;">Persona</th>
+                                <th style="padding: 0.5rem; color: #111827;">Código (Code)</th>
+                                <th style="padding: 0.5rem; color: #111827;">Fecha Implante</th>
+                                <th style="padding: 0.5rem; color: #111827;">Fecha Recogida</th>
+                                <th style="padding: 0.5rem; color: #111827;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="importListTable"></tbody>
+                    </table>
+                </div>
+                <div style="display: flex; justify-content: flex-end; margin-top: 1rem;">
+                    <button class="btn-submit" onclick="confirmImport()" style="background: #22c55e;">Confirmar e Importar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/call_center.js?v=24"></script>
+    <script>
+        // Online Status Logic
+        async function updateOnlineStatus() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            try {
+                const res = await fetch('/users/status', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const users = await res.json();
+
+                    // Render to BOTH containers (Landing and CRM)
+                    ['onlineHeaderBar_Landing', 'onlineHeaderBar_CRM'].forEach(containerId => {
+                        const container = document.getElementById(containerId);
+                        if (!container) return; // Skip if missing
+
+                        container.innerHTML = ''; // Start clean
+
+                        const now = new Date();
+                        let activeCount = 0;
+
+                        users.forEach(u => {
+                            if (!u.last_seen) return;
+
+                            let lastSeenDate = new Date(u.last_seen + (u.last_seen.endsWith('Z') ? '' : 'Z'));
+                            let diffMinutes = (now - lastSeenDate) / 1000 / 60;
+
+                            // Hide if inactive > 20m
+                            if (diffMinutes > 20) return;
+
+                            let colorClass = 'status-green';
+                            if (diffMinutes >= 15) colorClass = 'status-red';
+                            else if (diffMinutes >= 10) colorClass = 'status-yellow';
+
+                            activeCount++;
+
+                            const pill = document.createElement('div');
+                            pill.className = 'status-pill';
+
+                            // Tooltip logic for details
+                            pill.title = `Rol: ${u.role}\nHace ${Math.floor(diffMinutes)} min`;
+
+                            pill.innerHTML = `
+                                <div class="status-dot ${colorClass}"></div>
+                                <i class="fas ${u.device_type === 'mobile' ? 'fa-mobile-alt' : 'fa-laptop'}" 
+                                   style="margin-right: 4px; color: #64748b; font-size: 0.85rem;" 
+                                   title="${u.device_type === 'mobile' ? 'Celular' : 'Computador'}"></i>
+                                <span>${u.full_name || u.username}</span>
+                            `;
+                            container.appendChild(pill);
+                        });
+
+                        if (activeCount === 0) {
+                            container.innerHTML = '<span style="color: #94a3b8; font-size: 0.8rem; font-style: italic;">Sin usuarios activos</span>';
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error("Error fetching status", e);
+            }
+        }
+
+        // Initialize Call Center Status
+        document.addEventListener("DOMContentLoaded", async () => {
+            const token = localStorage.getItem('token');
+            if (token) {
+                // Global Fetch Interceptor for 401 Unauthorized
+                const originalFetch = window.fetch;
+                window.fetch = async function () {
+                    const response = await originalFetch.apply(this, arguments);
+                    if (response.status === 401) {
+                        console.warn('Session expired (401). Redirecting to login.');
+                        localStorage.removeItem('token');
+                        if (window.location.pathname !== '/login' && window.location.pathname !== '/login.html') {
+                            window.location.href = '/login';
+                        }
+                    }
+                    return response;
+                };
+
+                try {
+                    const res = await fetch('/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
+                    if (res.ok) {
+                        const user = await res.json();
+
+                        // Initial visibility logic
+                        const landingBar = document.getElementById('onlineHeaderBar_Landing');
+                        const crmBar = document.getElementById('onlineHeaderBar_CRM');
+
+                        if (user.role === 'superuser' || user.role === 'coordinator') {
+                            // Start at Landing
+                            if (landingBar) landingBar.style.display = 'flex';
+                            if (crmBar) crmBar.style.display = 'none'; // Hidden until CRM entered
+                        } else {
+                            // Agent/Auxiliar starts in CRM
+                            if (landingBar) landingBar.style.display = 'none'; // Should not see header version to avoid overlap?
+                            // Actually agents don't see Landing, so header version might overlap if not hidden.
+                            if (crmBar) crmBar.style.display = 'flex';
+                        }
+
+                        updateOnlineStatus();
+                        setInterval(updateOnlineStatus, 30000); // Poll every 30s
+                    }
+                } catch (e) { }
+            }
+        });
+    </script>
+    <script src="/static/heartbeat.js"></script>
+    <!-- Bonus Selection Modal -->
+    <div id="bonusModal"
+        style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+        <div
+            style="background-color: #1e293b; margin: 15% auto; padding: 25px; border: 1px solid #334155; width: 320px; border-radius: 16px; color: white; text-align: center; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);">
+            <h3 style="margin-top: 0; color: #f1f5f9; font-size: 1.25rem;">Estado del Bono</h3>
+            <p style="color: #94a3b8; margin-bottom: 25px;">Seleccione el estado para continuar:</p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button onclick="window.resolveBonusSelection('enviado')"
+                    style="background: #22c55e; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-check" style="margin-right: 10px;"></i> Enviado
+                </button>
+                <button onclick="window.resolveBonusSelection('no enviado')"
+                    style="background: #ef4444; color: white; padding: 12px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 1rem; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-times" style="margin-right: 10px;"></i> No Enviado
+                </button>
+            </div>
+            <button onclick="window.resolveBonusSelection(null)"
+                style="margin-top: 20px; background: transparent; border: none; color: #64748b; cursor: pointer; font-size: 0.9rem;">Cancelar</button>
+        </div>
+    </div>
+
+    <!-- Active Alarm Notification Modal -->
+    <div id="alarmModal"
+        style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.6); backdrop-filter: blur(4px);">
+        <div
+            style="background-color: #fff; margin: 10% auto; padding: 25px; border: 2px solid #ef4444; width: 400px; max-width: 90%; border-radius: 12px; text-align: center; box-shadow: 0 20px 25px -5px rgba(239, 68, 68, 0.4); animation: pulseAlert 2s infinite;">
+            <div style="color: #ef4444; font-size: 3rem; margin-bottom: 10px;">
+                <i class="fas fa-bell"></i>
+            </div>
+            <h2 style="margin-top: 0; color: #1e293b; font-size: 1.5rem;">¡Llamada Pendiente!</h2>
+            <p style="color: #475569; font-size: 1.1rem; margin-bottom: 15px;">En 5 minutos tienes una llamada agendada
+                para:</p>
+            <div
+                style="background: #f8fafc; padding: 15px; border-radius: 8px; text-align: left; margin-bottom: 20px; border-left: 4px solid #3b82f6;">
+                <div style="margin-bottom: 8px;"><strong>Estudio:</strong> <span id="alarmStudy"
+                        style="color:#0f172a;">-</span></div>
+                <div style="margin-bottom: 8px;"><strong>Censo:</strong> <span id="alarmCensus"
+                        style="color:#0f172a;">-</span></div>
+                <div style="margin-bottom: 8px;"><strong>Ciudad:</strong> <span id="alarmCity"
+                        style="color:#0f172a;">-</span></div>
+                <div style="margin-bottom: 8px;"><strong>Teléfono:</strong> <span id="alarmPhone"
+                        style="color:#0f172a;">-</span></div>
+                <div><strong>Nombre:</strong> <span id="alarmName" style="color:#0f172a;">-</span></div>
+            </div>
+            <button onclick="closeAlarmModal()"
+                style="background: #3b82f6; color: white; padding: 12px 24px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 1.1rem; width: 100%; transition: background 0.3s;">
+                Entendido
+            </button>
+        </div>
+    </div>
+
+    <style>
+        @keyframes pulseAlert {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+
+            70% {
+                box-shadow: 0 0 0 15px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+    </style>
+
+    <!-- DUPLICATE VALIDATOR MODAL -->
+    <div id="duplicateValidatorModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div
+            style="background: white; padding: 2rem; border-radius: 12px; width: 900px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                <h2 style="margin: 0; color: #1e293b;">Validador de Duplicados y Formato</h2>
+                <button onclick="closeDuplicateValidatorModal()"
+                    style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 1rem;">
+                Pega desde Excel (Nombre y Número) para verificar duplicados en la base de datos y validar que tengan 10 dígitos.
+            </p>
+
+            <textarea id="duplicatePasteArea"
+                placeholder="Pega aquí (Nombre [Tab] Número)..."
+                style="width: 100%; height: 120px; padding: 1rem; font-family: monospace; border: 2px dashed #cbd5e1; border-radius: 8px; resize: none; box-sizing: border-box; margin-bottom: 1rem;"></textarea>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-bottom: 1rem;">
+                <button onclick="runDuplicateValidation()"
+                    style="background: #8b5cf6; border: none; padding: 0.6rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">
+                    <i class="fas fa-check-double"></i> Validar Datos
+                </button>
+            </div>
+
+            <div id="duplicateResults" style="flex: 1; overflow-y: auto; display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                    <div id="duplicateSummary" style="flex: 1; margin-right: 1rem; padding: 1rem; border-radius: 8px;">
+                        <!-- Summary here -->
+                    </div>
+                    <button id="btnDownloadDuplicateExcel" onclick="downloadDuplicateExcel()" style="display: none; background: #10b981; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; height: fit-content; white-space: nowrap;">
+                        <i class="fas fa-file-excel"></i> Descargar Excel
+                    </button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <div>
+                        <h4 style="color: #ef4444; border-bottom: 2px solid #fee2e2; padding-bottom: 5px;">
+                            <i class="fas fa-copy"></i> Duplicados Encontrados
+                        </h4>
+                        <div id="duplicatesList" style="font-size: 0.85rem; color: #334155;"></div>
+                    </div>
+                    <div>
+                        <h4 style="color: #f59e0b; border-bottom: 2px solid #fef3c7; padding-bottom: 5px;">
+                            <i class="fas fa-exclamation-circle"></i> Error de Formato (No 10 dígitos)
+                        </h4>
+                        <div id="invalidLengthList" style="font-size: 0.85rem; color: #334155;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Continuous alarm clock sound -->
+    <audio id="alarmAudio" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"
+        loop></audio>
+    <!-- BONOS ESTUDIOS MODAL -->
+    <div id="bonosEstudiosModal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 2000; justify-content: center; align-items: center;">
+        <div style="background: white; color: #1e293b; padding: 2rem; border-radius: 12px; width: 1000px; max-width: 95%; max-height: 90vh; display: flex; flex-direction: column;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem;">
+                <h2 style="margin: 0; color: #1e293b;">Gestión de Bonos por Estudio</h2>
+                <button onclick="closeBonosEstudios()" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; background: #f8fafc; padding: 1.5rem; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <div>
+                    <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Seleccionar Estudio:</label>
+                    <select id="bonoStudySelect" onchange="loadBonoStudyData()" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px;"></select>
+                    
+                    <div style="margin-top: 10px;">
+                        <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Código de estudio:</label>
+                        <input type="text" id="bonoStudyCode" placeholder="Ej: IH-NT-001" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; background: #fffbeb;">
+                    </div>
+
+                    <div id="bonoClosingAlert" style="display: none; margin-top: 10px; padding: 10px; background: #fee2e2; border: 1px solid #ef4444; border-radius: 6px; color: #b91c1c; font-weight: bold;">
+                        <i class="fas fa-exclamation-triangle"></i> EL ESTUDIO CIERRA HOY
+                    </div>
+                    <div id="bonoClosingInfo" style="margin-top: 5px; font-size: 0.85rem; color: #64748b;"></div>
+                    
+                    <button onclick="showRescheduleModal()" style="margin-top: 10px; background: #6366f1; color: white; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                        <i class="fas fa-calendar-alt"></i> Reagendar Cierre
+                    </button>
+                </div>
+                <div>
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Nombre del Auxiliar:</label>
+                        <input type="text" id="bonoAuxiliarName" placeholder="Nombre que aparecerá en el reporte" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                        <div>
+                            <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Etapa del Estudio:</label>
+                            <select id="bonoStageSelect" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; background: #fffbeb;">
+                                <option value="">Seleccione Etapa...</option>
+                                <option value="implantacion">Implantación</option>
+                                <option value="recogida1">Recogida 1</option>
+                                <option value="recogida_final">Recogida Final</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display: block; color: #475569; font-size: 0.9rem; margin-bottom: 5px; font-weight: bold;">Fecha del Estudio:</label>
+                            <input type="date" id="bonoStudyDate" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; background: #fffbeb;">
+                        </div>
+                    </div>
+                    <div>
+                        <select id="bonoValueSelect" onchange="toggleBonoValueOther(this.value)" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px;">
+                            <option value="">Seleccione Valor...</option>
+                            <option value="10000">10.000</option>
+                            <option value="15000">15.000</option>
+                            <option value="20000">20.000</option>
+                            <option value="30000">30.000</option>
+                            <option value="40000">40.000</option>
+                            <option value="otro">Otro (Escribir)...</option>
+                        </select>
+                        <input type="number" id="bonoValueOther" placeholder="Ingrese valor..." style="display: none; width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; margin-top: 10px; box-sizing: border-box; background: #fffbeb;">
+                    </div>
+                    <div style="margin-top: 10px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: #475569; font-size: 0.9rem;">
+                            <input type="checkbox" id="bonoArchiveStudy" style="cursor: pointer;">
+                            Archivar estudio al finalizar
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div id="bonoCitySummary" style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; font-size: 0.85rem;">
+                <!-- City counts go here -->
+            </div>
+
+            <div style="flex: 1; overflow: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 1.5rem;">
+                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 10;">
+                        <tr style="border-bottom: 2px solid #e2e8f0; text-align: left; color: #475569;">
+                            <th style="padding: 0.8rem; width: 50px;">#</th>
+                            <th style="padding: 0.8rem;">Celular</th>
+                            <th style="padding: 0.8rem;">Nombre</th>
+                            <th style="padding: 0.8rem;">Ciudad</th>
+                            <th style="padding: 0.8rem;">Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bonoCallsTableBody">
+                        <tr><td colspan="5" style="padding: 2rem; text-align: center; color: #64748b;">Seleccione un estudio para ver los registros.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="closeBonosEstudios()" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cerrar</button>
+                <button id="btnDownloadBonoExcel" onclick="finalizeAndDownloadBonos()" disabled style="background: #10b981; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold; opacity: 0.5;">
+                    <i class="fas fa-file-excel"></i> Validar y Descargar Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- RESCHEDULE MODAL -->
+    <div id="rescheduleModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center;">
+        <div style="background: white; color: #1e293b; padding: 2rem; border-radius: 12px; width: 350px;">
+            <h3 style="margin-top: 0; color: #1e293b;">Reagendar Cierre</h3>
+            <div class="form-group" style="margin-bottom: 1.5rem;">
+                <label style="display: block; margin-bottom: 0.5rem; color: #475569;">Nueva Fecha de Cierre</label>
+                <input type="date" id="newClosingDate" style="width: 100%; padding: 0.8rem; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box;">
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 1rem;">
+                <button onclick="document.getElementById('rescheduleModal').style.display='none'" style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                <button onclick="submitReschedule()" style="background: #6366f1; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: bold;">Guardar</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

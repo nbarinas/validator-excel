@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - AZ Marketing</title>
+    <link rel="stylesheet" href="/static/style.css?v=8">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Reset body padding if any, relying on style.css body flex center */
+
+        /* Reset body padding if any, relying on style.css body flex center */
+        /* .dashboard-container styles removed to defer to .floating-container */
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5rem;
+            /* More space as requested */
+            padding: 0 2rem;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 2.5rem;
+        }
+
+        .btn-logout {
+            background: rgba(220, 53, 69, 0.8);
+            color: white;
+            border: 1px solid rgba(255, 100, 100, 0.3);
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+        }
+
+        .btn-logout:hover {
+            background: rgba(220, 53, 69, 1);
+            transform: translateY(-2px);
+        }
+
+        /* Flex container for horizontal centering */
+        .modules-grid {
+            display: flex;
+            justify-content: center;
+            align-items: stretch;
+            gap: 3rem;
+            flex-wrap: wrap;
+        }
+
+        /* Use .card style from style.css by copying/extending or just applying the class directly to the element */
+        .module-card {
+            background: var(--card-bg, rgba(30, 41, 59, 0.7));
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.1));
+            padding: 3rem 2rem;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--text-main, #f8fafc);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 300px;
+            /* Fixed width for better alignment */
+            min-height: 250px;
+        }
+
+        .module-card:hover {
+            transform: translateY(-10px);
+            background: rgba(30, 41, 59, 0.9);
+            border-color: var(--primary-color, #6366f1);
+        }
+
+        .module-icon {
+            font-size: 4rem;
+            color: var(--primary-color, #6366f1);
+            margin-bottom: 1.5rem;
+        }
+
+        .module-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--text-main, white);
+        }
+
+        .module-desc {
+            color: var(--text-muted, #94a3b8);
+            font-size: 1rem;
+        }
+
+        /* Online Status Styles */
+        .online-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 2rem auto;
+            max-width: 800px;
+            color: white;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .user-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .user-status-card {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.8rem;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: grey;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .status-green {
+            background: #22c55e;
+            box-shadow: 0 0 8px #22c55e;
+        }
+
+        .status-yellow {
+            background: #eab308;
+            box-shadow: 0 0 8px #eab308;
+        }
+
+        .status-red {
+            background: #ef4444;
+            box-shadow: 0 0 8px #ef4444;
+        }
+
+        /* Fix layout for scrolling and prevent clipping */
+        body {
+            display: block !important;
+            height: auto !important;
+            overflow: auto !important;
+            padding: 2rem 0 !important;
+            /* Add some vertical padding */
+        }
+
+        .floating-container {
+            margin: 0 auto;
+            /* Center horizontally */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container floating-container"
+        style="background: transparent; border: none; box-shadow: none;">
+        <header class="header">
+            <h1>AZ Marketing Portal</h1>
+            <div id="userInfoDisplay"
+                style="color: rgba(255,255,255,0.7); font-size: 1rem; margin-right: auto; margin-left: 2rem; display: flex; align-items: center;">
+                <!-- User Info Here -->
+                <span style="opacity: 0.5;">Cargando...</span>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button class="btn-logout" style="background: var(--primary-color, #6366f1); border-color:transparent;"
+                    onclick="changeMyPassword()">Cambiar Clave</button>
+                <button class="btn-logout" onclick="logout()">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <div class="modules-grid">
+            <a href="/validator-page" class="module-card" id="cardInHome">
+                <i class="fas fa-file-excel module-icon"></i>
+                <div class="module-title">In Home</div>
+                <div class="module-desc">Validador de Archivos Excel</div>
+            </a>
+
+            <a href="#" class="module-card" id="cardNomina" style="opacity: 0.6; cursor: not-allowed;">
+                <i class="fas fa-money-check-alt module-icon"></i>
+                <div class="module-title">Nómina</div>
+                <div class="module-desc">Próximamente</div>
+            </a>
+
+            <a href="/call-center-page" class="module-card">
+                <i class="fas fa-headset module-icon"></i>
+                <div class="module-title">Call Center</div>
+                <div class="module-desc">Gestión de llamadas y CRM</div>
+            </a>
+
+            <!-- Admin Modules (Hidden by default) -->
+            <a href="/users-page" class="module-card" id="cardUsers" style="display: none;">
+                <i class="fas fa-users-cog module-icon"></i>
+                <div class="module-title">Usuarios</div>
+                <div class="module-desc">Gestión de Usuarios y Permisos</div>
+            </a>
+
+            <a href="/bizage-page" class="module-card" id="cardBizage" style="display: none;">
+                <i class="fas fa-tasks module-icon"></i>
+                <div class="module-title">Estudios/Bizage</div>
+                <div class="module-desc">Gestión de Estudios y Pagos</div>
+            </a>
+
+            <a href="https://az-whap-bot.onrender.com/" target="_blank" class="module-card" id="cardCuotas" style="display: none;">
+                <i class="fas fa-chart-pie module-icon"></i>
+                <div class="module-title">Cuotas</div>
+                <div class="module-desc">Link para ir a las cuotas</div>
+            </a>
+        </div>
+
+        <!-- Online Users Panel -->
+        <div id="onlineUsersPanel" class="online-panel">
+            <h3 style="margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 0.5rem;">
+                <i class="fas fa-signal"></i> Usuarios en Línea
+            </h3>
+            <div id="usersGrid" class="user-status-grid">
+                <!-- User cards will go here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auth Check
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        // Global Fetch Interceptor for 401 Unauthorized
+        const originalFetch = window.fetch;
+        window.fetch = async function () {
+            const response = await originalFetch.apply(this, arguments);
+            if (response.status === 401) {
+                console.warn('Session expired (401). Redirecting to login.');
+                localStorage.removeItem('token');
+                if (window.location.pathname !== '/login' && window.location.pathname !== '/login.html') {
+                    window.location.href = '/login';
+                }
+            }
+            return response;
+        };
+
+        async function checkUserRole() {
+            try {
+                const res = await fetch('/users/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+
+                    // Display User Info
+                    const display = document.getElementById('userInfoDisplay');
+                    if (display) {
+                        // Use full name if available, else username
+                        const name = user.full_name || user.username;
+                        display.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.2);">${user.role.toUpperCase()}</span>`;
+                    }
+
+                    // Role Logic
+                    const cardInHome = document.getElementById('cardInHome');
+                    const cardBizage = document.getElementById('cardBizage');
+                    const cardUsers = document.getElementById('cardUsers');
+
+                    if (user.role === 'superuser') {
+                        if (cardUsers) cardUsers.style.display = 'flex';
+                        if (cardBizage) cardBizage.style.display = 'flex';
+                        
+                        const cardCuotas = document.getElementById('cardCuotas');
+                        if (cardCuotas) cardCuotas.style.display = 'flex';
+
+                        // Enable Nomina for Superuser
+                        const cardNomina = document.getElementById('cardNomina');
+                        if (cardNomina) {
+                            cardNomina.style.opacity = '1';
+                            cardNomina.style.cursor = 'pointer';
+                            cardNomina.href = '/nomina-page';
+                            cardNomina.querySelector('.module-desc').textContent = 'Gestión de Nómina';
+                        }
+
+                        // Show Online Panel
+                        document.getElementById('onlineUsersPanel').style.display = 'block';
+                        updateOnlineStatus(); // Initial call
+                        setInterval(updateOnlineStatus, 30000); // Poll every 30s
+                    } else if (user.role === 'coordinator') {
+                        // Coordinator: Calls only for now (Nomina restricted to Superuser per request)
+                        // Enable Nomina? User said "solo superusuario". So we skip enabling it here.
+
+                        // Check InHome
+                        if (cardInHome) cardInHome.style.display = 'none';
+
+                        // Show Online Panel (useful for coordination)
+                        document.getElementById('onlineUsersPanel').style.display = 'block';
+                        updateOnlineStatus();
+                        setInterval(updateOnlineStatus, 30000);
+
+                    } else if (user.role === 'bizage') {
+                        if (cardInHome) cardInHome.style.display = 'none'; // Hide In Home
+                        if (cardBizage) cardBizage.style.display = 'flex'; // Show Bizage
+                    } else if (user.role === 'auxiliar') {
+                        // Auxiliar ONLY sees Call Center and Online Status
+                        if (cardInHome) cardInHome.style.display = 'none';
+                        const cardNomina = document.getElementById('cardNomina');
+                        if (cardNomina) cardNomina.style.display = 'none';
+
+                        document.getElementById('onlineUsersPanel').style.display = 'block';
+                        updateOnlineStatus(); // Initial call
+                        setInterval(updateOnlineStatus, 30000); // Poll every 30s
+                    }
+                    else if (user.role === 'agent') {
+                        if (cardInHome) cardInHome.style.display = 'none'; // Hide In Home for Agents
+                    }
+                }
+            } catch (e) {
+                console.error("Error checking role", e);
+            }
+        }
+
+        checkUserRole();
+
+        async function changeMyPassword() {
+            const oldPass = prompt("Ingresa tu contraseña actual:");
+            if (!oldPass) return;
+            const newPass = prompt("Ingresa tu nueva contraseña:");
+            if (!newPass) return;
+
+            try {
+                const res = await fetch('/users/me/password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ old_password: oldPass, new_password: newPass })
+                });
+
+                if (res.ok) {
+                    alert("Contraseña actualizada exitosamente.");
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + err.detail);
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Error de conexión");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+        async function updateOnlineStatus() {
+            try {
+                const res = await fetch('/users/status', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const users = await res.json();
+                    const grid = document.getElementById('usersGrid');
+                    grid.innerHTML = '';
+
+                    const now = new Date();
+                    let activeCount = 0;
+
+                    users.forEach(u => {
+                        if (!u.last_seen) return;
+
+                        // Parse UTC last_seen
+                        // Backend sends ISO string like "2023-10-27T10:00:00" assuming UTC or timezone aware
+                        // We need to compare with local time or match timezones.
+                        // Assuming backend sends UTC ISO string with 'Z' or we treat as UTC.
+                        let lastSeenDate = new Date(u.last_seen + (u.last_seen.endsWith('Z') ? '' : 'Z'));
+                        let diffMinutes = (now - lastSeenDate) / 1000 / 60;
+
+                        // Logic:
+                        // < 10 min: Green
+                        // 10 - 15 min: Yellow
+                        // 15 - 20 min: Red
+                        // > 20 min: Hide
+
+                        if (diffMinutes > 20) return;
+
+                        let colorClass = 'status-green';
+                        if (diffMinutes >= 15) colorClass = 'status-red';
+                        else if (diffMinutes >= 10) colorClass = 'status-yellow';
+
+                        activeCount++;
+
+                        const div = document.createElement('div');
+                        div.className = 'user-status-card';
+                        div.innerHTML = `
+                            <div class="status-dot ${colorClass}"></div>
+                            <div style="font-size: 0.9rem;">
+                                <div style="font-weight: bold; display: flex; align-items: center; gap: 5px;">
+                                    <span style="font-size: 0.8rem; color: #94a3b8;" title="${u.device_type === 'mobile' ? 'Celular' : 'Computador'}">
+                                        ${u.device_type === 'mobile' ? '<i class="fas fa-mobile-alt"></i>' : '<i class="fas fa-laptop"></i>'}
+                                    </span>
+                                    ${u.full_name || u.username}
+                                </div>
+                                <div style="font-size: 0.75rem; opacity: 0.7;">Hace ${Math.floor(diffMinutes)} min</div>
+                            </div>
+                        `;
+                        grid.appendChild(div);
+                    });
+
+                    if (activeCount === 0) {
+                        grid.innerHTML = '<div style="opacity: 0.5; font-style: italic;">No hay otros usuarios activos.</div>';
+                    }
+                }
+            } catch (e) {
+                console.error("Error fetching status", e);
+            }
+        }
+    </script>
+    <script src="/static/heartbeat.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,4 @@
+PassengerEnabled on
+PassengerAppType wsgi
+PassengerStartupFile passenger_wsgi.py
+PassengerPython /home/zoidusho/az-marketing/venv/bin/python

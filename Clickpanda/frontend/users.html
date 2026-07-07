@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Usuarios - AZ Marketing</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 2rem;
+            color: white;
+        }
+
+        .table-responsive {
+            overflow-x: auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 0;
+            /* Removing bottom margin for grid gap */
+        }
+
+        #createUserForm {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+
+        #createUserForm button {
+            grid-column: 1 / -1;
+            margin-top: 0.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.3rem;
+            /* Slightly tighter */
+            font-weight: bold;
+            font-size: 0.9rem;
+            /* Slightly smaller for compactness */
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 0.6rem;
+            /* Slightly reduced padding */
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: 0.9rem;
+        }
+
+        button {
+            background: var(--primary-color, #6366f1);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        th,
+        td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .btn-delete {
+            background: #ef4444;
+            padding: 0.4rem 0.8rem;
+            font-size: 0.9rem;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            color: white;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 1rem;
+            right: 1.5rem;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close-modal:hover {
+            color: white;
+        }
+
+        /* Fix layout for scrolling */
+        body {
+            display: block !important;
+            height: auto !important;
+            overflow: auto !important;
+            padding: 0 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1 style="color: #6366f1; margin-bottom: 0.5rem;">Gestión de Usuarios</h1>
+                <a href="/" style="text-decoration: none; color: #1a73e8; font-weight: bold; font-size: 0.9rem;">&larr;
+                    Volver al Dashboard</a>
+            </div>
+            <div id="userInfoDisplay" style="color: white; font-size: 1rem; display: flex; align-items: center;"></div>
+        </div>
+
+        <div class="card">
+            <h2>Crear Nuevo Usuario</h2>
+            <form id="createUserForm">
+                <div class="form-group">
+                    <label>Usuario (CC o Username)</label>
+                    <input type="text" id="username" required placeholder="Ej: 123456789">
+                </div>
+                <div class="form-group">
+                    <label>Cédula de Ciudadanía</label>
+                    <input type="text" id="cedula_ciudadania" placeholder="Cédula si es diferente al usuario">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="password" required placeholder="Contraseña">
+                </div>
+                <div class="form-group">
+                    <label>Rol</label>
+                    <select id="role" required>
+                        <option value="agent">Encuestador / Operativo</option>
+                        <option value="bizage">Bizage</option>
+                        <option value="auxiliar">Auxiliar</option>
+                        <option value="supervisor">Supervisor</option>
+                        <option value="coordinator">Coordinador Call Center</option>
+                        <option value="superuser">Administrador (Superusuario)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Nombre y Apellido</label>
+                    <input type="text" id="full_name" required placeholder="Nombre Completo">
+                </div>
+
+                <div class="form-group">
+                    <label>Banco</label>
+                    <select id="bank">
+                        <option value="">Seleccione...</option>
+                        <option value="Banco Caja Social">Banco Caja Social</option>
+                        <option value="Bancolombia">Bancolombia</option>
+                        <option value="Nequi">Nequi</option>
+                        <option value="Daviplata">Daviplata</option>
+                        <option value="Davivienda">Davivienda</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Cuenta</label>
+                    <select id="account_type">
+                        <option value="">Seleccione...</option>
+                        <option value="Ahorros">Ahorros</option>
+                        <option value="Corriente">Corriente</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Número de Cuenta</label>
+                    <input type="text" id="account_number" placeholder="Número de cuenta">
+                </div>
+
+                <div class="form-group">
+                    <label>Fecha de Nacimiento</label>
+                    <input type="date" id="birth_date">
+                </div>
+
+                <div class="form-group">
+                    <label>Celular</label>
+                    <input type="tel" id="phone_number" placeholder="Número de celular">
+                </div>
+                <div class="form-group">
+                    <label>Dirección</label>
+                    <input type="text" id="address" placeholder="Dirección de residencia">
+                </div>
+
+                <div class="form-group">
+                    <label>Ciudad</label>
+                    <select id="city">
+                        <option value="">Seleccione...</option>
+                        <option value="Bogotá">Bogotá</option>
+                        <option value="Soacha">Soacha</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Barrio</label>
+                    <input type="text" id="neighborhood" placeholder="Barrio">
+                </div>
+
+                <div class="form-group">
+                    <label>Tipo de Sangre</label>
+                    <select id="blood_type">
+                        <option value="">Seleccione...</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Titular de la Cuenta</label>
+                    <input type="text" id="account_holder" placeholder="Nombre completo del titular">
+                </div>
+
+                <div class="form-group">
+                    <label>CC Titular</label>
+                    <input type="text" id="account_holder_cc" placeholder="CC del titular">
+                </div>
+
+                <!-- Toggle for allowing superuser creation? The select above handles it. The user said "option to create superusers or not". 
+                     This implies the logged-in superuser CHOOSES the role for the new user. -->
+                <button type="submit">Crear Usuario</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Usuarios Existentes</h2>
+            <div class="table-responsive">
+                <table id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Usuario (CC)</th>
+                            <th>Nombre</th>
+                            <th>Celular</th>
+                            <th>Ciudad</th>
+                            <th>Rol</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Edit User Modal -->
+        <div id="editUserModal" class="modal">
+            <div class="modal-content">
+                <span class="close-modal" onclick="closeEditModal()">&times;</span>
+                <h2>Editar Usuario</h2>
+                <form id="editUserForm" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
+                    <input type="hidden" id="edit_user_id">
+
+                    <div class="form-group">
+                        <label>Usuario (CC/Username)</label>
+                        <input type="text" id="edit_username" disabled style="background: rgba(255,255,255,0.5);">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Cédula de Ciudadanía</label>
+                        <input type="text" id="edit_cedula_ciudadania">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nueva Contraseña (Opcional)</label>
+                        <input type="password" id="edit_password" placeholder="Dejar vacío para no cambiar">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select id="edit_role">
+                            <option value="agent">Encuestador / Operativo</option>
+                            <option value="bizage">Bizage</option>
+                            <option value="auxiliar">Auxiliar</option>
+                            <option value="supervisor">Supervisor</option>
+                            <option value="coordinator">Coordinador Call Center</option>
+                            <option value="superuser">Administrador (Superusuario)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Nombre y Apellido</label>
+                        <input type="text" id="edit_full_name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Banco</label>
+                        <select id="edit_bank">
+                            <option value="">Seleccione...</option>
+                            <option value="Banco Caja Social">Banco Caja Social</option>
+                            <option value="Bancolombia">Bancolombia</option>
+                            <option value="Nequi">Nequi</option>
+                            <option value="Daviplata">Daviplata</option>
+                            <option value="Davivienda">Davivienda</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Cuenta</label>
+                        <select id="edit_account_type">
+                            <option value="">Seleccione...</option>
+                            <option value="Ahorros">Ahorros</option>
+                            <option value="Corriente">Corriente</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Número de Cuenta</label>
+                        <input type="text" id="edit_account_number">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fecha de Nacimiento</label>
+                        <input type="date" id="edit_birth_date">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Celular</label>
+                        <input type="tel" id="edit_phone_number">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Dirección</label>
+                        <input type="text" id="edit_address">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ciudad</label>
+                        <select id="edit_city">
+                            <option value="">Seleccione...</option>
+                            <option value="Bogotá">Bogotá</option>
+                            <option value="Soacha">Soacha</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Barrio</label>
+                        <input type="text" id="edit_neighborhood">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Sangre</label>
+                        <select id="edit_blood_type">
+                            <option value="">Seleccione...</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Titular de la Cuenta</label>
+                        <input type="text" id="edit_account_holder">
+                    </div>
+
+                    <div class="form-group">
+                        <label>CC Titular</label>
+                        <input type="text" id="edit_account_holder_cc">
+                    </div>
+
+                    <button type="submit" style="grid-column: 1 / -1; margin-top: 1rem;">Guardar Cambios</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ID CARD MODAL -->
+    <div id="carnetModal" class="modal">
+        <div class="modal-content" style="max-width: 500px; background: #e2e8f0; color: #333;">
+            <span class="close-modal" onclick="closeCarnetModal()" style="color: #64748b;">&times;</span>
+            <h2 style="color: #1e293b; text-align: center; margin-bottom: 20px;">Carnet de Identificación</h2>
+
+            <div style="display: flex; gap: 10px; justify-content: center; margin-bottom: 20px;">
+                <button onclick="flipCard(false)"
+                    style="padding: 5px 10px; background: #3b82f6; border-radius: 4px; border:none; color: white;">Frente</button>
+                <button onclick="flipCard(true)"
+                    style="padding: 5px 10px; background: #64748b; border-radius: 4px; border:none; color: white;">Atrás</button>
+            </div>
+
+            <!-- CARNET CONTAINER -->
+            <div id="carnetArea"
+                style="width: 320px; height: 480px; background: white; margin: 0 auto; border-radius: 12px; overflow: hidden; position: relative; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #cbd5e1;">
+
+                <!-- FRONT -->
+                <div id="cardFront"
+                    style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; padding: 20px; text-align: center;">
+                    <!-- Logo -->
+                    <div
+                        style="width: 100px; height: 60px; margin-bottom: 15px; display:flex; align-items:center; justify-content:center;">
+                        <img src="/static/logo.png" onerror="this.style.display='none'" alt="AZ Marketing"
+                            style="max-width: 100%; max-height: 100%;">
+                    </div>
+
+                    <!-- Photo -->
+                    <div
+                        style="width: 140px; height: 160px; background: #f1f5f9; border: 2px solid #3b82f6; border-radius: 8px; overflow: hidden; margin-bottom: 15px; position: relative;">
+                        <img id="carnetPhotoImg" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                        <div id="photoPlaceholder"
+                            style="position: absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:3rem; background:#f8fafc;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    </div>
+
+                    <!-- Details -->
+                    <h2 id="carnetName"
+                        style="margin: 5px 0; font-size: 1.2rem; color: #0f172a; text-transform: uppercase; line-height: 1.2;">
+                    </h2>
+                    <p id="carnetCC" style="margin: 0; color: #475569; font-weight: bold; font-size: 1rem;"></p>
+
+                    <div style="margin-top: 15px; width: 100%; border-top: 2px solid #3b82f6; padding-top: 10px;">
+                        <div id="carnetRole"
+                            style="background: #3b82f6; color: white; padding: 5px 15px; border-radius: 20px; display: inline-block; font-weight: bold; font-size: 0.9rem;">
+                        </div>
+                    </div>
+
+                    <div
+                        style="margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; font-size: 0.8rem; color: #64748b;">
+                        <div>RH: <span id="carnetRh" style="font-weight: bold; color: #333;"></span></div>
+                    </div>
+                </div>
+
+                <!-- BACK -->
+                <div id="cardBack"
+                    style="display: none; width: 100%; height: 100%; flex-direction: column; align-items: center; background: white; color: #333; padding: 15px; justify-content: space-around;">
+                    <img src="/static/logo.png" onerror="this.style.display='none'"
+                        style="max-height: 40px; margin-bottom: 5px;">
+                    <div style="font-size: 8px; text-align: center; line-height: 1.2;">
+                        Este documento es personal e<br>
+                        intransferible, y lo acredita como<br>
+                        personal de recolección de par, a<br>
+                        estudio de opinión con fines estadísticos<br>
+                        no es valido para transacciones<br>
+                        comerciales
+                    </div>
+                    <div style="width: 80%; border-top: 1px solid #000; margin: 10px 0 5px 0;"></div>
+                    <div style="font-size: 8px; text-align: center; margin-bottom: 5px;">
+                        Firma de autorizado<br>
+                        Cualquier comentario o sugerencia<br>
+                        comuníquese al<br>
+                        3234968972 - 5757735 Bogotá D.C.<br>
+                        EMail: azarate@az-marketing.com.co
+                    </div>
+                    <div style="font-size: 8px; text-align: center; width: 100%;">
+                        <div
+                            style="display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 2px;">
+                            <span>Fecha de expedición <span id="previewExpedicion">-</span></span>
+                        </div>
+                        <div
+                            style="display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 2px; margin-top: 2px;">
+                            <span>Fecha de vencimiento <span id="previewVencimiento">-</span></span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- CONTROLS -->
+            <div
+                style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #cbd5e1; display: flex; flex-direction: column; gap: 10px;">
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <input type="file" id="photoInput" accept="image/*" style="display:none;"
+                        onchange="handlePhotoUpload()">
+                    <button onclick="document.getElementById('photoInput').click()"
+                        style="flex:1; background: #64748b; border:none; padding: 10px; border-radius: 6px; color:white; cursor:pointer;">
+                        <i class="fas fa-camera"></i> Subir Foto
+                    </button>
+                    <button onclick="savePhoto()"
+                        style="background: #22c55e; border:none; padding: 10px; border-radius: 6px; color:white; cursor:pointer; width: 50px;"
+                        title="Guardar Foto en Base de Datos">
+                        <i class="fas fa-save"></i>
+                    </button>
+                </div>
+
+                <button onclick="printCarnet()"
+                    style="width: 100%; background: #3b82f6; border:none; padding: 12px; border-radius: 6px; color:white; font-weight:bold; cursor:pointer;">
+                    <i class="fas fa-print"></i> Imprimir Carnet
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = '/login';
+
+        const API_URL = '';
+
+        async function loadUsers() {
+            try {
+                const res = await fetch(API_URL + '/users', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.status === 403) {
+                    alert('No autorizado');
+                    window.location.href = '/';
+                    return;
+                }
+                const users = await res.json();
+                allUsers = users; // Store global
+
+                const tbody = document.querySelector('#usersTable tbody');
+                tbody.innerHTML = '';
+                users.forEach(u => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${u.id}</td>
+                        <td>${u.username}</td>
+                        <td>${u.full_name || '-'}</td>
+                        <td>${u.phone_number || '-'}</td>
+                        <td>${u.city || '-'}</td>
+                        <td>${u.role}</td>
+<td>
+                        <div style="display: flex; gap: 0.5rem; justify-content: flex-start;">
+                                <button class="btn-delete" style="background:var(--primary-color);" onclick="openEditModal(${u.id})"><i class="fas fa-pencil-alt"></i></button>
+                                ${u.username !== 'admin' ?
+                            `<button class="btn-delete" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>`
+                            : ''}
+                                <button class="btn-delete" style="background:#10b981;" onclick="viewDetails('${u.id}')"><i class="fas fa-eye"></i></button>
+                                <button class="btn-delete" style="background:#8b5cf6;" onclick="openCarnetModal('${u.id}')" title="Generar Carnet"><i class="fas fa-id-card"></i></button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function resetPassword(id) {
+            const newPass = prompt("Ingresa la nueva contraseña para este usuario:");
+            if (!newPass) return;
+
+            try {
+                const res = await fetch(API_URL + '/users/' + id + '/password', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ new_password: newPass })
+                });
+                if (res.ok) {
+                    alert('Contraseña actualizada');
+                } else {
+                    alert('Error al actualizar');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deleteUser(id) {
+            if (!confirm('¿Estás seguro de eliminar este usuario?')) return;
+
+            try {
+                const res = await fetch(API_URL + '/users/' + id, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    loadUsers();
+                } else {
+                    alert('Error al eliminar');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const role = document.getElementById('role').value;
+
+            const full_name = document.getElementById('full_name').value;
+            const bank = document.getElementById('bank').value;
+            const account_type = document.getElementById('account_type').value;
+            const account_number = document.getElementById('account_number').value;
+            const birth_date = document.getElementById('birth_date').value;
+            const phone_number = document.getElementById('phone_number').value;
+
+            const address = document.getElementById('address').value;
+            const city = document.getElementById('city').value;
+            const neighborhood = document.getElementById('neighborhood').value;
+            const blood_type = document.getElementById('blood_type').value;
+            const account_holder = document.getElementById('account_holder').value;
+            const account_holder_cc = document.getElementById('account_holder_cc').value;
+            const cedula_ciudadania = document.getElementById('cedula_ciudadania').value;
+
+            // Validation
+            if (phone_number) {
+                if (phone_number.length !== 10) {
+                    alert('El celular debe tener 10 dígitos.');
+                    return;
+                }
+                if (!phone_number.startsWith('3')) {
+                    alert('El celular debe comenzar por el número 3.');
+                    return;
+                }
+            }
+
+            try {
+                const res = await fetch(API_URL + '/users', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        role,
+                        full_name,
+                        bank,
+                        account_type,
+                        account_number,
+                        birth_date,
+                        phone_number,
+                        address,
+                        phone_number,
+                        address,
+                        city,
+                        neighborhood,
+                        blood_type,
+                        account_holder,
+                        account_holder_cc,
+                        cedula_ciudadania
+                    })
+                });
+
+                if (res.ok) {
+                    alert('Usuario creado exitosamente');
+                    document.getElementById('createUserForm').reset();
+                    loadUsers();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + err.detail);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión');
+            }
+        });
+
+        // Edit Modal Logic
+        let allUsers = []; // Store for easy access
+
+        function openEditModal(id) {
+            const user = allUsers.find(u => u.id === id);
+            if (!user) return;
+
+            document.getElementById('edit_user_id').value = user.id;
+            document.getElementById('edit_username').value = user.username;
+            document.getElementById('edit_password').value = ''; // Reset password field
+            document.getElementById('edit_role').value = user.role;
+            document.getElementById('edit_full_name').value = user.full_name || '';
+            document.getElementById('edit_bank').value = user.bank || '';
+            document.getElementById('edit_account_type').value = user.account_type || '';
+            document.getElementById('edit_account_number').value = user.account_number || '';
+            document.getElementById('edit_birth_date').value = user.birth_date || '';
+            document.getElementById('edit_phone_number').value = user.phone_number || '';
+            document.getElementById('edit_address').value = user.address || '';
+            document.getElementById('edit_city').value = user.city || '';
+            document.getElementById('edit_neighborhood').value = user.neighborhood || '';
+            document.getElementById('edit_blood_type').value = user.blood_type || '';
+            document.getElementById('edit_account_holder').value = user.account_holder || '';
+            document.getElementById('edit_account_holder_cc').value = user.account_holder_cc || '';
+            document.getElementById('edit_cedula_ciudadania').value = user.cedula_ciudadania || '';
+
+            document.getElementById('editUserModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editUserModal').style.display = 'none';
+        }
+
+        document.getElementById('editUserForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit_user_id').value;
+
+            const data = {
+                role: document.getElementById('edit_role').value,
+                full_name: document.getElementById('edit_full_name').value,
+                bank: document.getElementById('edit_bank').value,
+                account_type: document.getElementById('edit_account_type').value,
+                account_number: document.getElementById('edit_account_number').value,
+                birth_date: document.getElementById('edit_birth_date').value,
+                phone_number: document.getElementById('edit_phone_number').value,
+                address: document.getElementById('edit_address').value,
+                city: document.getElementById('edit_city').value,
+                neighborhood: document.getElementById('edit_neighborhood').value,
+                blood_type: document.getElementById('edit_blood_type').value,
+                account_holder: document.getElementById('edit_account_holder').value,
+                account_holder_cc: document.getElementById('edit_account_holder_cc').value,
+                cedula_ciudadania: document.getElementById('edit_cedula_ciudadania').value
+            };
+
+            const pass = document.getElementById('edit_password').value;
+            if (pass) data.password = pass;
+
+            try {
+                const res = await fetch(API_URL + '/users/' + id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    alert('Usuario actualizado correctamente');
+                    closeEditModal();
+                    loadUsers();
+                } else {
+                    const err = await res.json();
+                    alert('Error: ' + err.detail);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error de conexión');
+            }
+        });
+
+        // Close modal when clicking outside
+        window.onclick = function (event) {
+            const modal = document.getElementById('editUserModal');
+            if (event.target == modal) {
+                closeEditModal();
+            }
+        }
+
+
+        loadUsers();
+
+        // Load Current User Info for Header
+        async function loadCurrentHeaderInfo() {
+            try {
+                const res = await fetch(API_URL + '/users/me', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const user = await res.json();
+                    const ui = document.getElementById('userInfoDisplay');
+                    if (ui) {
+                        const name = user.full_name || user.username;
+                        ui.innerHTML = `<i class="fas fa-user-circle" style="margin-right: 8px;"></i> ${name} <span style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 4px; margin-left: 10px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.4);">${user.role.toUpperCase()}</span>`;
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+        loadCurrentHeaderInfo();
+
+        async function viewDetails(id) {
+            // Find user in table data or fetch? simplified:
+            // Since we don't have global users list stored comfortably, let's just find from row or re-fetch.
+            // Better: re-fetch or store users in global var. Let's store in global var usersData.
+            try {
+                const res = await fetch(API_URL + '/users', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const users = await res.json();
+                const u = users.find(x => x.id == id);
+                if (u) {
+                    alert(`
+                        Detalles de Usuario:
+                        
+                        Nombre: ${u.full_name || '-'}
+                        CC/Usuario: ${u.username}
+                        Cédula: ${u.cedula_ciudadania || '-'}
+                        Rol: ${u.role}
+                        Celular: ${u.phone_number || '-'}
+                        Ciudad: ${u.city || '-'}
+                        Barrio: ${u.neighborhood || '-'}
+                        Dirección: ${u.address || '-'}
+                        Cumpleaños: ${u.birth_date || '-'}
+                        Sangre: ${u.blood_type || '-'}
+                        
+                        Banco: ${u.bank || '-'}
+                        Cuenta: ${u.account_number || '-'}
+                        Titular: ${u.account_holder || '-'}
+                        CC Titular: ${u.account_holder_cc || '-'}
+                    `);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // --- CARNET LOGIC ---
+        let carnetUser = null;
+
+        async function openCarnetModal(id) {
+            try {
+                // Fetch latest user data to get photo
+                const res = await fetch(API_URL + '/users', { headers: { 'Authorization': 'Bearer ' + token } }); // Simplified. In prod, use /users/{id}
+                const users = await res.json();
+                carnetUser = users.find(x => x.id == id);
+                if (!carnetUser) return;
+
+                // Populate Front
+                document.getElementById('carnetName').textContent = carnetUser.full_name || carnetUser.username;
+                const cc = carnetUser.cedula_ciudadania || carnetUser.username;
+                document.getElementById('carnetCC').textContent = 'CC. ' + cc;
+                document.getElementById('carnetRh').textContent = carnetUser.blood_type || '';
+
+                // Role Logic
+                let displayRole = 'PERSONAL OPERATIVO';
+                const r = (carnetUser.role || '').toLowerCase();
+                if (r === 'agent' || r === 'bizage') displayRole = 'AGENTE ENCUESTADOR';
+                if (r === 'supervisor') displayRole = 'SUPERVISOR';
+                if (r === 'coordinator') displayRole = 'COORDINADOR';
+                if (r === 'auxiliar') displayRole = 'AUXILIAR ADMINISTRATIVO';
+
+                document.getElementById('carnetRole').textContent = displayRole;
+
+                // Photo
+                const img = document.getElementById('carnetPhotoImg');
+                const placeholder = document.getElementById('photoPlaceholder');
+
+                if (carnetUser.photo_base64) {
+                    img.src = carnetUser.photo_base64;
+                    img.style.display = 'block';
+                    placeholder.style.display = 'none';
+                } else {
+                    img.style.display = 'none';
+                    placeholder.style.display = 'flex';
+                }
+
+                // Calculate dates
+                const today = new Date();
+                const expDate = new Date();
+                expDate.setMonth(expDate.getMonth() + 6);
+
+                const formatDate = (date) => {
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const year = date.getFullYear();
+                    return `${day} / ${month} / ${year}`;
+                };
+
+                const elemExp = document.getElementById('previewExpedicion');
+                if (elemExp) elemExp.textContent = formatDate(today);
+
+                const elemVenc = document.getElementById('previewVencimiento');
+                if (elemVenc) elemVenc.textContent = formatDate(expDate);
+
+                // Reset View
+                flipCard(false);
+                document.getElementById('carnetModal').style.display = 'flex';
+            } catch (e) { console.error(e); }
+        }
+
+        function closeCarnetModal() {
+            document.getElementById('carnetModal').style.display = 'none';
+            carnetUser = null;
+        }
+
+        function flipCard(isBack) {
+            const f = document.getElementById('cardFront');
+            const b = document.getElementById('cardBack');
+            if (isBack) {
+                f.style.display = 'none';
+                b.style.display = 'flex';
+            } else {
+                f.style.display = 'flex';
+                b.style.display = 'none';
+            }
+        }
+
+        function handlePhotoUpload() {
+            const input = document.getElementById('photoInput');
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const img = document.getElementById('carnetPhotoImg');
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('photoPlaceholder').style.display = 'none';
+
+                    // Temp save to object
+                    if (carnetUser) carnetUser.temp_new_photo = e.target.result;
+                }
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        async function savePhoto() {
+            if (!carnetUser || !carnetUser.temp_new_photo) return alert("No hay foto nueva para guardar");
+
+            try {
+                const res = await fetch(API_URL + '/users/' + carnetUser.id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({ photo_base64: carnetUser.temp_new_photo })
+                });
+
+                if (res.ok) {
+                    alert('Foto guardada correctamente');
+                    loadUsers(); // Refresh
+                } else {
+                    alert('Error al guardar foto');
+                }
+            } catch (e) { console.error(e); alert('Error de conexión'); }
+        }
+
+        function printCarnet() {
+            // Calculate dates
+            const today = new Date();
+            const expDate = new Date();
+            expDate.setMonth(expDate.getMonth() + 6);
+
+            const formatDate = (date) => {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                return `${day} / ${month} / ${year}`;
+            };
+
+            const strExpedicion = formatDate(today);
+            const strVencimiento = formatDate(expDate);
+
+            // Open print window
+            const win = window.open('', '', 'width=600,height=800');
+            const content = `
+                <html>
+                <head>
+                    <title>Imprimir Carnet</title>
+                    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+                    <style>
+                        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding: 20px; }
+                        .card { width: 8.6cm; height: 5.4cm; border: 1px dashed #ccc; margin-bottom: 20px; position: relative; overflow: hidden; page-break-inside: avoid; }
+                        
+                        /* Front Styles */
+                        .front { background: white; display: flex; flex-direction: column; align-items: center; position: relative; padding: 10px; }
+                        .back { background: #1e293b; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+
+                        @media print {
+                            .no-print { display: none; }
+                            body { padding: 0; margin: 0; display: flex; align-items: flex-start; justify-content: flex-start; }
+                            .print-container { 
+                                width: 5.4cm; 
+                                flex-direction: column; 
+                                border: none; 
+                                margin: 0; 
+                                padding: 0.5cm; /* Adjust padding if needed to center on physical paper */
+                            }
+                            .card-wrapper {
+                                border: 1px solid #000;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="no-print" style="margin-bottom: 20px;">
+                        <button onclick="window.print()" style="padding: 10px 20px; font-weight: bold; cursor: pointer;">IMPRIMIR</button>
+                    </div>
+
+                    <div class="print-container" style="display: flex; flex-direction: column; width: 5.4cm;">
+                        <!-- TOP: Front Vertical -->
+                        <div class="card-wrapper" style="width: 5.4cm; height: 8.6cm; border: 1px solid #000; border-bottom: none; box-sizing: border-box; background: white; display: flex; flex-direction: column; align-items: center; padding: 10px; position: relative;">
+                            
+                            <div style="width: 100%; display: flex; align-items: flex-start; justify-content: flex-start; margin-bottom: 5px;">
+                                <img src="/static/logo.png" onerror="this.style.display='none'" style="max-height: 25px;">
+                            </div>
+                            
+                            <div style="width: 100%; display: flex; align-items: flex-start; justify-content: center; position: relative; margin-bottom: 15px;">
+                                <div style="position: absolute; left: 0px; top: 0px; transform: translateX(-100%) rotate(-90deg); transform-origin: top right; font-weight: bold; font-size: 14px; color: #fbbf24; white-space: nowrap;">
+                                    ${document.getElementById('carnetRole').textContent}
+                                </div>
+                                <div style="width: 3.5cm; height: 4.5cm; border: 1px solid #ccc; overflow: hidden; background: #eee;">
+                                    <img src="${document.getElementById('carnetPhotoImg').src}" style="width:100%; height:100%; object-fit:cover;">
+                                </div>
+                            </div>
+
+                            <div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 2px;">
+                                Nombre: ${document.getElementById('carnetName').textContent}
+                            </div>
+                            <div style="text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 2px;">
+                                CC. ${document.getElementById('carnetCC').textContent.replace('CC. ', '')}
+                            </div>
+                            <div style="text-align: center; font-weight: bold; font-size: 14px;">
+                                RH: ${document.getElementById('carnetRh').textContent}
+                            </div>
+
+                        </div>
+
+                        <!-- BOTTOM: Back Rotated 180 degrees -->
+                        <div class="card-wrapper" style="width: 5.4cm; height: 8.6cm; border: 1px solid #000; box-sizing: border-box; background: white; display: flex; flex-direction: column; align-items: center; justify-content: space-around; padding: 10px; transform: rotate(180deg);">
+                            <img src="/static/logo.png" onerror="this.style.display='none'" style="max-height: 35px; margin-bottom: 0;">
+                            
+                            <div style="font-size: 9px; text-align: center; line-height: 1.3;">
+                                Este documento es personal e<br>
+                                intransferible, y lo acredita como<br>
+                                personal de recolección de par, a<br>
+                                estudio de opinión con fines estadísticos<br>
+                                no es valido para transacciones<br>
+                                comerciales
+                            </div>
+                            
+                            <div style="width: 80%; border-top: 1px solid #000; margin: 10px 0 5px 0;"></div>
+                            
+                            <div style="font-size: 9px; text-align: center; margin-bottom: 5px;">
+                                Firma de autorizado<br>
+                                Cualquier comentario o sugerencia<br>
+                                comuníquese al<br>
+                                3234968972 - 5757735 Bogotá D.C.<br>
+                                EMail: azarate@az-marketing.com.co
+                            </div>
+                            
+                            <div style="font-size: 9px; text-align: center; width: 100%;">
+                                <div style="display: flex; flex-direction: column; border-top: 1px solid #ddd; padding-top: 5px; margin-bottom: 5px;">
+                                    <span>Fecha de expedición ${strExpedicion}</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; border-top: 1px solid #ddd; padding-top: 5px;">
+                                    <span>Fecha de vencimiento ${strVencimiento}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </body>
+
+                </html>
+`;
+            win.document.write(content);
+            win.document.close();
+        }
+    </script>
+    <script src="/static/heartbeat.js"></script>
+</body>
+
+</html>
