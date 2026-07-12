@@ -1083,7 +1083,7 @@ def duplicate_study_r2(study_id: int, target_stage: Optional[str] = None, db: Se
         new_segundo_codigo = c.segundo_codigo
         
         # KEY LOGIC: If Validation study AND new stage is Rf, swap the primary code to be the second code.
-        if is_validation and new_stage == "Rf":
+        if is_validation and (new_stage or "").lower() == "rf":
              if c.segundo_codigo:
                  new_code = c.segundo_codigo
                  # We can null out the second code since it became primary, or keep it.
@@ -1895,7 +1895,7 @@ async def upload_calls(
             "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec"], # Added 'hora de recogida'
             "census": ["censo", "id", "identifier"],
             "code": ["codigo", "código", "cod", "id"], # Explicit mapping for Code
-            "segundo_codigo": ["segundo codigo", "segundo código", "codigo 2", "código 2"], # Added for Validation studies
+            "segundo_codigo": ["segundo codigo", "segundo código", "codigo 2", "código 2", "segundo_codigo"], # Added for Validation studies
             "implantation_pollster": ["encuestador", "pollster", "nombre encuestador", "implantation_pollster"],
 
             # Dog Food Study

@@ -264,6 +264,7 @@ const STANDARD_FIELDS = [
     { id: 'marca de producto', label: 'Marca de Producto' },
     { id: 'otro numero', label: 'Teléfono Alterno' },
     { id: 'cedula', label: 'Cédula / Documento' },
+    { id: 'segundo_codigo', label: 'Segundo Código / Código RF' },
     { id: 'nse', label: 'NSE / Estrato' },
     { id: 'edad', label: 'Edad' },
     { id: 'rango edad', label: 'Rango de Edad' },
@@ -457,7 +458,8 @@ window.updateColumnMapping = function (index, value) {
 
 const KNOWN_BACKEND_COLUMNS = [
     "telefono", "teléfono", "celular", "numero", "movil", "ciudad", "city",
-    "codigo", "código", "cod", "id", "observaciones", "observacion", "observación", "obs",
+    "codigo", "código", "cod", "id", "segundo_codigo", "segundo codigo", "segundo código", "codigo 2", "código 2", "codigo rf", "código rf",
+    "observaciones", "observacion", "observación", "obs",
     "hora de llamada", "hora", "cita", "marca de producto", "marca", "otro numero", "otro telefono", "telefono 2",
     "cedula", "cédula", "cc", "identificacion", "nombre", "cliente", "usuario", "nombre y apellido", "nombre completo",
     "nse", "estrato", "nivel socioeconomico", "edad", "age", "rango edad", "rango de edad", "edad rango",
@@ -655,6 +657,16 @@ function validateParsedData() {
         alertBox.style.borderColor = '#fecaca';
     }
 
+    // Validation studies require segundo_codigo mapped
+    const studyType = document.getElementById('uploadStudyType') ? document.getElementById('uploadStudyType').value : '';
+    const isValidationStudy = studyType === 'validacion';
+    const hasSegundoCodigo = normHeaders.includes('segundo_codigo');
+    if (isValidationStudy && !hasSegundoCodigo) {
+        msgs.push(`<b style="color:#dc2626">Requerido para Validación:</b> Debes mapear la columna del <b>Segundo Código / Código RF</b> (Código B).`);
+        alertBox.style.background = '#fef2f2';
+        alertBox.style.borderColor = '#fecaca';
+    }
+
     if (msgs.length > 0) {
         alertBox.innerHTML = msgs.join('<br><br>');
         alertBox.style.display = 'block';
@@ -668,7 +680,9 @@ function validateParsedData() {
 
     const hasTarget = isExisting ? !!existingStudyId : !!studyName;
 
-    if (parsedUploadData.length > 0 && unmappedCount === 0 && hasTarget) {
+    const validationOk = !isValidationStudy || hasSegundoCodigo;
+
+    if (parsedUploadData.length > 0 && unmappedCount === 0 && hasTarget && validationOk) {
         btnSubmit.disabled = false;
         btnSubmit.style.opacity = '1';
         document.getElementById('uploadError').style.display = 'none';
@@ -677,6 +691,9 @@ function validateParsedData() {
         btnSubmit.style.opacity = '0.5';
         if (unmappedCount > 0 && parsedUploadData.length > 0) {
             document.getElementById('uploadError').textContent = 'Debe mapear o ignorar todas las columnas pendientes.';
+            document.getElementById('uploadError').style.display = 'inline';
+        } else if (isValidationStudy && !hasSegundoCodigo && parsedUploadData.length > 0 && unmappedCount === 0) {
+            document.getElementById('uploadError').textContent = 'Para estudios de Validación debe mapear la columna Segundo Código / Código RF.';
             document.getElementById('uploadError').style.display = 'inline';
         } else if (parsedUploadData.length > 0 && unmappedCount === 0 && !hasTarget) {
             document.getElementById('uploadError').textContent = isExisting
@@ -689,6 +706,13 @@ function validateParsedData() {
 
 // Ensure button state strictly listens to Study Name typing as well
 document.getElementById('uploadStudyName').addEventListener('input', () => {
+    if (parsedUploadData.length > 0) {
+        validateParsedData();
+    }
+});
+
+// Re-validate when study type changes (validation requires segundo_codigo)
+document.getElementById('uploadStudyType').addEventListener('change', () => {
     if (parsedUploadData.length > 0) {
         validateParsedData();
     }
