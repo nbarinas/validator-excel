@@ -139,6 +139,7 @@ class Call(Base):
     dog_user_type = Column(String(50), nullable=True) # Mezclador, etc.
     dog_breed = Column(String(100), nullable=True) # Raza
     dog_size = Column(String(50), nullable=True) # Tamaño
+    dog_age = Column(String(50), nullable=True) # Edad
     stool_texture = Column(String(200), nullable=True)
     health_status = Column(String(200), nullable=True)
 

@@ -655,6 +655,7 @@ def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(databa
             ("implantation_pollster", "VARCHAR(100)"),
             ("dog_breed", "VARCHAR(100)"),
             ("dog_size", "VARCHAR(50)"),
+            ("dog_age", "VARCHAR(50)"),
             ("bonus_amount", "INTEGER"),
             ("bonus_auxiliary", "VARCHAR(100)")
         ]
@@ -1359,9 +1360,9 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
         c_dict['temp_armando'] = c.temp_armando
         c_dict['temp_auxiliar'] = c.temp_auxiliar
         c_dict['dog_name'] = c.dog_name
-        c_dict['dog_name'] = c.dog_name
         c_dict['dog_breed'] = c.dog_breed
         c_dict['dog_size'] = c.dog_size
+        c_dict['dog_age'] = c.dog_age
         c_dict['dog_user_type'] = c.dog_user_type
         c_dict['stool_texture'] = c.stool_texture
         c_dict['health_status'] = c.health_status
@@ -1886,7 +1887,7 @@ async def upload_calls(
             "children_age": ["edad hijos", "hijos", "edades hijos"],
             "whatsapp": ["whatsapp", "whassapp", "wa", "celular wa"],
             "neighborhood": ["barrio", "neighborhood", "sector"],
-            "address": ["direccion", "dirección", "address", "dir", "ubicacion"],
+            "address": ["direccion", "dirección", "address", "dir", "ubicacion", "dirrecion"],
             "housing_description": ["descripcion vivienda", "descripción vivienda", "tipo vivienda", "vivienda"],
             "respondent": ["encuestado", "respondent", "persona entrevistada"],
             "supervisor": ["supervisor", "sup"],
@@ -1899,8 +1900,12 @@ async def upload_calls(
             "implantation_pollster": ["encuestador", "pollster", "nombre encuestador", "implantation_pollster"],
 
             # Dog Food Study
-            "dog_name": ["nombre del perro", "dog name", "mascota", "nombre de la mascota"],
-            # ... existing ...
+            "dog_name": ["nombre del perro", "dog name", "mascota", "nombre de la mascota", "nombre mascota", "nombre de mascota"],
+            "dog_breed": ["raza", "raza del perro"],
+            "dog_size": ["tamaño", "tamaño del perro", "tamano", "tamano del perro"],
+            "dog_age": ["edad perrito", "edad del perro"],
+            "stool_texture": ["textura del popo", "textura del popó", "la textura del popo de su perro es", "la textura del popó de su perro es", "la textura del popó de su perro es?", "¿la textura del popó de su perro es?", "textura popo", "textura popó"],
+            "health_status": ["estado de salud", "salud"],
 
             # Hair Study
             "shampoo_brand": ["marca de shampoo", "marca shampoo"],
@@ -2022,6 +2027,7 @@ async def upload_calls(
                 dog_name=get_val("dog_name")[:100] if get_val("dog_name") else None,
                 dog_breed=get_val("dog_breed")[:100] if get_val("dog_breed") else None,
                 dog_size=get_val("dog_size")[:50] if get_val("dog_size") else None,
+                dog_age=get_val("dog_age")[:50] if get_val("dog_age") else None,
                 dog_user_type=get_val("dog_user_type")[:50] if get_val("dog_user_type") else None,
                 stool_texture=get_val("stool_texture")[:200] if get_val("stool_texture") else None,
                 health_status=get_val("health_status")[:200] if get_val("health_status") else None,

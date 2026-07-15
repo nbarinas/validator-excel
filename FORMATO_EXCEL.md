@@ -44,6 +44,26 @@ El archivo Excel debe contener las siguientes columnas (el sistema acepta variac
 - **Descripción**: Número de teléfono alternativo
 - **Ejemplo**: `3109876543`
 
+### 🐕 **Datos del Perro**
+- **Nombre Mascota**
+  - **Nombres aceptados**: `Nombre Mascota`, `Nombre del perro`, `Mascota`, `Nombre de la mascota`
+  - **Ejemplo**: `Luna`
+- **Raza**
+  - **Nombres aceptados**: `Raza`
+  - **Ejemplo**: `Criolla`
+- **Tamaño**
+  - **Nombres aceptados**: `Tamaño`, `Tamaño del perro`
+  - **Ejemplo**: `Grande (Más de 23 kg)`
+- **Edad del Perro**
+  - **Nombres aceptados**: `edad perrito`, `Edad del perro`
+  - **Ejemplo**: `4 años`
+- **Textura del Popó**
+  - **Nombres aceptados**: `¿La textura del popó de su perro es?`, `Textura del popo`, `Textura del popó`
+  - **Ejemplo**: `Duro (se recoge fácilmente)`
+- **Estado de Salud**
+  - **Nombres aceptados**: `ESTADO DE SALUD`, `Estado de salud`
+  - **Ejemplo**: `NO A TENIDO PROBLEMAS DE SALUD EN EL ULTIMO MES`
+
 ---
 
 ## Ejemplo de Estructura

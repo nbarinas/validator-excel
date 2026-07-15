@@ -271,7 +271,7 @@ const STANDARD_FIELDS = [
     { id: 'edad hijos', label: 'Edad Hijos' },
     { id: 'whatsapp', label: 'WhatsApp' },
     { id: 'barrio', label: 'Barrio' },
-    { id: 'direccion', label: 'Dirección' },
+    { id: 'address', label: 'Dirección' },
     { id: 'descripcion vivienda', label: 'Descripción Vivienda' },
     { id: 'encuestado', label: 'Persona Entrevistada' },
     { id: 'supervisor', label: 'Supervisor' },
@@ -280,7 +280,13 @@ const STANDARD_FIELDS = [
     { id: 'hora recoleccion', label: 'Hora Recogida' },
     { id: 'censo', label: 'Censo / ID' },
     { id: 'encuestador', label: 'Encuestador' },
-    { id: 'nombre del perro', label: 'Nombre Mascota' },
+    { id: 'code', label: 'Código del Producto' },
+    { id: 'dog_name', label: 'Nombre Mascota' },
+    { id: 'dog_breed', label: 'Raza del Perro' },
+    { id: 'dog_size', label: 'Tamaño del Perro' },
+    { id: 'dog_age', label: 'Edad del Perro' },
+    { id: 'stool_texture', label: 'Textura del Popó' },
+    { id: 'health_status', label: 'Estado de Salud' },
     { id: 'marca de shampoo', label: 'Marca Shampoo' },
     { id: 'variedad shampoo', label: 'Variedad Shampoo' },
     { id: 'marca tratamiento', label: 'Marca Tratamiento' },
@@ -464,14 +470,20 @@ const KNOWN_BACKEND_COLUMNS = [
     "cedula", "cédula", "cc", "identificacion", "nombre", "cliente", "usuario", "nombre y apellido", "nombre completo",
     "nse", "estrato", "nivel socioeconomico", "edad", "age", "rango edad", "rango de edad", "edad rango",
     "edad hijos", "hijos", "edades hijos", "whatsapp", "wa", "celular wa",
-    "barrio", "neighborhood", "sector", "direccion", "dirección", "address", "dir", "ubicacion",
+    "barrio", "neighborhood", "sector", "direccion", "dirección", "address", "dir", "ubicacion", "dirrecion",
     "descripcion vivienda", "descripción vivienda", "tipo vivienda", "vivienda",
     "encuestado", "respondent", "persona entrevistada", "supervisor", "sup",
     "fecha implantacion", "fecha implantación", "fecha imp",
     "fecha recoleccion", "fecha recolección", "fecha recogida", "fecha de recogida", "fecha rec",
     "hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec",
     "censo", "identifier", "encuestador", "pollster", "nombre encuestador", "implantation_pollster",
-    "nombre del perro", "dog name", "mascota", "nombre de la mascota",
+    "code", "codigo", "código", "cod", "id",
+    "nombre del perro", "dog name", "mascota", "nombre de la mascota", "nombre mascota", "nombre de mascota",
+    "dog_breed", "raza", "raza del perro",
+    "dog_size", "tamaño", "tamaño del perro", "tamano", "tamano del perro",
+    "dog_age", "edad perrito", "edad del perro",
+    "stool_texture", "textura del popo", "textura del popó", "la textura del popo de su perro es", "la textura del popó de su perro es", "la textura del popó de su perro es?", "¿la textura del popó de su perro es?", "textura popo", "textura popó",
+    "health_status", "estado de salud", "salud",
     "marca de shampoo", "marca shampoo", "variedad shampoo", "variedad",
     "marca tratamiento", "variedad tratamiento",
     "marca acondicionador", "variedad acondicionador", "variedad tratamiento.1",
@@ -2000,11 +2012,14 @@ function openCallDetail(call) {
 
     // POPULATE DOG DATA SECTION
     const dogSection = document.getElementById('dogSection');
-    if (call.dog_name) {
+    const hasDogData = call.dog_name || call.dog_breed || call.dog_size || call.dog_age ||
+                       call.dog_user_type || call.stool_texture || call.health_status;
+    if (hasDogData) {
         dogSection.style.display = 'block';
         document.getElementById('dogName').value = call.dog_name || '';
         document.getElementById('dogBreed').value = call.dog_breed || '';
         document.getElementById('dogSize').value = call.dog_size || '';
+        document.getElementById('dogAge').value = call.dog_age || '';
         document.getElementById('dogUserType').value = call.dog_user_type || '';
         document.getElementById('stoolTexture').value = call.stool_texture || '';
         document.getElementById('healthStatus').value = call.health_status || '';
