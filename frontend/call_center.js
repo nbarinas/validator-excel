@@ -11,6 +11,7 @@ const headers = {
 let currentCallId = null;
 let currentUserRole = null;
 let currentUserName = null; // Store full name of current agent
+let currentUserId = null; // Store current user id (for superuser chat alerts)
 let isClosedView = false; // Track if we are in Closed Studies mode
 let studySelectTS = null; // TomSelect instance for main study dropdown
 
@@ -71,6 +72,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const user = await uRes.json();
             currentUserRole = user.role;
             currentUserName = user.full_name || user.username;
+            currentUserId = user.id;
             const infoDivs = ['userInfoDisplay', 'userInfoDisplayLanding'];
             infoDivs.forEach(id => {
                 const ui = document.getElementById(id);
@@ -111,6 +113,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 const btnBonos = document.getElementById('btnBonosEstudiosLanding');
                 if (btnBonos) btnBonos.style.display = (currentUserRole === 'superuser') ? 'inline-block' : 'none';
+
+                const btnWaInbox = document.getElementById('btnWhatsAppInboxLanding');
+                if (btnWaInbox) btnWaInbox.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
 
                 const btnFilters = document.getElementById('btnFiltersLanding');
                 if (btnFilters) btnFilters.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
@@ -4345,3 +4350,189 @@ function toggleBonoValueOther(val) {
         if (val === 'otro') otherInput.focus();
     }
 }
+
+// ================= WHATSAPP CRM INTEGRATION =================
+let waChatCallId = null;
+let waPollTimer = null;
+let waChatAgentId = null;
+
+const waEsc = (s) => {
+    if (s === null || s === undefined) return '';
+    return String(s)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+};
+
+const waTime = (dt) => {
+    if (!dt) return '';
+    try {
+        const d = new Date(dt);
+        if (isNaN(d.getTime())) return dt;
+        return d.toLocaleString('es-CO', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return dt || ''; }
+};
+
+function openWhatsAppChatModal(callId) {
+    if (callId === undefined || callId === null) callId = currentCallId;
+    if (!callId) {
+        alert("Primero abra el detalle de una llamada.");
+        return;
+    }
+    waChatCallId = callId;
+    waChatAgentId = null;
+    document.getElementById('whatsappChatModal').style.display = 'flex';
+    document.getElementById('waChatTitle').textContent = 'Chat WhatsApp';
+    document.getElementById('waChatSub').textContent = 'Cargando...';
+    document.getElementById('waChatBody').innerHTML = '<div class="wa-msg-system">Cargando conversación...</div>';
+    document.getElementById('waChatInput').value = '';
+    waLoadHistory();
+    clearInterval(waPollTimer);
+    waPollTimer = setInterval(waLoadHistory, 5000);
+}
+
+function closeWhatsAppChatModal() {
+    document.getElementById('whatsappChatModal').style.display = 'none';
+    clearInterval(waPollTimer);
+    waPollTimer = null;
+    waChatCallId = null;
+}
+
+async function waLoadHistory() {
+    if (!waChatCallId) return;
+    try {
+        const res = await fetch(`/whatsapp/history/${waChatCallId}`, { headers });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        waChatAgentId = data.agent_id;
+        document.getElementById('waChatTitle').textContent = `Chat WhatsApp · ${waEsc(data.person_name || 'Sin nombre')}`;
+        document.getElementById('waChatSub').textContent = `${waEsc(data.phone_number || '')}` +
+            (data.agent_name ? ` · Encuestador: ${waEsc(data.agent_name)}` : '');
+        waRenderMessages(data.messages || []);
+    } catch (e) {
+        console.error('Error cargando historial WhatsApp:', e);
+    }
+}
+
+function waRenderMessages(messages) {
+    const body = document.getElementById('waChatBody');
+    if (!body) return;
+    if (!messages.length) {
+        body.innerHTML = '<div class="wa-msg-system">No hay conversación aún. Envía el saludo para empezar.</div>';
+        return;
+    }
+    let html = '';
+    messages.forEach(m => {
+        const isOut = m.direction === 'out';
+        const time = waTime(m.created_at);
+        if (m.message_type === 'template') {
+            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time} · saludo</div></div>`;
+        } else {
+            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}</div></div>`;
+        }
+    });
+    body.innerHTML = html;
+    body.scrollTop = body.scrollHeight;
+}
+
+async function waSendMessage() {
+    if (!waChatCallId) return;
+    const input = document.getElementById('waChatInput');
+    const text = (input.value || '').trim();
+    if (!text) {
+        alert("Escribe un mensaje primero.");
+        return;
+    }
+
+    // Superuser/Coordinator writing in another agent's conversation -> confirm
+    if (currentUserId && waChatAgentId && waChatAgentId !== currentUserId && currentUserRole !== 'agent') {
+        const ok = confirm("Vas a escribir como " + currentUserRole + " en la conversación de otro encuestador. ¿Deseas continuar?");
+        if (!ok) return;
+    }
+
+    try {
+        const res = await fetch('/whatsapp/send', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ call_id: waChatCallId, message: text })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            let detail = data.detail || 'Error desconocido';
+            if (typeof detail === 'object') detail = JSON.stringify(detail);
+            alert("Error al enviar: " + detail);
+            return;
+        }
+        input.value = '';
+        waLoadHistory();
+    } catch (e) {
+        console.error(e);
+        alert("Error de conexión al enviar mensaje.");
+    }
+}
+
+function openWhatsAppInbox() {
+    document.getElementById('whatsappInboxModal').style.display = 'flex';
+    document.getElementById('whatsappInboxBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
+    waLoadInbox();
+}
+
+function closeWhatsAppInbox() {
+    document.getElementById('whatsappInboxModal').style.display = 'none';
+}
+
+async function waLoadInbox() {
+    const body = document.getElementById('whatsappInboxBody');
+    if (!body) return;
+    try {
+        const res = await fetch('/whatsapp/inbox', { headers });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const threads = await res.json();
+        if (!threads.length) {
+            body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay conversaciones de WhatsApp aún.</div>';
+            return;
+        }
+        let html = '';
+        threads.forEach(t => {
+            const initial = (t.person_name || t.phone_number || '?').trim().charAt(0).toUpperCase();
+            html += `<div class="wa-inbox-item" onclick="openWhatsAppChatModal(${t.call_id})">
+                <div class="wa-inbox-avatar">${waEsc(initial)}</div>
+                <div class="wa-inbox-info">
+                    <div class="wa-inbox-name">${waEsc(t.person_name || 'Sin nombre')} ${t.agent_name ? `<span style="color:#94a3b8; font-weight:400; font-size:0.75rem;">· ${waEsc(t.agent_name)}</span>` : ''}</div>
+                    <div class="wa-inbox-last">${waEsc(t.last_message || '')}</div>
+                </div>
+                <div style="text-align:right; flex-shrink:0;">
+                    ${t.unread ? `<span class="wa-inbox-badge">${t.unread}</span>` : ''}
+                    <div class="wa-inbox-time">${waEsc(waTime(t.last_at))}</div>
+                </div>
+            </div>`;
+        });
+        body.innerHTML = html;
+    } catch (e) {
+        console.error(e);
+        body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ef4444;">Error cargando el inbox.</div>';
+    }
+}
+
+async function waPollUnreadBadge() {
+    try {
+        const res = await fetch('/whatsapp/unread', { headers });
+        if (!res.ok) return;
+        const data = await res.json();
+        const badge = document.getElementById('btnWhatsAppInboxBadge');
+        if (badge) {
+            if (data.total > 0) {
+                badge.textContent = data.total;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (e) { /* silencioso */ }
+}
+
+// Poll unread badge for superuser/coordinator
+setInterval(() => {
+    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
+        waPollUnreadBadge();
+    }
+}, 10000);

@@ -410,6 +410,24 @@ class LoanPayment(Base):
     loan = relationship("Loan", back_populates="payments")
     payroll_record = relationship("PayrollRecord")
 
+class WhatsAppMessage(Base):
+    __tablename__ = "whatsapp_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    call_id = Column(Integer, ForeignKey("calls.id"), nullable=True, index=True)
+    phone_number = Column(String(20), index=True)
+    direction = Column(String(10)) # in, out
+    message_text = Column(Text, nullable=True)
+    message_type = Column(String(20), default="text") # text, image, video, etc.
+    message_id = Column(String(100), nullable=True, index=True) # Meta message id
+    wa_status = Column(String(20), nullable=True) # sent, delivered, read, failed
+    sender_agent_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    read_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    call = relationship("Call")
+    sender_agent = relationship("User")
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
