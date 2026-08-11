@@ -764,6 +764,144 @@ def users_page():
     return FileResponse(os.path.join(FRONTEND_DIR, "users.html"))
 
 
+# --- INTERNAL CHAT ENDPOINTS ---
+
+class ChatMessageSend(BaseModel):
+    receiver_id: int
+    message: str
+
+@app.get("/chat/users")
+def chat_users(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """List all users for the internal chat. Frontend decides who is 'active' via last_seen."""
+    users = db.query(models.User).all()
+    return [{
+        "id": u.id,
+        "username": u.username,
+        "full_name": u.full_name,
+        "role": u.role,
+        "last_seen": u.last_seen,
+        "device_type": u.device_type
+    } for u in users]
+
+@app.get("/chat/unread-count")
+def chat_unread_count(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    count = db.query(models.ChatMessage).filter(
+        models.ChatMessage.receiver_id == current_user.id,
+        models.ChatMessage.read_at.is_(None)
+    ).count()
+    return {"count": count}
+
+@app.get("/chat/conversations")
+def chat_conversations(db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """List of other users the current user has exchanged messages with, plus last message and unread count."""
+    messages = (
+        db.query(models.ChatMessage)
+        .filter(
+            (models.ChatMessage.sender_id == current_user.id) |
+            (models.ChatMessage.receiver_id == current_user.id)
+        )
+        .order_by(models.ChatMessage.created_at.asc())
+        .all()
+    )
+
+    convs = {}
+    for m in messages:
+        other_id = m.receiver_id if m.sender_id == current_user.id else m.sender_id
+        entry = convs.setdefault(other_id, {"unread": 0, "last_message": None, "last_at": None})
+        if m.receiver_id == current_user.id and m.read_at is None:
+            entry["unread"] += 1
+        entry["last_message"] = m.message
+        entry["last_at"] = m.created_at
+
+    # Fetch names for each other user
+    result = []
+    for other_id, data in convs.items():
+        other = db.query(models.User).filter(models.User.id == other_id).first()
+        if not other:
+            continue
+        result.append({
+            "id": other.id,
+            "username": other.username,
+            "full_name": other.full_name,
+            "role": other.role,
+            "last_seen": other.last_seen,
+            "unread": data["unread"],
+            "last_message": data["last_message"],
+            "last_at": data["last_at"]
+        })
+    result.sort(key=lambda x: (x["last_at"] is not None, x["last_at"] or datetime.min), reverse=True)
+    return result
+
+@app.get("/chat/conversation/{other_user_id}")
+def chat_conversation(other_user_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    other = db.query(models.User).filter(models.User.id == other_user_id).first()
+    if not other:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    messages = (
+        db.query(models.ChatMessage)
+        .filter(
+            ((models.ChatMessage.sender_id == current_user.id) & (models.ChatMessage.receiver_id == other_user_id)) |
+            ((models.ChatMessage.sender_id == other_user_id) & (models.ChatMessage.receiver_id == current_user.id))
+        )
+        .order_by(models.ChatMessage.created_at.asc())
+        .all()
+    )
+
+    # Mark incoming messages as read
+    for m in messages:
+        if m.receiver_id == current_user.id and m.read_at is None:
+            m.read_at = datetime.utcnow()
+    db.commit()
+
+    return {
+        "other": {
+            "id": other.id,
+            "username": other.username,
+            "full_name": other.full_name,
+            "role": other.role,
+            "last_seen": other.last_seen
+        },
+        "messages": [{
+            "id": m.id,
+            "sender_id": m.sender_id,
+            "receiver_id": m.receiver_id,
+            "message": m.message,
+            "created_at": m.created_at,
+            "read_at": m.read_at
+        } for m in messages]
+    }
+
+@app.post("/chat/send")
+def chat_send(data: ChatMessageSend, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    if not data.message or not data.message.strip():
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+
+    if data.receiver_id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot send a message to yourself")
+
+    receiver = db.query(models.User).filter(models.User.id == data.receiver_id).first()
+    if not receiver:
+        raise HTTPException(status_code=404, detail="Receiver user not found")
+
+    msg = models.ChatMessage(
+        sender_id=current_user.id,
+        receiver_id=data.receiver_id,
+        message=data.message.strip()
+    )
+    db.add(msg)
+    db.commit()
+    db.refresh(msg)
+    return {
+        "id": msg.id,
+        "sender_id": msg.sender_id,
+        "receiver_id": msg.receiver_id,
+        "message": msg.message,
+        "created_at": msg.created_at,
+        "read_at": msg.read_at
+    }
+
+
 # --- PAGE ROUTES ---
 
 @app.get("/")
