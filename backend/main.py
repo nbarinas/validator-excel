@@ -933,7 +933,9 @@ WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "1185957884609871")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "az_crm_webhook_2026")
 WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamada")
 WHATSAPP_ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "alerta_seguimiento")
-WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573234968972")
+WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
+WHATSAPP_ALERT_LANGUAGE = os.getenv("WHATSAPP_ALERT_LANGUAGE", "es")
+WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573136623816")
 WHATSAPP_ESCALATE_MINUTES = int(os.getenv("WHATSAPP_ESCALATE_MINUTES", "15"))
 CRM_LINK_BASE = os.getenv("CRM_LINK_BASE", "https://validator-excel.onrender.com/call-center-page")
 META_GRAPH_URL = "https://graph.facebook.com/v21.0"
@@ -1108,7 +1110,7 @@ def _wa_send_superuser_alert(db, msg, call, reason, agent):
         "type": "template",
         "template": {
             "name": WHATSAPP_ALERT_TEMPLATE,
-            "language": {"code": "es"},
+            "language": {"code": WHATSAPP_ALERT_LANGUAGE},
             "components": [{
                 "type": "body",
                 "parameters": [
@@ -1300,7 +1302,7 @@ def whatsapp_send(
             "type": "template",
             "template": {
                 "name": WHATSAPP_TEMPLATE_NAME,
-                "language": {"code": "es"},
+                "language": {"code": WHATSAPP_TEMPLATE_LANGUAGE},
                 "components": [{
                     "type": "body",
                     "parameters": [
