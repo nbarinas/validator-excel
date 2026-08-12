@@ -425,6 +425,13 @@ class WhatsAppMessage(Base):
     read_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Escalation (forward to superuser after N minutes without attention)
+    escalated = Column(Boolean, default=False, index=True)
+    escalated_at = Column(DateTime, nullable=True)
+    esc_reason = Column(String(20), nullable=True) # sin_asignar, agente_desconectado
+    esc_notified = Column(Boolean, default=False)
+    profile_name = Column(String(100), nullable=True) # WhatsApp profile name of the contact
+
     call = relationship("Call")
     sender_agent = relationship("User")
 

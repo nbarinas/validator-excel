@@ -7,6 +7,8 @@ from sqlalchemy import func
 import json
 import urllib.request
 import urllib.error
+import time
+import threading
 import copy
 import pandas as pd
 import io
@@ -146,7 +148,24 @@ def on_startup():
         if 'bonus_auxiliary' not in call_cols:
             db.execute(text("ALTER TABLE calls ADD COLUMN bonus_auxiliary VARCHAR(100)"))
             print("Migration: Added bonus_auxiliary to calls")
-            
+
+        # WhatsApp messages (escalation columns)
+        try:
+            wa_cols = [c['name'] for c in inspector.get_columns('whatsapp_messages')]
+        except Exception:
+            wa_cols = []
+        wa_new_cols = {
+            'escalated': 'BOOLEAN',
+            'escalated_at': 'DATETIME',
+            'esc_reason': 'VARCHAR(20)',
+            'esc_notified': 'BOOLEAN',
+            'profile_name': 'VARCHAR(100)',
+        }
+        for col, dtype in wa_new_cols.items():
+            if col not in wa_cols:
+                db.execute(text(f"ALTER TABLE whatsapp_messages ADD COLUMN {col} {dtype}"))
+                print(f"Migration: Added {col} to whatsapp_messages")
+
         db.commit()
     except Exception as e:
         print(f"Migration error: {e}")
@@ -192,6 +211,8 @@ def on_startup():
         db.rollback()
     finally:
         db.close()
+
+    _wa_start_escalation_worker()
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
@@ -908,9 +929,13 @@ def chat_send(data: ChatMessageSend, db: Session = Depends(database.get_db), cur
 # ================= WHATSAPP CLOUD API (número CRM +57 318 7973965) =================
 
 WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
-WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "1244308882101954")
+WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "1185957884609871")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "az_crm_webhook_2026")
 WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamada")
+WHATSAPP_ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "alerta_seguimiento")
+WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573234968972")
+WHATSAPP_ESCALATE_MINUTES = int(os.getenv("WHATSAPP_ESCALATE_MINUTES", "15"))
+CRM_LINK_BASE = os.getenv("CRM_LINK_BASE", "https://validator-excel.onrender.com/call-center-page")
 META_GRAPH_URL = "https://graph.facebook.com/v21.0"
 
 
@@ -975,6 +1000,155 @@ def _find_call_by_phone(db, raw_phone):
     )
 
 
+def _wa_phone_variants(call):
+    """Normalized E.164 variants for a call's numbers."""
+    variants = set()
+    for p in (call.phone_number, call.whatsapp):
+        norm = _normalize_wa_phone(p)
+        if norm:
+            variants.add(norm)
+    return variants
+
+
+def _wa_escalate_stale():
+    """Mark incoming messages as escalated when not attended within N minutes.
+
+    Reasons:
+      - sin_asignar: no existe llamada en el CRM o no tiene agente asignado.
+      - agente_desconectado: el agente asignado no se ha conectado (last_seen viejo).
+    Sends ONE alert copy to the superuser WhatsApp per thread.
+    """
+    db = database.SessionLocal()
+    try:
+        threshold = datetime.utcnow() - timedelta(minutes=WHATSAPP_ESCALATE_MINUTES)
+        phones = (
+            db.query(models.WhatsAppMessage.phone_number)
+            .filter(
+                models.WhatsAppMessage.direction == "in",
+                models.WhatsAppMessage.read_at.is_(None),
+                models.WhatsAppMessage.escalated == False,
+                models.WhatsAppMessage.phone_number.isnot(None),
+                models.WhatsAppMessage.created_at < threshold,
+            )
+            .distinct()
+            .all()
+        )
+        for (phone,) in phones:
+            if not phone:
+                continue
+            already = db.query(models.WhatsAppMessage).filter(
+                models.WhatsAppMessage.phone_number == phone,
+                models.WhatsAppMessage.escalated == True,
+            ).first()
+            if already:
+                continue
+            msgs = (
+                db.query(models.WhatsAppMessage)
+                .filter(
+                    models.WhatsAppMessage.phone_number == phone,
+                    models.WhatsAppMessage.direction == "in",
+                    models.WhatsAppMessage.read_at.is_(None),
+                    models.WhatsAppMessage.created_at < threshold,
+                )
+                .order_by(models.WhatsAppMessage.id.asc())
+                .all()
+            )
+            if not msgs:
+                continue
+            call = None
+            if msgs[0].call_id:
+                call = db.query(models.Call).filter(models.Call.id == msgs[0].call_id).first()
+            if not call:
+                call = _find_call_by_phone(db, phone)
+
+            reason = None
+            agent = None
+            if call is None:
+                reason = "sin_asignar"
+            elif call.user_id is None:
+                reason = "sin_asignar"
+            else:
+                agent = db.query(models.User).filter(models.User.id == call.user_id).first()
+                if agent is None or agent.last_seen is None or agent.last_seen < threshold:
+                    reason = "agente_desconectado"
+            if not reason:
+                continue
+
+            now = datetime.utcnow()
+            for m in msgs:
+                m.escalated = True
+                m.escalated_at = now
+                m.esc_reason = reason
+            db.commit()
+
+            last = msgs[-1]
+            _wa_send_superuser_alert(db, last, call, reason, agent)
+    finally:
+        db.close()
+
+
+def _wa_send_superuser_alert(db, msg, call, reason, agent):
+    """Send an alert copy to the superuser's personal WhatsApp with a deep link to the CRM."""
+    phone = _normalize_wa_phone(WHATSAPP_SUPERUSER_NUMBER)
+    if not phone:
+        print("[WHATSAPP] WHATSAPP_SUPERUSER_NUMBER no válido; solo se marcó en el inbox.")
+        return
+    person = None
+    if call:
+        person = call.person_name
+    if not person:
+        person = msg.profile_name
+    if not person:
+        person = "Cliente"
+    reason_text = "no tiene encuestador asignado" if reason == "sin_asignar" else "su encuestador está desconectado"
+    link = f"{CRM_LINK_BASE}?chat_phone={msg.phone_number}"
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "template",
+        "template": {
+            "name": WHATSAPP_ALERT_TEMPLATE,
+            "language": {"code": "es"},
+            "components": [{
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": person},
+                    {"type": "text", "text": msg.phone_number},
+                    {"type": "text", "text": reason_text},
+                    {"type": "text", "text": link},
+                ],
+            }],
+        },
+    }
+    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+    if "error" in result:
+        print(f"[WHATSAPP] Alerta superusuario NO enviada: {result['error']}")
+    else:
+        print(f"[WHATSAPP] Alerta superusuario enviada a {phone} (hilo {msg.phone_number})")
+    # Mark notified (attempted) so we don't retry every cycle
+    for m in db.query(models.WhatsAppMessage).filter(
+        models.WhatsAppMessage.phone_number == msg.phone_number,
+        models.WhatsAppMessage.escalated == True,
+        models.WhatsAppMessage.esc_notified == False,
+    ):
+        m.esc_notified = True
+    db.commit()
+
+
+def _wa_start_escalation_worker():
+    """Background thread that checks for stale messages every 60s."""
+    def run():
+        print(f"[WHATSAPP] Worker de escalamiento iniciado (cada 60s, {WHATSAPP_ESCALATE_MINUTES} min de tolerancia).")
+        while True:
+            try:
+                _wa_escalate_stale()
+            except Exception as e:
+                print(f"[WHATSAPP] Error en escalamiento: {e}")
+            time.sleep(60)
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+
+
 @app.get("/whatsapp/webhook")
 def whatsapp_webhook_get(
     hub_mode: Optional[str] = None,
@@ -1024,6 +1198,11 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
                     if existing:
                         continue
                     from_wa = msg.get("from")
+                    profile_name = None
+                    for contact in value.get("contacts") or []:
+                        if str(contact.get("wa_id")) == str(from_wa):
+                            profile_name = (contact.get("profile") or {}).get("name")
+                            break
                     msg_type = msg.get("type", "text")
                     text = None
                     if msg_type == "text":
@@ -1047,6 +1226,7 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
                         message_type=msg_type,
                         message_id=msg_id,
                         wa_status="received",
+                        profile_name=profile_name,
                     )
                     db.add(rec)
             db.commit()
@@ -1057,7 +1237,8 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
 
 
 class WhatsAppSendRequest(BaseModel):
-    call_id: int
+    call_id: Optional[int] = None
+    phone_number: Optional[str] = None
     message: str = ""
 
 
@@ -1067,13 +1248,27 @@ def whatsapp_send(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    call = db.query(models.Call).filter(models.Call.id == data.call_id).first()
-    if not call:
-        raise HTTPException(status_code=404, detail="Llamada no encontrada")
-    if not _can_view_whatsapp(current_user, call):
-        raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
+    call = None
+    person_name = None
+    if data.call_id is not None:
+        call = db.query(models.Call).filter(models.Call.id == data.call_id).first()
+        if not call:
+            raise HTTPException(status_code=404, detail="Llamada no encontrada")
+        if not _can_view_whatsapp(current_user, call):
+            raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
+        person_name = call.person_name
+    elif data.phone_number:
+        if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+            raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+        person_name = None
+    else:
+        raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
 
-    raw_phone = call.phone_number or call.whatsapp
+    raw_phone = None
+    if call:
+        raw_phone = call.phone_number or call.whatsapp
+    else:
+        raw_phone = data.phone_number
     if not raw_phone:
         raise HTTPException(status_code=400, detail="La llamada no tiene número de teléfono")
     phone = _normalize_wa_phone(raw_phone)
@@ -1085,7 +1280,17 @@ def whatsapp_send(
         models.WhatsAppMessage.direction == "out",
     ).first()
 
-    person_name = (call.person_name or "").strip() or "Cliente"
+    if not person_name:
+        last_in = (
+            db.query(models.WhatsAppMessage)
+            .filter(models.WhatsAppMessage.phone_number == phone)
+            .order_by(models.WhatsAppMessage.id.desc())
+            .first()
+        )
+        if last_in and last_in.profile_name:
+            person_name = last_in.profile_name
+    if not person_name:
+        person_name = "Cliente"
     agent_name = (current_user.full_name or current_user.username or "").strip() or "Encuestador"
 
     if not has_conversation:
@@ -1128,7 +1333,7 @@ def whatsapp_send(
     meta_id = messages[0].get("id") if messages else None
 
     rec = models.WhatsAppMessage(
-        call_id=call.id,
+        call_id=call.id if call else None,
         phone_number=phone,
         direction="out",
         message_text=text_preview,
@@ -1165,12 +1370,7 @@ def whatsapp_history(
     if not _can_view_whatsapp(current_user, call):
         raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
 
-    phone = _normalize_wa_phone(call.phone_number or call.whatsapp)
-    variants = set()
-    for p in (call.phone_number, call.whatsapp):
-        norm = _normalize_wa_phone(p)
-        if norm:
-            variants.add(norm)
+    variants = _wa_phone_variants(call)
     msgs = []
     if variants:
         msgs = (
@@ -1188,10 +1388,11 @@ def whatsapp_history(
     db.commit()
 
     agent = db.query(models.User).filter(models.User.id == call.user_id).first() if call.user_id else None
+    phone_display = variants.pop() if variants else call.phone_number
     return {
         "call_id": call.id,
         "person_name": call.person_name,
-        "phone_number": phone or call.phone_number,
+        "phone_number": phone_display,
         "agent_id": call.user_id,
         "agent_name": (agent.full_name or agent.username) if agent else None,
         "messages": [{
@@ -1202,6 +1403,59 @@ def whatsapp_history(
             "message_text": m.message_text,
             "message_type": m.message_type,
             "wa_status": m.wa_status,
+            "profile_name": m.profile_name,
+            "escalated": m.escalated,
+            "esc_reason": m.esc_reason,
+            "created_at": m.created_at,
+            "read_at": m.read_at,
+        } for m in msgs],
+    }
+
+
+@app.get("/whatsapp/history-phone")
+def whatsapp_history_phone(
+    phone: str,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """History for a phone number without an associated call (supervisors follow up)."""
+    if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+        raise HTTPException(status_code=403, detail="No autorizado")
+    norm = _normalize_wa_phone(phone)
+    if not norm:
+        raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    msgs = (
+        db.query(models.WhatsAppMessage)
+        .filter(models.WhatsAppMessage.phone_number == norm)
+        .order_by(models.WhatsAppMessage.id.asc())
+        .all()
+    )
+    for m in msgs:
+        if m.direction == "in" and m.read_at is None:
+            m.read_at = datetime.utcnow()
+    db.commit()
+    person_name = None
+    for m in reversed(msgs):
+        if m.profile_name:
+            person_name = m.profile_name
+            break
+    return {
+        "call_id": None,
+        "person_name": person_name,
+        "phone_number": norm,
+        "agent_id": None,
+        "agent_name": None,
+        "messages": [{
+            "id": m.id,
+            "call_id": m.call_id,
+            "phone_number": m.phone_number,
+            "direction": m.direction,
+            "message_text": m.message_text,
+            "message_type": m.message_type,
+            "wa_status": m.wa_status,
+            "profile_name": m.profile_name,
+            "escalated": m.escalated,
+            "esc_reason": m.esc_reason,
             "created_at": m.created_at,
             "read_at": m.read_at,
         } for m in msgs],
@@ -1209,7 +1463,8 @@ def whatsapp_history(
 
 
 class WhatsAppReadRequest(BaseModel):
-    call_id: int
+    call_id: Optional[int] = None
+    phone_number: Optional[str] = None
 
 
 @app.post("/whatsapp/read")
@@ -1218,24 +1473,30 @@ def whatsapp_read(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    call = db.query(models.Call).filter(models.Call.id == data.call_id).first()
-    if not call:
-        raise HTTPException(status_code=404, detail="Llamada no encontrada")
     variants = set()
-    for p in (call.phone_number, call.whatsapp):
-        norm = _normalize_wa_phone(p)
+    if data.call_id is not None:
+        call = db.query(models.Call).filter(models.Call.id == data.call_id).first()
+        if not call:
+            raise HTTPException(status_code=404, detail="Llamada no encontrada")
+        variants = _wa_phone_variants(call)
+    elif data.phone_number:
+        if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+            raise HTTPException(status_code=403, detail="No autorizado")
+        norm = _normalize_wa_phone(data.phone_number)
         if norm:
             variants.add(norm)
+    else:
+        raise HTTPException(status_code=400, detail="Indique call_id o phone_number")
     updated = 0
-    for m in db.query(models.WhatsAppMessage).filter(
-        (models.WhatsAppMessage.call_id == call.id) |
-        (models.WhatsAppMessage.phone_number.in_(list(variants))),
-        models.WhatsAppMessage.direction == "in",
-        models.WhatsAppMessage.read_at.is_(None),
-    ):
-        m.read_at = datetime.utcnow()
-        updated += 1
-    db.commit()
+    if variants:
+        for m in db.query(models.WhatsAppMessage).filter(
+            models.WhatsAppMessage.phone_number.in_(list(variants)),
+            models.WhatsAppMessage.direction == "in",
+            models.WhatsAppMessage.read_at.is_(None),
+        ):
+            m.read_at = datetime.utcnow()
+            updated += 1
+        db.commit()
     return {"updated": updated}
 
 
@@ -1244,23 +1505,41 @@ def whatsapp_unread(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    can_supervise = current_user.role in ("superuser", "coordinator", "auxiliar")
     rows = (
-        db.query(models.WhatsAppMessage.call_id, func.count(models.WhatsAppMessage.id))
+        db.query(models.WhatsAppMessage.phone_number, func.count(models.WhatsAppMessage.id))
         .filter(
             models.WhatsAppMessage.direction == "in",
             models.WhatsAppMessage.read_at.is_(None),
+            models.WhatsAppMessage.phone_number.isnot(None),
         )
-        .group_by(models.WhatsAppMessage.call_id)
+        .group_by(models.WhatsAppMessage.phone_number)
         .all()
     )
     result = []
-    for call_id, cnt in rows:
-        call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    seen_calls = set()
+    for phone, cnt in rows:
+        first = (
+            db.query(models.WhatsAppMessage)
+            .filter(models.WhatsAppMessage.phone_number == phone)
+            .order_by(models.WhatsAppMessage.id.asc())
+            .first()
+        )
+        call = None
+        if first and first.call_id:
+            call = db.query(models.Call).filter(models.Call.id == first.call_id).first()
         if not call:
-            continue
-        if not _can_view_whatsapp(current_user, call):
-            continue
-        result.append({"call_id": call_id, "unread": cnt})
+            call = _find_call_by_phone(db, phone)
+        if call:
+            if call.id in seen_calls:
+                continue
+            seen_calls.add(call.id)
+            if not _can_view_whatsapp(current_user, call):
+                continue
+            result.append({"call_id": call.id, "unread": cnt})
+        else:
+            if can_supervise:
+                result.append({"call_id": None, "phone_number": phone, "unread": cnt})
     return {"unread": result, "total": sum(r["unread"] for r in result)}
 
 
@@ -1269,6 +1548,7 @@ def whatsapp_inbox(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    can_supervise = current_user.role in ("superuser", "coordinator", "auxiliar")
     sub = (
         db.query(models.WhatsAppMessage.call_id)
         .filter(models.WhatsAppMessage.call_id.isnot(None))
@@ -1285,11 +1565,7 @@ def whatsapp_inbox(
     for call in calls:
         if not _can_view_whatsapp(current_user, call):
             continue
-        variants = set()
-        for p in (call.phone_number, call.whatsapp):
-            norm = _normalize_wa_phone(p)
-            if norm:
-                variants.add(norm)
+        variants = _wa_phone_variants(call)
         msgs = []
         if variants:
             msgs = (
@@ -1305,6 +1581,12 @@ def whatsapp_inbox(
             continue
         last = msgs[0]
         unread = sum(1 for m in msgs if m.direction == "in" and m.read_at is None)
+        escalated = any(m.escalated for m in msgs)
+        esc_reason = None
+        for m in msgs:
+            if m.escalated:
+                esc_reason = m.esc_reason
+                break
         agent = db.query(models.User).filter(models.User.id == call.user_id).first() if call.user_id else None
         study = db.query(models.Study).filter(models.Study.id == call.study_id).first() if call.study_id else None
         phone_display = variants.pop() if variants else (call.phone_number or call.whatsapp)
@@ -1321,7 +1603,66 @@ def whatsapp_inbox(
             "last_direction": last.direction,
             "last_at": last.created_at,
             "unread": unread,
+            "unassigned": call.user_id is None,
+            "escalated": escalated,
+            "esc_reason": esc_reason,
         })
+
+    # Threads with no call in the CRM (numbers "que nadie tiene")
+    if can_supervise:
+        no_call_phones = (
+            db.query(models.WhatsAppMessage.phone_number)
+            .filter(
+                models.WhatsAppMessage.phone_number.isnot(None),
+                models.WhatsAppMessage.call_id.is_(None),
+            )
+            .distinct()
+            .all()
+        )
+        for (phone,) in no_call_phones:
+            if not phone:
+                continue
+            if _find_call_by_phone(db, phone):
+                continue
+            msgs = (
+                db.query(models.WhatsAppMessage)
+                .filter(models.WhatsAppMessage.phone_number == phone)
+                .order_by(models.WhatsAppMessage.id.desc())
+                .all()
+            )
+            if not msgs:
+                continue
+            last = msgs[0]
+            unread = sum(1 for m in msgs if m.direction == "in" and m.read_at is None)
+            escalated = any(m.escalated for m in msgs)
+            esc_reason = None
+            for m in msgs:
+                if m.escalated:
+                    esc_reason = m.esc_reason
+                    break
+            person_name = None
+            for m in msgs:
+                if m.profile_name:
+                    person_name = m.profile_name
+                    break
+            threads.append({
+                "call_id": None,
+                "phone_number": phone,
+                "person_name": person_name,
+                "city": None,
+                "study_name": None,
+                "status": None,
+                "agent_id": None,
+                "agent_name": None,
+                "last_message": last.message_text,
+                "last_direction": last.direction,
+                "last_at": last.created_at,
+                "unread": unread,
+                "unassigned": True,
+                "escalated": escalated,
+                "esc_reason": esc_reason,
+            })
+
     threads.sort(key=lambda t: (t["last_at"] is not None, t["last_at"] or datetime.min), reverse=True)
     return threads
 

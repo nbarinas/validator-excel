@@ -160,6 +160,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (btnExport) btnExport.style.display = 'inline-block';
             }
 
+            // Deep link from the superuser WhatsApp alert: open the chat automatically
+            try {
+                const params = new URLSearchParams(location.search);
+                const chatPhone = params.get('chat_phone');
+                const chatCall = params.get('chat_call') || params.get('chat_call_id');
+                if (chatPhone) {
+                    setTimeout(() => openWhatsAppChatModal(null, chatPhone), 800);
+                } else if (chatCall) {
+                    setTimeout(() => openWhatsAppChatModal(parseInt(chatCall, 10)), 800);
+                }
+            } catch (e) { console.error(e); }
+
 
 
         } else {
@@ -4353,8 +4365,10 @@ function toggleBonoValueOther(val) {
 
 // ================= WHATSAPP CRM INTEGRATION =================
 let waChatCallId = null;
+let waChatPhone = null;
 let waPollTimer = null;
 let waChatAgentId = null;
+let waInboxTab = 'all';
 
 const waEsc = (s) => {
     if (s === null || s === undefined) return '';
@@ -4372,13 +4386,15 @@ const waTime = (dt) => {
     } catch (e) { return dt || ''; }
 };
 
-function openWhatsAppChatModal(callId) {
-    if (callId === undefined || callId === null) callId = currentCallId;
-    if (!callId) {
+function openWhatsAppChatModal(callId, phone) {
+    const hasPhone = (phone !== undefined && phone !== null && String(phone).trim() !== '');
+    if ((callId === undefined || callId === null) && !hasPhone) callId = currentCallId;
+    if ((callId === undefined || callId === null) && !hasPhone) {
         alert("Primero abra el detalle de una llamada.");
         return;
     }
-    waChatCallId = callId;
+    waChatCallId = (callId === undefined || callId === null) ? null : callId;
+    waChatPhone = hasPhone ? String(phone).replace(/\D/g, '') : null;
     waChatAgentId = null;
     document.getElementById('whatsappChatModal').style.display = 'flex';
     document.getElementById('waChatTitle').textContent = 'Chat WhatsApp';
@@ -4395,18 +4411,22 @@ function closeWhatsAppChatModal() {
     clearInterval(waPollTimer);
     waPollTimer = null;
     waChatCallId = null;
+    waChatPhone = null;
 }
 
 async function waLoadHistory() {
-    if (!waChatCallId) return;
+    if (!waChatCallId && !waChatPhone) return;
     try {
-        const res = await fetch(`/whatsapp/history/${waChatCallId}`, { headers });
+        let url = waChatCallId ? `/whatsapp/history/${waChatCallId}` : `/whatsapp/history-phone?phone=${encodeURIComponent(waChatPhone)}`;
+        const res = await fetch(url, { headers });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         waChatAgentId = data.agent_id;
         document.getElementById('waChatTitle').textContent = `Chat WhatsApp · ${waEsc(data.person_name || 'Sin nombre')}`;
-        document.getElementById('waChatSub').textContent = `${waEsc(data.phone_number || '')}` +
-            (data.agent_name ? ` · Encuestador: ${waEsc(data.agent_name)}` : '');
+        let sub = waEsc(data.phone_number || '');
+        if (!data.call_id) sub += ' <span style="opacity:.75">· Sin llamada asignada</span>';
+        if (data.agent_name) sub += ` · Encuestador: ${waEsc(data.agent_name)}`;
+        document.getElementById('waChatSub').innerHTML = sub;
         waRenderMessages(data.messages || []);
     } catch (e) {
         console.error('Error cargando historial WhatsApp:', e);
@@ -4424,10 +4444,11 @@ function waRenderMessages(messages) {
     messages.forEach(m => {
         const isOut = m.direction === 'out';
         const time = waTime(m.created_at);
+        const escTag = m.escalated ? '<span style="color:#ef4444; font-size:0.7rem;"> ⚑ escalado</span>' : '';
         if (m.message_type === 'template') {
-            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time} · saludo</div></div>`;
+            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time} · saludo${escTag}</div></div>`;
         } else {
-            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}</div></div>`;
+            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
         }
     });
     body.innerHTML = html;
@@ -4435,7 +4456,7 @@ function waRenderMessages(messages) {
 }
 
 async function waSendMessage() {
-    if (!waChatCallId) return;
+    if (!waChatCallId && !waChatPhone) return;
     const input = document.getElementById('waChatInput');
     const text = (input.value || '').trim();
     if (!text) {
@@ -4444,16 +4465,19 @@ async function waSendMessage() {
     }
 
     // Superuser/Coordinator writing in another agent's conversation -> confirm
-    if (currentUserId && waChatAgentId && waChatAgentId !== currentUserId && currentUserRole !== 'agent') {
+    if (currentUserId && waChatCallId && waChatAgentId && waChatAgentId !== currentUserId && currentUserRole !== 'agent') {
         const ok = confirm("Vas a escribir como " + currentUserRole + " en la conversación de otro encuestador. ¿Deseas continuar?");
         if (!ok) return;
     }
 
     try {
+        const payload = waChatCallId
+            ? { call_id: waChatCallId, message: text }
+            : { phone_number: waChatPhone, message: text };
         const res = await fetch('/whatsapp/send', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ call_id: waChatCallId, message: text })
+            body: JSON.stringify(payload)
         });
         const data = await res.json();
         if (!res.ok) {
@@ -4472,12 +4496,23 @@ async function waSendMessage() {
 
 function openWhatsAppInbox() {
     document.getElementById('whatsappInboxModal').style.display = 'flex';
-    document.getElementById('whatsappInboxBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
-    waLoadInbox();
+    waSetInboxTab(waInboxTab, true);
 }
 
 function closeWhatsAppInbox() {
     document.getElementById('whatsappInboxModal').style.display = 'none';
+}
+
+function waSetInboxTab(tab, force) {
+    waInboxTab = tab;
+    ['waTabAll', 'waTabUnread', 'waTabEscalated'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('active');
+    });
+    const active = document.getElementById(tab === 'all' ? 'waTabAll' : tab === 'unread' ? 'waTabUnread' : 'waTabEscalated');
+    if (active) active.classList.add('active');
+    document.getElementById('whatsappInboxBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
+    waLoadInbox();
 }
 
 async function waLoadInbox() {
@@ -4486,18 +4521,26 @@ async function waLoadInbox() {
     try {
         const res = await fetch('/whatsapp/inbox', { headers });
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        const threads = await res.json();
+        let threads = await res.json();
+        if (waInboxTab === 'unread') threads = threads.filter(t => t.unread > 0);
+        if (waInboxTab === 'escalated') threads = threads.filter(t => t.escalated);
         if (!threads.length) {
-            body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay conversaciones de WhatsApp aún.</div>';
+            body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay conversaciones en esta vista.</div>';
             return;
         }
         let html = '';
         threads.forEach(t => {
             const initial = (t.person_name || t.phone_number || '?').trim().charAt(0).toUpperCase();
-            html += `<div class="wa-inbox-item" onclick="openWhatsAppChatModal(${t.call_id})">
+            const escBadge = t.escalated ? `<span class="wa-esc-badge" title="${t.esc_reason === 'sin_asignar' ? 'Sin encuestador asignado' : 'Encuestador desconectado'}">${t.esc_reason === 'sin_asignar' ? 'SIN ASIGNAR' : 'DESCONECTADO'}</span>` : '';
+            const unassignedTag = t.unassigned && !t.call_id ? '<span class="wa-unassigned-tag">SIN LLAMADA</span>' : '';
+            const agentInfo = t.agent_name ? `<span style="color:#94a3b8; font-weight:400; font-size:0.75rem;">· ${waEsc(t.agent_name)}</span>` : '';
+            const click = t.call_id
+                ? `openWhatsAppChatModal(${t.call_id})`
+                : `openWhatsAppChatModal(null, '${waEsc(t.phone_number)}')`;
+            html += `<div class="wa-inbox-item ${t.escalated ? 'wa-inbox-item-escalated' : ''}" onclick="${click}">
                 <div class="wa-inbox-avatar">${waEsc(initial)}</div>
                 <div class="wa-inbox-info">
-                    <div class="wa-inbox-name">${waEsc(t.person_name || 'Sin nombre')} ${t.agent_name ? `<span style="color:#94a3b8; font-weight:400; font-size:0.75rem;">· ${waEsc(t.agent_name)}</span>` : ''}</div>
+                    <div class="wa-inbox-name">${waEsc(t.person_name || 'Sin nombre')} ${agentInfo}${escBadge}${unassignedTag}</div>
                     <div class="wa-inbox-last">${waEsc(t.last_message || '')}</div>
                 </div>
                 <div style="text-align:right; flex-shrink:0;">

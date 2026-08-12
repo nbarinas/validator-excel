@@ -729,6 +729,57 @@
             color: #94a3b8;
             flex-shrink: 0;
         }
+
+        .wa-tab {
+            background: white;
+            border: 1px solid #cbd5e1;
+            border-radius: 16px;
+            padding: 4px 14px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .wa-tab.active {
+            background: #075e54;
+            color: white;
+            border-color: #075e54;
+        }
+
+        .wa-tab-alert.active {
+            background: #ef4444;
+            border-color: #ef4444;
+        }
+
+        .wa-inbox-item-escalated {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+        }
+
+        .wa-inbox-item-escalated:hover {
+            background: #fee2e2;
+        }
+
+        .wa-esc-badge {
+            background: #ef4444;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            padding: 1px 6px;
+            font-weight: bold;
+            margin-left: 6px;
+        }
+
+        .wa-unassigned-tag {
+            background: #f59e0b;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            padding: 1px 6px;
+            font-weight: bold;
+            margin-left: 6px;
+        }
     </style>
     <script>
         function toggleSidebar() {
@@ -2404,9 +2455,14 @@
                 <i class="fab fa-whatsapp" style="font-size: 1.4rem;"></i>
                 <div class="wa-chat-title">
                     <h3>WhatsApp Inbox</h3>
-                    <div class="wa-chat-sub">Conversaciones de los encuestadores</div>
+                    <div class="wa-chat-sub">Conversaciones de los encuestadores y números sin atender</div>
                 </div>
                 <button class="wa-chat-close" onclick="closeWhatsAppInbox()">&times;</button>
+            </div>
+            <div style="display: flex; gap: 8px; padding: 10px 12px; background: #f0f2f5; border-bottom: 1px solid #e2e8f0;">
+                <button id="waTabAll" class="wa-tab active" onclick="waSetInboxTab('all')">Todas</button>
+                <button id="waTabUnread" class="wa-tab" onclick="waSetInboxTab('unread')">Sin leer</button>
+                <button id="waTabEscalated" class="wa-tab wa-tab-alert" onclick="waSetInboxTab('escalated')">Escaladas</button>
             </div>
             <div id="whatsappInboxBody" style="flex: 1; overflow-y: auto; max-height: 60vh; background: white; color: #1e293b;">
                 <div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>
