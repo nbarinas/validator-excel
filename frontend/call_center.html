@@ -664,6 +664,41 @@
 
         .wa-media-audio { max-width: 230px; }
 
+        #waMediaViewer {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 5000;
+            background: rgba(0, 0, 0, .88);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            cursor: zoom-out;
+        }
+
+        #waMediaViewerImage {
+            max-width: min(96vw, 1200px);
+            max-height: 92vh;
+            object-fit: contain;
+            border-radius: 8px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, .5);
+            cursor: default;
+        }
+
+        #waMediaViewerClose {
+            position: absolute;
+            top: 16px;
+            right: 22px;
+            color: #fff;
+            background: rgba(0, 0, 0, .45);
+            border: 0;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 26px;
+            cursor: pointer;
+        }
+
         .wa-chat-input input {
             flex: 1;
             padding: 10px 12px;
@@ -2514,6 +2549,11 @@
                 <button onclick="waSendMessage()" title="Enviar"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
+    </div>
+
+    <div id="waMediaViewer" onclick="if(event.target===this)closeWaMediaViewer()">
+        <button id="waMediaViewerClose" onclick="closeWaMediaViewer()" aria-label="Cerrar">&times;</button>
+        <img id="waMediaViewerImage" alt="Imagen ampliada">
     </div>
 </body>
 

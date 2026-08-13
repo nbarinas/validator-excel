@@ -4369,6 +4369,7 @@ let waChatPhone = null;
 let waPollTimer = null;
 let waChatAgentId = null;
 let waInboxTab = 'all';
+let waLastHistorySignature = null;
 
 const waEsc = (s) => {
     if (s === null || s === undefined) return '';
@@ -4396,6 +4397,7 @@ function openWhatsAppChatModal(callId, phone) {
     waChatCallId = (callId === undefined || callId === null) ? null : callId;
     waChatPhone = hasPhone ? String(phone).replace(/\D/g, '') : null;
     waChatAgentId = null;
+    waLastHistorySignature = null;
     document.getElementById('whatsappChatModal').style.display = 'flex';
     document.getElementById('waChatTitle').textContent = 'Chat WhatsApp';
     document.getElementById('waChatSub').textContent = 'Cargando...';
@@ -4412,6 +4414,8 @@ function closeWhatsAppChatModal() {
     waPollTimer = null;
     waChatCallId = null;
     waChatPhone = null;
+    waLastHistorySignature = null;
+    closeWaMediaViewer();
 }
 
 async function waLoadHistory() {
@@ -4427,7 +4431,13 @@ async function waLoadHistory() {
         if (!data.call_id) sub += ' <span style="opacity:.75">· Sin llamada asignada</span>';
         if (data.agent_name) sub += ` · Encuestador: ${waEsc(data.agent_name)}`;
         document.getElementById('waChatSub').innerHTML = sub;
-        waRenderMessages(data.messages || []);
+        const messages = data.messages || [];
+        const signature = JSON.stringify(messages.map(m => [
+            m.id, m.message_type, m.message_text, m.media_id, m.wa_status, m.created_at
+        ]));
+        if (signature === waLastHistorySignature) return;
+        waLastHistorySignature = signature;
+        waRenderMessages(messages);
     } catch (e) {
         console.error('Error cargando historial WhatsApp:', e);
     }
@@ -4481,11 +4491,31 @@ async function waRenderMessages(messages) {
                 node.replaceWith(link);
             } else {
                 node.src = url;
+                if (node.tagName === 'IMG') {
+                    node.style.cursor = 'zoom-in';
+                    node.addEventListener('click', () => openWaMediaViewer(url, node.alt || 'Imagen'));
+                }
             }
         } catch (e) {
             node.textContent = 'No se pudo cargar el archivo';
         }
     });
+}
+
+function openWaMediaViewer(url, alt) {
+    const viewer = document.getElementById('waMediaViewer');
+    const image = document.getElementById('waMediaViewerImage');
+    if (!viewer || !image) return;
+    image.src = url;
+    image.alt = alt || 'Imagen';
+    viewer.style.display = 'flex';
+}
+
+function closeWaMediaViewer() {
+    const viewer = document.getElementById('waMediaViewer');
+    const image = document.getElementById('waMediaViewerImage');
+    if (viewer) viewer.style.display = 'none';
+    if (image) image.removeAttribute('src');
 }
 
 async function waSendMessage() {
