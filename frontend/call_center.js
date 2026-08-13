@@ -151,6 +151,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (inboxButton) {
                 inboxButton.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar' || user.whatsapp_inbox_enabled) ? 'inline-block' : 'none';
             }
+            const grantedInboxButton = document.getElementById('btnWhatsAppInboxGranted');
+            if (grantedInboxButton) {
+                grantedInboxButton.style.display = user.whatsapp_inbox_enabled && !['superuser', 'coordinator', 'auxiliar'].includes(currentUserRole) ? 'block' : 'none';
+            }
 
             // Ensure search is visible for EVERYONE
             const search = document.getElementById('searchPanel');
@@ -4777,6 +4781,11 @@ async function waPollUnreadBadge() {
             } else {
                 badge.style.display = 'none';
             }
+        }
+        const grantedBadge = document.getElementById('btnWhatsAppInboxGrantedBadge');
+        if (grantedBadge) {
+            grantedBadge.textContent = data.total > 0 ? data.total : '';
+            grantedBadge.style.display = data.total > 0 ? 'inline-block' : 'none';
         }
     } catch (e) { /* silencioso */ }
 }
