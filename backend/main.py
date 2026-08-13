@@ -299,14 +299,19 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return {"access_token": access_token, "token_type": "bearer", "role": user.role}
 
 @app.get("/users/me")
-async def read_users_me(current_user: models.User = Depends(auth.get_current_user)):
+async def read_users_me(current_user: models.User = Depends(auth.get_current_user), db: Session = Depends(database.get_db)):
+    inbox_permission = db.query(models.WhatsAppInboxPermission).filter(
+        models.WhatsAppInboxPermission.user_id == current_user.id,
+        models.WhatsAppInboxPermission.enabled == True,
+    ).first()
     return {
         "username": current_user.username,
         "role": current_user.role,
         "id": current_user.id,
         "full_name": current_user.full_name,
         "address": current_user.address,
-        "city": current_user.city
+        "city": current_user.city,
+        "whatsapp_inbox_enabled": current_user.role == "superuser" or bool(inbox_permission),
     }
 
 @app.post("/users/heartbeat")
@@ -940,6 +945,8 @@ WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "1185957884609871")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "az_crm_webhook_2026")
 WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamada")
 WHATSAPP_ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "whatsapp_template_language")
+WHATSAPP_FILTER_TEMPLATE = os.getenv("WHATSAPP_FILTER_TEMPLATE", "az_filtro_participacion")
+WHATSAPP_FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
 WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
 WHATSAPP_ALERT_LANGUAGE = os.getenv("WHATSAPP_ALERT_LANGUAGE", "es")
 WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573136623816")
@@ -1075,6 +1082,15 @@ def _normalize_wa_phone(raw):
 
 def _can_view_whatsapp(user, call):
     return user.role in ("superuser", "coordinator", "auxiliar") or call.user_id == user.id
+
+
+def _has_global_whatsapp_inbox(db, user):
+    if user.role == "superuser":
+        return True
+    return bool(db.query(models.WhatsAppInboxPermission).filter(
+        models.WhatsAppInboxPermission.user_id == user.id,
+        models.WhatsAppInboxPermission.enabled == True,
+    ).first())
 
 
 def _find_call_by_phone(db, raw_phone):
@@ -1373,11 +1389,11 @@ def whatsapp_send(
         call = db.query(models.Call).filter(models.Call.id == data.call_id).first()
         if not call:
             raise HTTPException(status_code=404, detail="Llamada no encontrada")
-        if not _can_view_whatsapp(current_user, call):
+        if not _has_global_whatsapp_inbox(db, current_user) and not _can_view_whatsapp(current_user, call):
             raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
         person_name = call.person_name
     elif data.phone_number:
-        if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+        if not _has_global_whatsapp_inbox(db, current_user):
             raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
         person_name = None
     else:
@@ -1491,10 +1507,10 @@ def whatsapp_send_media(
         call = db.query(models.Call).filter(models.Call.id == call_id).first()
         if not call:
             raise HTTPException(status_code=404, detail="Llamada no encontrada")
-        if not _can_view_whatsapp(current_user, call):
+        if not _has_global_whatsapp_inbox(db, current_user) and not _can_view_whatsapp(current_user, call):
             raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
     elif phone_number:
-        if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+        if not _has_global_whatsapp_inbox(db, current_user):
             raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
     else:
         raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
@@ -1566,6 +1582,121 @@ def whatsapp_send_media(
     }
 
 
+class WhatsAppInboxPermissionRequest(BaseModel):
+    enabled: bool
+
+
+@app.get("/whatsapp/inbox-permissions")
+def whatsapp_inbox_permissions(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Solo el superuser puede administrar permisos")
+    permissions = {
+        p.user_id: p.enabled
+        for p in db.query(models.WhatsAppInboxPermission).all()
+    }
+    users = db.query(models.User).filter(models.User.id != current_user.id).order_by(models.User.full_name, models.User.username).all()
+    return [{
+        "user_id": user.id,
+        "username": user.username,
+        "full_name": user.full_name or user.username,
+        "role": user.role,
+        "enabled": bool(permissions.get(user.id, False)),
+    } for user in users]
+
+
+@app.put("/whatsapp/inbox-permissions/{user_id}")
+def update_whatsapp_inbox_permission(
+    user_id: int,
+    request: WhatsAppInboxPermissionRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Solo el superuser puede administrar permisos")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user or user.id == current_user.id:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    permission = db.query(models.WhatsAppInboxPermission).filter(
+        models.WhatsAppInboxPermission.user_id == user_id
+    ).first()
+    if not permission:
+        permission = models.WhatsAppInboxPermission(user_id=user_id, granted_by=current_user.id)
+        db.add(permission)
+    permission.enabled = request.enabled
+    permission.granted_by = current_user.id
+    db.commit()
+    return {"user_id": user_id, "enabled": request.enabled}
+
+
+class WhatsAppNewChatRequest(BaseModel):
+    phone_number: str
+    template_kind: str
+    study_subject: str
+    form_url: Optional[str] = None
+
+
+@app.post("/whatsapp/new-chat")
+def whatsapp_new_chat(
+    request: WhatsAppNewChatRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    if not _has_global_whatsapp_inbox(db, current_user):
+        raise HTTPException(status_code=403, detail="No tienes permiso para crear chats nuevos")
+    phone = _normalize_wa_phone(request.phone_number)
+    if not phone:
+        raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    subject = request.study_subject.strip()
+    if not subject:
+        raise HTTPException(status_code=400, detail="Indica el tema o estudio")
+
+    if request.template_kind == "filter":
+        template_name = WHATSAPP_FILTER_TEMPLATE
+        parameters = [{"type": "text", "text": subject}]
+        preview = f"[Plantilla filtro] Estudio: {subject}"
+    elif request.template_kind == "form":
+        if not request.form_url or not request.form_url.startswith(("https://", "http://")):
+            raise HTTPException(status_code=400, detail="Indica un enlace válido para el formulario")
+        template_name = WHATSAPP_FORM_TEMPLATE
+        parameters = [
+            {"type": "text", "text": subject},
+            {"type": "text", "text": request.form_url.strip()},
+        ]
+        preview = f"[Plantilla formulario] {subject} - {request.form_url.strip()}"
+    else:
+        raise HTTPException(status_code=400, detail="Plantilla no válida")
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": "es"},
+            "components": [{"type": "body", "parameters": parameters}],
+        },
+    }
+    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+    if "error" in result:
+        raise HTTPException(status_code=502, detail=f"Error enviando plantilla: {result['error']}")
+    messages = result.get("messages") or []
+    rec = models.WhatsAppMessage(
+        phone_number=phone,
+        direction="out",
+        message_text=preview,
+        message_type="template",
+        message_id=messages[0].get("id") if messages else None,
+        wa_status="sent",
+        sender_agent_id=current_user.id,
+    )
+    db.add(rec)
+    db.commit()
+    return {"id": rec.id, "phone_number": phone, "template": template_name, "status": "sent"}
+
+
 @app.get("/whatsapp/history/{call_id}")
 def whatsapp_history(
     call_id: int,
@@ -1575,7 +1706,7 @@ def whatsapp_history(
     call = db.query(models.Call).filter(models.Call.id == call_id).first()
     if not call:
         raise HTTPException(status_code=404, detail="Llamada no encontrada")
-    if not _can_view_whatsapp(current_user, call):
+    if not _has_global_whatsapp_inbox(db, current_user) and not _can_view_whatsapp(current_user, call):
         raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
 
     variants = _wa_phone_variants(call)
@@ -1630,7 +1761,7 @@ def whatsapp_history_phone(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     """History for a phone number without an associated call (supervisors follow up)."""
-    if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+    if not _has_global_whatsapp_inbox(db, current_user):
         raise HTTPException(status_code=403, detail="No autorizado")
     norm = _normalize_wa_phone(phone)
     if not norm:
@@ -1689,9 +1820,9 @@ def whatsapp_media(
 
     call = db.query(models.Call).filter(models.Call.id == message.call_id).first() if message.call_id else None
     if call:
-        if not _can_view_whatsapp(current_user, call):
+        if not _has_global_whatsapp_inbox(db, current_user) and not _can_view_whatsapp(current_user, call):
             raise HTTPException(status_code=403, detail="No tienes acceso a esta conversación")
-    elif current_user.role not in ("superuser", "coordinator", "auxiliar"):
+    elif not _has_global_whatsapp_inbox(db, current_user):
         raise HTTPException(status_code=403, detail="No autorizado")
 
     stored = _webdav_request("GET", message.media_path)
@@ -1725,7 +1856,7 @@ def whatsapp_read(
             raise HTTPException(status_code=404, detail="Llamada no encontrada")
         variants = _wa_phone_variants(call)
     elif data.phone_number:
-        if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+        if not _has_global_whatsapp_inbox(db, current_user):
             raise HTTPException(status_code=403, detail="No autorizado")
         norm = _normalize_wa_phone(data.phone_number)
         if norm:
@@ -1750,7 +1881,7 @@ def whatsapp_unread(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    can_supervise = current_user.role in ("superuser", "coordinator", "auxiliar")
+    can_supervise = _has_global_whatsapp_inbox(db, current_user)
     rows = (
         db.query(models.WhatsAppMessage.phone_number, func.count(models.WhatsAppMessage.id))
         .filter(
@@ -1779,7 +1910,7 @@ def whatsapp_unread(
             if call.id in seen_calls:
                 continue
             seen_calls.add(call.id)
-            if not _can_view_whatsapp(current_user, call):
+            if not can_supervise and not _can_view_whatsapp(current_user, call):
                 continue
             result.append({"call_id": call.id, "unread": cnt})
         else:
@@ -1793,7 +1924,7 @@ def whatsapp_inbox(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    can_supervise = current_user.role in ("superuser", "coordinator", "auxiliar")
+    can_supervise = _has_global_whatsapp_inbox(db, current_user)
     sub = (
         db.query(models.WhatsAppMessage.call_id)
         .filter(models.WhatsAppMessage.call_id.isnot(None))
@@ -1808,7 +1939,7 @@ def whatsapp_inbox(
     )
     threads = []
     for call in calls:
-        if not _can_view_whatsapp(current_user, call):
+        if not can_supervise and not _can_view_whatsapp(current_user, call):
             continue
         variants = _wa_phone_variants(call)
         msgs = []

@@ -439,6 +439,18 @@ class WhatsAppMessage(Base):
     call = relationship("Call")
     sender_agent = relationship("User")
 
+
+class WhatsAppInboxPermission(Base):
+    __tablename__ = "whatsapp_inbox_permissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), unique=True, index=True)
+    enabled = Column(Boolean, default=True, nullable=False)
+    granted_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 

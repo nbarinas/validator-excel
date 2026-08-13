@@ -12,6 +12,7 @@ let currentCallId = null;
 let currentUserRole = null;
 let currentUserName = null; // Store full name of current agent
 let currentUserId = null; // Store current user id (for superuser chat alerts)
+let currentUserWhatsAppInboxEnabled = false;
 let isClosedView = false; // Track if we are in Closed Studies mode
 let studySelectTS = null; // TomSelect instance for main study dropdown
 
@@ -73,6 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentUserRole = user.role;
             currentUserName = user.full_name || user.username;
             currentUserId = user.id;
+            currentUserWhatsAppInboxEnabled = Boolean(user.whatsapp_inbox_enabled);
             const infoDivs = ['userInfoDisplay', 'userInfoDisplayLanding'];
             infoDivs.forEach(id => {
                 const ui = document.getElementById(id);
@@ -141,6 +143,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const btn = document.getElementById('btnCreateStudy');
                 if (btn) btn.style.display = 'none';
                 loadStudies();
+            }
+
+            const permissionsButton = document.getElementById('btnWhatsAppPermissions');
+            if (permissionsButton) permissionsButton.style.display = currentUserRole === 'superuser' ? 'inline-block' : 'none';
+            const inboxButton = document.getElementById('btnWhatsAppInboxLanding');
+            if (inboxButton) {
+                inboxButton.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar' || user.whatsapp_inbox_enabled) ? 'inline-block' : 'none';
             }
 
             // Ensure search is visible for EVERYONE
@@ -4600,6 +4609,99 @@ async function waSendMessage() {
     }
 }
 
+function openWhatsAppPermissions() {
+    document.getElementById('whatsappPermissionsModal').style.display = 'flex';
+    waLoadPermissions();
+}
+
+function closeWhatsAppPermissions() {
+    document.getElementById('whatsappPermissionsModal').style.display = 'none';
+}
+
+async function waLoadPermissions() {
+    const body = document.getElementById('whatsappPermissionsBody');
+    if (!body) return;
+    body.innerHTML = '<div style="padding:1rem;text-align:center;color:#64748b;">Cargando...</div>';
+    try {
+        const res = await fetch('/whatsapp/inbox-permissions', { headers });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const users = await res.json();
+        if (!users.length) {
+            body.innerHTML = '<div style="padding:1rem;color:#64748b;">No hay usuarios para configurar.</div>';
+            return;
+        }
+        body.innerHTML = users.map(u => `<label style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #e2e8f0;color:#1e293b;">
+            <input type="checkbox" ${u.enabled ? 'checked' : ''} onchange="waSetInboxPermission(${u.user_id}, this.checked)">
+            <span style="flex:1;"><strong>${waEsc(u.full_name)}</strong><br><small style="color:#64748b;">${waEsc(u.role)} · ${waEsc(u.username)}</small></span>
+            <span style="font-size:.78rem;color:${u.enabled ? '#15803d' : '#64748b'};">${u.enabled ? 'Puede ver todo' : 'Sin acceso global'}</span>
+        </label>`).join('');
+    } catch (e) {
+        console.error(e);
+        body.innerHTML = '<div style="padding:1rem;color:#b91c1c;">No se pudieron cargar los permisos.</div>';
+    }
+}
+
+async function waSetInboxPermission(userId, enabled) {
+    try {
+        const res = await fetch(`/whatsapp/inbox-permissions/${userId}`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ enabled })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        waLoadPermissions();
+    } catch (e) {
+        alert('No se pudo actualizar el permiso.');
+        waLoadPermissions();
+    }
+}
+
+function openWhatsAppNewChat() {
+    document.getElementById('waNewChatPhone').value = '';
+    document.getElementById('waNewChatSubject').value = '';
+    document.getElementById('waNewChatLink').value = '';
+    document.getElementById('waNewChatError').style.display = 'none';
+    waToggleNewChatLink();
+    document.getElementById('whatsappNewChatModal').style.display = 'flex';
+}
+
+function closeWhatsAppNewChat() {
+    document.getElementById('whatsappNewChatModal').style.display = 'none';
+}
+
+function waToggleNewChatLink() {
+    const kind = document.getElementById('waNewChatKind').value;
+    document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
+}
+
+async function sendWhatsAppNewChat() {
+    const error = document.getElementById('waNewChatError');
+    const button = document.getElementById('waNewChatSend');
+    const payload = {
+        phone_number: document.getElementById('waNewChatPhone').value.trim(),
+        template_kind: document.getElementById('waNewChatKind').value,
+        study_subject: document.getElementById('waNewChatSubject').value.trim(),
+        form_url: document.getElementById('waNewChatLink').value.trim() || null,
+    };
+    error.style.display = 'none';
+    button.disabled = true;
+    button.textContent = 'Enviando...';
+    try {
+        const res = await fetch('/whatsapp/new-chat', { method: 'POST', headers, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'No se pudo iniciar el chat');
+        closeWhatsAppNewChat();
+        closeWhatsAppInbox();
+        openWhatsAppChatModal(null, payload.phone_number);
+    } catch (e) {
+        error.textContent = e.message;
+        error.style.display = 'block';
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Enviar plantilla';
+    }
+}
+
 function openWhatsAppInbox() {
     document.getElementById('whatsappInboxModal').style.display = 'flex';
     waSetInboxTab(waInboxTab, true);
@@ -4681,7 +4783,7 @@ async function waPollUnreadBadge() {
 
 // Poll unread badge for superuser/coordinator
 setInterval(() => {
-    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator') {
+    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar' || currentUserWhatsAppInboxEnabled) {
         waPollUnreadBadge();
     }
 }, 10000);

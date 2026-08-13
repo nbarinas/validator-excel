@@ -21,6 +21,8 @@ VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "az_crm_webhook_2026")
 WEBHOOK_URL = os.getenv("WHATSAPP_WEBHOOK_URL", "https://validator-excel.onrender.com/whatsapp/webhook")
 TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamada")
 ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "alerta_seguimiento")
+FILTER_TEMPLATE = os.getenv("WHATSAPP_FILTER_TEMPLATE", "az_filtro_participacion")
+FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
 API_VERSION = "v21.0"
 GRAPH = f"https://graph.facebook.com/{API_VERSION}"
 
@@ -39,6 +41,17 @@ ALERT_BODY = (
 ALERT_EXAMPLE = [
     ["Pedro Perez", "573001234567", "no tiene encuestador asignado", "https://validator-excel.onrender.com/call-center-page?chat_phone=573001234567"]
 ]
+FILTER_BODY = (
+    "Hola, somos AZ Marketing. Estamos realizando una investigación de mercados sobre {{1}}. "
+    "Queremos confirmar si cumples algunos requisitos para participar. "
+    "¿Deseas responder unas preguntas iniciales?"
+)
+FILTER_EXAMPLE = [["hábitos de compra"]]
+FORM_BODY = (
+    "Hola, somos AZ Marketing. Te invitamos a participar en una investigación de mercados sobre {{1}}. "
+    "Para conocer la información y completar el formulario, ingresa aquí: {{2}}"
+)
+FORM_EXAMPLE = [["hábitos de compra", "https://az-marketing.com.co/formulario/estudio-demo"]]
 
 
 def token():
@@ -75,9 +88,10 @@ def create_template(name, body, example, footer="Equipo AZ Marketing"):
         print(f"Template {name} ya existe. Estado: {data[0].get('status')}")
         return
     print(f">> Creando template {name}...")
-    components = [{"type": "BODY", "text": body}, {"type": "FOOTER", "text": footer}]
+    body_component = {"type": "BODY", "text": body}
     if example:
-        components.insert(0, {"type": "BODY", "text": body, "example": {"body_text": [example]}})
+        body_component["example"] = {"body_text": example}
+    components = [body_component, {"type": "FOOTER", "text": footer}]
     res = api("POST", f"{WABA_ID}/message_templates", {
         "name": name,
         "language": "es",
@@ -93,6 +107,8 @@ def create_template(name, body, example, footer="Equipo AZ Marketing"):
 def setup_template():
     create_template(TEMPLATE_NAME, TEMPLATE_BODY, TEMPLATE_EXAMPLE)
     create_template(ALERT_TEMPLATE, ALERT_BODY, ALERT_EXAMPLE)
+    create_template(FILTER_TEMPLATE, FILTER_BODY, FILTER_EXAMPLE)
+    create_template(FORM_TEMPLATE, FORM_BODY, FORM_EXAMPLE)
     print("IMPORTANTE: espera la aprobación de Meta antes de enviar (minutos/horas).")
 
 
