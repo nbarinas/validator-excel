@@ -20,6 +20,9 @@ import re
 import psutil
 import gc
 import openpyxl
+import requests
+import uuid
+from urllib.parse import quote
 from openpyxl.styles import Border, Side
 
 def get_memory_usage():
@@ -160,6 +163,10 @@ def on_startup():
             'esc_reason': 'VARCHAR(20)',
             'esc_notified': 'BOOLEAN',
             'profile_name': 'VARCHAR(100)',
+            'media_id': 'VARCHAR(150)',
+            'media_path': 'VARCHAR(500)',
+            'mime_type': 'VARCHAR(100)',
+            'filename': 'VARCHAR(255)',
         }
         for col, dtype in wa_new_cols.items():
             if col not in wa_cols:
@@ -932,13 +939,104 @@ WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
 WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "1185957884609871")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "az_crm_webhook_2026")
 WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamada")
-WHATSAPP_ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "alerta_seguimiento")
+WHATSAPP_ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "whatsapp_template_language")
 WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
 WHATSAPP_ALERT_LANGUAGE = os.getenv("WHATSAPP_ALERT_LANGUAGE", "es")
 WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573136623816")
 WHATSAPP_ESCALATE_MINUTES = int(os.getenv("WHATSAPP_ESCALATE_MINUTES", "15"))
 CRM_LINK_BASE = os.getenv("CRM_LINK_BASE", "https://validator-excel.onrender.com/call-center-page")
 META_GRAPH_URL = "https://graph.facebook.com/v21.0"
+MEDIA_WEBDAV_URL = os.getenv("WHATSAPP_MEDIA_WEBDAV_URL", "https://az-marketing.com.co:2078").rstrip("/")
+MEDIA_WEBDAV_USER = os.getenv("WHATSAPP_MEDIA_WEBDAV_USER", "")
+MEDIA_WEBDAV_PASSWORD = os.getenv("WHATSAPP_MEDIA_WEBDAV_PASSWORD", "")
+# The Web Disk account is jailed at /wa_media, so its WebDAV root is `/`.
+MEDIA_WEBDAV_ROOT = os.getenv("WHATSAPP_MEDIA_WEBDAV_ROOT", "/").strip("/")
+
+
+def _media_filename(message_type, mime_type=None, filename=None):
+    """Return a safe relative path for a WhatsApp media object."""
+    folders = {
+        "image": "images",
+        "audio": "audio",
+        "sticker": "stickers",
+        "video": "videos",
+        "document": "documents",
+    }
+    folder = folders.get(message_type, "other")
+    original = os.path.basename(filename or "")
+    extension = os.path.splitext(original)[1].lower()
+    if not extension and mime_type and "/" in mime_type:
+        extension = "." + mime_type.split("/", 1)[1].split(";", 1)[0].replace("webp", "webp")
+    if len(extension) > 10 or not extension.replace(".", "").isalnum():
+        extension = ""
+    prefix = f"{MEDIA_WEBDAV_ROOT}/" if MEDIA_WEBDAV_ROOT else ""
+    return f"{prefix}{folder}/{uuid.uuid4().hex}{extension}"
+
+
+def _webdav_request(method, relative_path, data=None, content_type=None):
+    """Read/write a private Web Disk file over HTTPS WebDAV."""
+    if not MEDIA_WEBDAV_USER or not MEDIA_WEBDAV_PASSWORD:
+        print("[WHATSAPP] WebDAV credentials are not configured")
+        return None
+    path = "/" + quote(relative_path.strip("/"), safe="/")
+    headers = {}
+    if content_type:
+        headers["Content-Type"] = content_type
+    try:
+        response = requests.request(
+            method,
+            f"{MEDIA_WEBDAV_URL}{path}",
+            auth=(MEDIA_WEBDAV_USER, MEDIA_WEBDAV_PASSWORD),
+            headers=headers,
+            data=data,
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response
+    except requests.RequestException as exc:
+        print(f"[WHATSAPP] WebDAV {method} failed: {exc}")
+        return None
+
+
+def _store_media_file(relative_path, content, mime_type):
+    return _webdav_request("PUT", relative_path, data=content, content_type=mime_type) is not None
+
+
+def _download_whatsapp_media(media_id, message_type, mime_type=None, filename=None):
+    """Download a Meta media object immediately before its temporary URL expires."""
+    if not media_id or not WHATSAPP_ACCESS_TOKEN:
+        return None
+    headers = {"Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}"}
+    try:
+        info = requests.get(f"{META_GRAPH_URL}/{media_id}", headers=headers, timeout=30)
+        info.raise_for_status()
+        media_url = info.json().get("url")
+        if not media_url:
+            return None
+        content = requests.get(media_url, headers=headers, timeout=60)
+        content.raise_for_status()
+        stored_type = info.json().get("mime_type") or mime_type or "application/octet-stream"
+        path = _media_filename(message_type, stored_type, filename)
+        return path if _store_media_file(path, content.content, stored_type) else None
+    except requests.RequestException as exc:
+        print(f"[WHATSAPP] Could not download media {media_id}: {exc}")
+        return None
+
+
+def _upload_media_to_meta(content, filename, mime_type):
+    response = requests.post(
+        f"{META_GRAPH_URL}/{WHATSAPP_PHONE_ID}/media",
+        headers={"Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}"},
+        files={"file": (filename, content, mime_type)},
+        data={"messaging_product": "whatsapp"},
+        timeout=60,
+    )
+    if not response.ok:
+        raise HTTPException(status_code=502, detail=f"Error subiendo multimedia a WhatsApp: {response.text[:500]}")
+    media_id = response.json().get("id")
+    if not media_id:
+        raise HTTPException(status_code=502, detail="WhatsApp no devolvió un media_id")
+    return media_id
 
 
 def _wa_graph_request(path, payload):
@@ -1104,25 +1202,32 @@ def _wa_send_superuser_alert(db, msg, call, reason, agent):
         person = "Cliente"
     reason_text = "no tiene encuestador asignado" if reason == "sin_asignar" else "su encuestador está desconectado"
     link = f"{CRM_LINK_BASE}?chat_phone={msg.phone_number}"
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "template",
-        "template": {
-            "name": WHATSAPP_ALERT_TEMPLATE,
-            "language": {"code": WHATSAPP_ALERT_LANGUAGE},
-            "components": [{
-                "type": "body",
-                "parameters": [
-                    {"type": "text", "text": person},
-                    {"type": "text", "text": msg.phone_number},
-                    {"type": "text", "text": reason_text},
-                    {"type": "text", "text": link},
-                ],
-            }],
-        },
-    }
-    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+    params_with_link = [
+        {"type": "text", "text": person},
+        {"type": "text", "text": msg.phone_number},
+        {"type": "text", "text": reason_text},
+        {"type": "text", "text": link},
+    ]
+    params_without_link = params_with_link[:3]
+
+    def build_payload(parameters):
+        return {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "template",
+            "template": {
+                "name": WHATSAPP_ALERT_TEMPLATE,
+                "language": {"code": WHATSAPP_ALERT_LANGUAGE},
+                "components": [{"type": "body", "parameters": parameters}],
+            },
+        }
+
+    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", build_payload(params_with_link))
+    if "error" in result:
+        err = str(result["error"])
+        if "expected number of params" in err:
+            print(f"[WHATSAPP] Plantilla {WHATSAPP_ALERT_TEMPLATE} acepta menos variables; reintentando sin enlace.")
+            result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", build_payload(params_without_link))
     if "error" in result:
         print(f"[WHATSAPP] Alerta superusuario NO enviada: {result['error']}")
     else:
@@ -1207,11 +1312,19 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
                             break
                     msg_type = msg.get("type", "text")
                     text = None
+                    media_id = None
+                    media_path = None
+                    mime_type = None
+                    filename = None
                     if msg_type == "text":
                         text = (msg.get("text") or {}).get("body")
                     elif msg_type in ("image", "video", "document", "audio", "sticker"):
                         media = msg.get(msg_type) or {}
+                        media_id = media.get("id")
+                        mime_type = media.get("mime_type")
+                        filename = media.get("filename")
                         text = media.get("caption") or media.get("filename") or f"[{msg_type}]"
+                        media_path = _download_whatsapp_media(media_id, msg_type, mime_type, filename)
                     elif msg_type == "button":
                         text = (msg.get("button") or {}).get("text") or "[botón]"
                     elif msg_type == "interactive":
@@ -1227,6 +1340,10 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
                         message_text=text,
                         message_type=msg_type,
                         message_id=msg_id,
+                        media_id=media_id,
+                        media_path=media_path,
+                        mime_type=mime_type,
+                        filename=filename,
                         wa_status="received",
                         profile_name=profile_name,
                     )
@@ -1360,6 +1477,95 @@ def whatsapp_send(
     }
 
 
+@app.post("/whatsapp/send-media")
+def whatsapp_send_media(
+    file: UploadFile = File(...),
+    caption: str = Form(""),
+    call_id: Optional[int] = Form(None),
+    phone_number: Optional[str] = Form(None),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    call = None
+    if call_id is not None:
+        call = db.query(models.Call).filter(models.Call.id == call_id).first()
+        if not call:
+            raise HTTPException(status_code=404, detail="Llamada no encontrada")
+        if not _can_view_whatsapp(current_user, call):
+            raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
+    elif phone_number:
+        if current_user.role not in ("superuser", "coordinator", "auxiliar"):
+            raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+    else:
+        raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
+
+    raw_phone = (call.phone_number or call.whatsapp) if call else phone_number
+    phone = _normalize_wa_phone(raw_phone)
+    if not phone:
+        raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+
+    mime_type = (file.content_type or "application/octet-stream").lower()
+    filename = os.path.basename(file.filename or "archivo")
+    if mime_type == "image/webp" or filename.lower().endswith(".webp"):
+        media_type = "sticker"
+    elif mime_type.startswith("image/"):
+        media_type = "image"
+    elif mime_type.startswith("audio/"):
+        media_type = "audio"
+    elif mime_type.startswith("video/"):
+        media_type = "video"
+    else:
+        media_type = "document"
+
+    content = file.file.read()
+    max_size = 512 * 1024 if media_type == "sticker" else 16 * 1024 * 1024
+    if len(content) > max_size:
+        raise HTTPException(status_code=413, detail="El archivo supera el tamaño permitido por WhatsApp")
+
+    meta_id = _upload_media_to_meta(content, filename, mime_type)
+    media_payload = {"id": meta_id}
+    if caption and media_type in ("image", "video", "document"):
+        media_payload["caption"] = caption[:1024]
+    if media_type == "document":
+        media_payload["filename"] = filename
+    result = _wa_graph_request(
+        f"{WHATSAPP_PHONE_ID}/messages",
+        {"messaging_product": "whatsapp", "to": phone, "type": media_type, media_type: media_payload},
+    )
+    if "error" in result:
+        raise HTTPException(status_code=502, detail=f"Error enviando multimedia: {result['error']}")
+
+    path = _media_filename(media_type, mime_type, filename)
+    stored_path = path if _store_media_file(path, content, mime_type) else None
+    response_messages = result.get("messages") or []
+    message_id = response_messages[0].get("id") if response_messages else None
+    label = {"image": "Imagen", "audio": "Audio", "sticker": "Sticker", "video": "Video", "document": "Documento"}[media_type]
+    rec = models.WhatsAppMessage(
+        call_id=call.id if call else None,
+        phone_number=phone,
+        direction="out",
+        message_text=caption or f"[{label}] {filename}",
+        message_type=media_type,
+        message_id=message_id,
+        media_id=meta_id,
+        media_path=stored_path,
+        mime_type=mime_type,
+        filename=filename,
+        wa_status="sent",
+        sender_agent_id=current_user.id,
+    )
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return {
+        "id": rec.id,
+        "message_type": rec.message_type,
+        "message_text": rec.message_text,
+        "wa_status": rec.wa_status,
+        "created_at": rec.created_at,
+    }
+
+
 @app.get("/whatsapp/history/{call_id}")
 def whatsapp_history(
     call_id: int,
@@ -1405,6 +1611,9 @@ def whatsapp_history(
             "message_text": m.message_text,
             "message_type": m.message_type,
             "wa_status": m.wa_status,
+            "media_id": m.media_id,
+            "mime_type": m.mime_type,
+            "filename": m.filename,
             "profile_name": m.profile_name,
             "escalated": m.escalated,
             "esc_reason": m.esc_reason,
@@ -1455,6 +1664,9 @@ def whatsapp_history_phone(
             "message_text": m.message_text,
             "message_type": m.message_type,
             "wa_status": m.wa_status,
+            "media_id": m.media_id,
+            "mime_type": m.mime_type,
+            "filename": m.filename,
             "profile_name": m.profile_name,
             "escalated": m.escalated,
             "esc_reason": m.esc_reason,
@@ -1462,6 +1674,37 @@ def whatsapp_history_phone(
             "read_at": m.read_at,
         } for m in msgs],
     }
+
+
+@app.get("/whatsapp/media/{message_id}")
+def whatsapp_media(
+    message_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Stream a private WhatsApp attachment after checking conversation access."""
+    message = db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.id == message_id).first()
+    if not message or not message.media_path:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    call = db.query(models.Call).filter(models.Call.id == message.call_id).first() if message.call_id else None
+    if call:
+        if not _can_view_whatsapp(current_user, call):
+            raise HTTPException(status_code=403, detail="No tienes acceso a esta conversación")
+    elif current_user.role not in ("superuser", "coordinator", "auxiliar"):
+        raise HTTPException(status_code=403, detail="No autorizado")
+
+    stored = _webdav_request("GET", message.media_path)
+    if not stored:
+        raise HTTPException(status_code=404, detail="Archivo no disponible")
+    headers = {}
+    if message.filename:
+        headers["Content-Disposition"] = f'inline; filename="{os.path.basename(message.filename)}"'
+    return StreamingResponse(
+        io.BytesIO(stored.content),
+        media_type=message.mime_type or "application/octet-stream",
+        headers=headers,
+    )
 
 
 class WhatsAppReadRequest(BaseModel):
@@ -5361,4 +5604,3 @@ def export_daily_effectives(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
-

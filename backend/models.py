@@ -420,6 +420,10 @@ class WhatsAppMessage(Base):
     message_text = Column(Text, nullable=True)
     message_type = Column(String(20), default="text") # text, image, video, etc.
     message_id = Column(String(100), nullable=True, index=True) # Meta message id
+    media_id = Column(String(150), nullable=True, index=True)
+    media_path = Column(String(500), nullable=True)
+    mime_type = Column(String(100), nullable=True)
+    filename = Column(String(255), nullable=True)
     wa_status = Column(String(20), nullable=True) # sent, delivered, read, failed
     sender_agent_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     read_at = Column(DateTime, nullable=True)

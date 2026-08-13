@@ -4433,7 +4433,7 @@ async function waLoadHistory() {
     }
 }
 
-function waRenderMessages(messages) {
+async function waRenderMessages(messages) {
     const body = document.getElementById('waChatBody');
     if (!body) return;
     if (!messages.length) {
@@ -4445,7 +4445,19 @@ function waRenderMessages(messages) {
         const isOut = m.direction === 'out';
         const time = waTime(m.created_at);
         const escTag = m.escalated ? '<span style="color:#ef4444; font-size:0.7rem;"> ⚑ escalado</span>' : '';
-        if (m.message_type === 'template') {
+        const isMedia = ['image', 'audio', 'sticker', 'video', 'document'].includes(m.message_type);
+        if (isMedia) {
+            const label = { image: 'Imagen', audio: 'Audio', sticker: 'Sticker', video: 'Video', document: 'Documento' }[m.message_type];
+            let mediaHtml = `<div class="wa-media-loading" data-media-message="${m.id}">Cargando ${label.toLowerCase()}...</div>`;
+            if (m.message_type === 'audio') {
+                mediaHtml = `<audio class="wa-media-audio" controls data-media-message="${m.id}"></audio>`;
+            } else if (m.message_type === 'image' || m.message_type === 'sticker') {
+                mediaHtml = `<img class="wa-media-preview" data-media-message="${m.id}" alt="${label}">`;
+            } else if (m.message_type === 'video') {
+                mediaHtml = `<video class="wa-media-preview" controls data-media-message="${m.id}"></video>`;
+            }
+            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${mediaHtml}</div>${m.message_text ? `<div>${waEsc(m.message_text)}</div>` : ''}<div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
+        } else if (m.message_type === 'template') {
             html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time} · saludo${escTag}</div></div>`;
         } else {
             html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
@@ -4453,14 +4465,37 @@ function waRenderMessages(messages) {
     });
     body.innerHTML = html;
     body.scrollTop = body.scrollHeight;
+
+    const mediaNodes = body.querySelectorAll('[data-media-message]');
+    mediaNodes.forEach(async (node) => {
+        try {
+            const response = await fetch(`/whatsapp/media/${node.dataset.mediaMessage}`, { headers });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            if (node.tagName === 'DIV') {
+                const link = document.createElement('a');
+                link.href = url;
+                link.target = '_blank';
+                link.textContent = 'Descargar archivo';
+                node.replaceWith(link);
+            } else {
+                node.src = url;
+            }
+        } catch (e) {
+            node.textContent = 'No se pudo cargar el archivo';
+        }
+    });
 }
 
 async function waSendMessage() {
     if (!waChatCallId && !waChatPhone) return;
     const input = document.getElementById('waChatInput');
+    const fileInput = document.getElementById('waChatFile');
+    const selectedFile = fileInput && fileInput.files ? fileInput.files[0] : null;
     const text = (input.value || '').trim();
-    if (!text) {
-        alert("Escribe un mensaje primero.");
+    if (!text && !selectedFile) {
+        alert("Escribe un mensaje o selecciona un archivo primero.");
         return;
     }
 
@@ -4471,14 +4506,28 @@ async function waSendMessage() {
     }
 
     try {
-        const payload = waChatCallId
-            ? { call_id: waChatCallId, message: text }
-            : { phone_number: waChatPhone, message: text };
-        const res = await fetch('/whatsapp/send', {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload)
-        });
+        let res;
+        if (selectedFile) {
+            const form = new FormData();
+            form.append('file', selectedFile);
+            form.append('caption', text);
+            if (waChatCallId) form.append('call_id', waChatCallId);
+            else form.append('phone_number', waChatPhone);
+            res = await fetch('/whatsapp/send-media', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: form
+            });
+        } else {
+            const payload = waChatCallId
+                ? { call_id: waChatCallId, message: text }
+                : { phone_number: waChatPhone, message: text };
+            res = await fetch('/whatsapp/send', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+        }
         const data = await res.json();
         if (!res.ok) {
             let detail = data.detail || 'Error desconocido';
@@ -4487,6 +4536,7 @@ async function waSendMessage() {
             return;
         }
         input.value = '';
+        if (fileInput) fileInput.value = '';
         waLoadHistory();
     } catch (e) {
         console.error(e);

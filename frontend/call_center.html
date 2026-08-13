@@ -641,6 +641,29 @@
             flex-shrink: 0;
         }
 
+        .wa-attach-btn {
+            background: #64748b;
+            border: none;
+            border-radius: 50%;
+            width: 42px;
+            height: 42px;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .wa-attach-btn:hover { background: #475569; }
+
+        .wa-media-preview {
+            max-width: 220px;
+            max-height: 180px;
+            border-radius: 6px;
+            display: block;
+        }
+
+        .wa-media-audio { max-width: 230px; }
+
         .wa-chat-input input {
             flex: 1;
             padding: 10px 12px;
@@ -2485,6 +2508,8 @@
                 <div class="wa-msg-system">Cargando conversación...</div>
             </div>
             <div class="wa-chat-input">
+                <input type="file" id="waChatFile" accept="image/*,audio/*,video/*,.webp,.pdf,.doc,.docx,.xls,.xlsx" hidden>
+                <button class="wa-attach-btn" onclick="document.getElementById('waChatFile').click()" title="Adjuntar archivo"><i class="fas fa-paperclip"></i></button>
                 <input type="text" id="waChatInput" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')waSendMessage()">
                 <button onclick="waSendMessage()" title="Enviar"><i class="fas fa-paper-plane"></i></button>
             </div>
