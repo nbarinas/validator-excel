@@ -1,5 +1,5 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Form, Depends, status, BackgroundTasks
-from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
+from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload, subqueryload
@@ -1159,7 +1159,7 @@ def whatsapp_webhook_get(
 ):
     """Meta webhook verification handshake."""
     if hub_mode == "subscribe" and hub_verify_token == WHATSAPP_VERIFY_TOKEN:
-        return JSONResponse(content=hub_challenge, media_type="text/plain")
+        return PlainTextResponse(content=hub_challenge)
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
