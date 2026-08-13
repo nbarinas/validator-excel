@@ -4403,9 +4403,35 @@ function openWhatsAppChatModal(callId, phone) {
     document.getElementById('waChatSub').textContent = 'Cargando...';
     document.getElementById('waChatBody').innerHTML = '<div class="wa-msg-system">Cargando conversación...</div>';
     document.getElementById('waChatInput').value = '';
+    waClearSelectedFile();
     waLoadHistory();
     clearInterval(waPollTimer);
     waPollTimer = setInterval(waLoadHistory, 5000);
+}
+
+function waHandleFileSelection() {
+    const input = document.getElementById('waChatFile');
+    const status = document.getElementById('waFileStatus');
+    const name = document.getElementById('waFileStatusName');
+    const file = input && input.files ? input.files[0] : null;
+    if (!file || !status || !name) {
+        waClearSelectedFile();
+        return;
+    }
+    const size = file.size < 1024 * 1024
+        ? `${Math.max(1, Math.round(file.size / 1024))} KB`
+        : `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+    name.textContent = `Listo para enviar: ${file.name} (${size})`;
+    status.style.display = 'flex';
+}
+
+function waClearSelectedFile() {
+    const input = document.getElementById('waChatFile');
+    const status = document.getElementById('waFileStatus');
+    const name = document.getElementById('waFileStatusName');
+    if (input) input.value = '';
+    if (name) name.textContent = '';
+    if (status) status.style.display = 'none';
 }
 
 function closeWhatsAppChatModal() {
@@ -4566,7 +4592,7 @@ async function waSendMessage() {
             return;
         }
         input.value = '';
-        if (fileInput) fileInput.value = '';
+        waClearSelectedFile();
         waLoadHistory();
     } catch (e) {
         console.error(e);

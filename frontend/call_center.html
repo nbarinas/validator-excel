@@ -664,6 +664,34 @@
 
         .wa-media-audio { max-width: 230px; }
 
+        .wa-file-status {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: #e8f5e9;
+            color: #166534;
+            border-top: 1px solid #cfe8d2;
+            font-size: 0.78rem;
+        }
+
+        .wa-file-status-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .wa-file-status-clear {
+            border: 0;
+            background: transparent;
+            color: #166534;
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0 4px;
+        }
+
         #waMediaViewer {
             display: none;
             position: fixed;
@@ -2542,8 +2570,13 @@
             <div class="wa-chat-body" id="waChatBody">
                 <div class="wa-msg-system">Cargando conversación...</div>
             </div>
+            <div class="wa-file-status" id="waFileStatus">
+                <i class="fas fa-check-circle"></i>
+                <span class="wa-file-status-name" id="waFileStatusName"></span>
+                <button class="wa-file-status-clear" onclick="waClearSelectedFile()" title="Quitar archivo">&times;</button>
+            </div>
             <div class="wa-chat-input">
-                <input type="file" id="waChatFile" accept="image/*,audio/*,video/*,.webp,.pdf,.doc,.docx,.xls,.xlsx" hidden>
+                <input type="file" id="waChatFile" accept="image/*,audio/*,video/*,.webp,.pdf,.doc,.docx,.xls,.xlsx" onchange="waHandleFileSelection()" hidden>
                 <button class="wa-attach-btn" onclick="document.getElementById('waChatFile').click()" title="Adjuntar archivo"><i class="fas fa-paperclip"></i></button>
                 <input type="text" id="waChatInput" placeholder="Escribe un mensaje..." onkeydown="if(event.key==='Enter')waSendMessage()">
                 <button onclick="waSendMessage()" title="Enviar"><i class="fas fa-paper-plane"></i></button>
