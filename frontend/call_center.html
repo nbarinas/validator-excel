@@ -866,6 +866,51 @@
             font-weight: bold;
             margin-left: 6px;
         }
+
+        .superuser-options {
+            display: grid !important;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 1rem;
+            width: 100%;
+            max-width: 1700px;
+            margin: 0 auto;
+            align-content: center;
+        }
+
+        .superuser-options button {
+            width: 100% !important;
+            height: 150px !important;
+            padding: 1rem !important;
+            font-size: 1.15rem !important;
+        }
+
+        .superuser-options button i {
+            font-size: 2.25rem !important;
+            margin-bottom: 0.7rem !important;
+        }
+
+        @media (max-width: 1200px) {
+            .superuser-options {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                overflow-y: auto;
+                padding: 0.5rem;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .superuser-options {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .superuser-options button {
+                height: 125px !important;
+                font-size: 0.95rem !important;
+            }
+
+            .superuser-options button i {
+                font-size: 1.75rem !important;
+            }
+        }
     </style>
     <script>
         function toggleSidebar() {
@@ -914,7 +959,7 @@
                 </div>
             </div>
 
-            <div style="flex: 1; display: flex; gap: 2rem; justify-content: center; align-items: center;">
+            <div class="superuser-options" style="flex: 1; justify-content: center; align-items: center;">
                 <button id="btnUploadExcelLanding" onclick="showUploadModal()"
                     style="padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #6366f1; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-file-upload" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
