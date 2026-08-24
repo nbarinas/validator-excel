@@ -1770,9 +1770,35 @@ function renderCallGrid(calls) {
 
         // Format appointment time if exists
         let alertTime = '-';
+        let alertClass = '';
+        let rowAlertBorder = '';
         if (call.appointment_time) {
             const dateObj = new Date(call.appointment_time);
-            alertTime = `<span style="color:#d97706; font-weight:bold;">${dateObj.toLocaleDateString()} ${dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+            const now = new Date();
+            const dateStr = dateObj.toLocaleDateString();
+            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // Determine alert urgency
+            const isSameDay = dateObj.toDateString() === now.toDateString();
+            const isOverdue = dateObj < now && !isSameDay;
+
+            if (isOverdue) {
+                alertClass = 'grid-alert-overdue';
+                rowAlertBorder = '4px solid #ef4444';
+            } else if (isSameDay) {
+                alertClass = 'grid-alert-today';
+                rowAlertBorder = '4px solid #eab308';
+            } else {
+                rowAlertBorder = '4px solid #f97316';
+            }
+
+            alertTime = `<span class="grid-alert-badge ${alertClass}" title="Alerta programada: ${dateStr} ${timeStr}">
+                <i class="fas fa-bell"></i> ${dateStr} ${timeStr}
+            </span>`;
+        }
+
+        if (rowAlertBorder) {
+            tr.style.borderLeft = rowAlertBorder;
         }
 
         tr.innerHTML = `
