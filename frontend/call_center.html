@@ -536,6 +536,45 @@
             color: #854d0e;
         }
 
+        /* WhatsApp unread indicator in grid */
+        .wa-grid-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            width: 28px;
+            height: 28px;
+            background: #25d366;
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.95rem;
+            transition: transform 0.2s;
+        }
+
+        .wa-grid-icon:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 6px rgba(37, 211, 102, 0.4);
+        }
+
+        .wa-grid-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ef4444;
+            color: white;
+            border-radius: 50%;
+            min-width: 16px;
+            height: 16px;
+            padding: 0 4px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid white;
+        }
+
         .wa-chat-modal {
             display: none;
             position: fixed;
@@ -1691,6 +1730,7 @@
                     <i class="fas fa-sort"></i>
                 </button>
             </th>
+            <th>WhatsApp</th>
             <!-- Old Observaciones Pos -->
             <th>
                 Estado

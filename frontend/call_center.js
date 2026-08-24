@@ -1732,7 +1732,7 @@ function renderCallGrid(calls) {
     tbody.innerHTML = '';
 
     if (calls.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;">No hay llamadas (Filtros aplicados)</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="12" style="text-align:center;">No hay llamadas (Filtros aplicados)</td></tr>';
         return;
     }
 
@@ -1801,6 +1801,15 @@ function renderCallGrid(calls) {
             tr.style.borderLeft = rowAlertBorder;
         }
 
+        // WhatsApp unread indicator
+        const waUnreadCount = call.whatsapp_unread_count || 0;
+        const waIcon = waUnreadCount > 0
+            ? `<span class="wa-grid-icon" onclick="event.stopPropagation(); openWhatsAppChatModal(${call.id})" title="${waUnreadCount} mensaje(s) de WhatsApp sin leer">
+                 <i class="fab fa-whatsapp"></i>
+                 <span class="wa-grid-badge">${waUnreadCount}</span>
+               </span>`
+            : '-';
+
         tr.innerHTML = `
             <td onclick="event.stopPropagation()"><input type="checkbox" class="call-checkbox" value="${call.id}"></td>
             <td>
@@ -1827,6 +1836,7 @@ function renderCallGrid(calls) {
             <td>${call.person_name || '-'}</td>
             <td>${call.city || '-'}</td>
             <td>${alertTime}</td>
+            <td>${waIcon}</td>
             <!-- Old Obs Cell Removed -->
             
             <td><span style="background:${call.status === 'pending' ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.6)'}; border: 1px solid rgba(0,0,0,0.1); padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>

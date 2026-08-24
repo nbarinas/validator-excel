@@ -2622,6 +2622,23 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
     # Quick fix: return list of dicts with study_name
     
     calls = query.all()
+
+    # Pre-calculate unread WhatsApp messages per call
+    call_ids = [c.id for c in calls]
+    unread_by_call_id = {}
+    if call_ids:
+        rows = (
+            db.query(models.WhatsAppMessage.call_id, func.count(models.WhatsAppMessage.id))
+            .filter(
+                models.WhatsAppMessage.call_id.in_(call_ids),
+                models.WhatsAppMessage.direction == "in",
+                models.WhatsAppMessage.read_at.is_(None)
+            )
+            .group_by(models.WhatsAppMessage.call_id)
+            .all()
+        )
+        unread_by_call_id = {call_id: cnt for call_id, cnt in rows}
+
     result = []
     for c in calls:
         c_dict = c.__dict__.copy()
@@ -2667,6 +2684,9 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
         
         # Previous Agent Name
         c_dict['previous_agent_name'] = (c.previous_user.full_name if c.previous_user.full_name else c.previous_user.username) if c.previous_user else None
+
+        # WhatsApp unread messages indicator
+        c_dict['whatsapp_unread_count'] = unread_by_call_id.get(c.id, 0)
         
         # Concatenate all observations for Excel/History
         if c.observations:
