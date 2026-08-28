@@ -510,6 +510,18 @@
             box-shadow: 0 2px 6px rgba(37, 211, 102, 0.4);
         }
 
+        .btn-wa-sm {
+            padding: 8px 10px;
+            font-size: 0.85rem;
+            background: #128c7e;
+            border-color: #0e7267;
+        }
+
+        .btn-wa-sm:hover {
+            background: #0e7267;
+            box-shadow: 0 2px 6px rgba(18, 140, 126, 0.4);
+        }
+
         /* Alert indicator in grid */
         .grid-alert-badge {
             display: inline-flex;
@@ -2080,8 +2092,11 @@
                             <button class="btn-copy" onclick="copyToClipboard('phoneNumber', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
-                            <button class="btn-wa" onclick="openWhatsAppChatModal()" title="Abrir chat de WhatsApp">
-                                <i class="fab fa-whatsapp"></i> Chat
+                            <button class="btn-wa" onclick="openWhatsAppTemplateModal('phoneNumber')" title="Enviar plantilla de WhatsApp">
+                                <i class="fab fa-whatsapp"></i> Plantilla
+                            </button>
+                            <button class="btn-wa btn-wa-sm" onclick="openWhatsAppChatModal()" title="Abrir chat de WhatsApp">
+                                <i class="fab fa-whatsapp"></i>
                             </button>
                         </div>
                     </div>
@@ -2092,8 +2107,11 @@
                             <button class="btn-copy" onclick="copyToClipboard('correctedPhone', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
-                            <button class="btn-wa" onclick="openWhatsAppChatModal(null, document.getElementById('correctedPhone').value)" title="Abrir chat de WhatsApp">
-                                <i class="fab fa-whatsapp"></i> Chat
+                            <button class="btn-wa" onclick="openWhatsAppTemplateModal('correctedPhone')" title="Enviar plantilla de WhatsApp">
+                                <i class="fab fa-whatsapp"></i> Plantilla
+                            </button>
+                            <button class="btn-wa btn-wa-sm" onclick="openWhatsAppChatModal(null, document.getElementById('correctedPhone').value)" title="Abrir chat de WhatsApp">
+                                <i class="fab fa-whatsapp"></i>
                             </button>
                         </div>
                     </div>
@@ -2108,8 +2126,11 @@
                             <button class="btn-copy" onclick="copyToClipboard('whatsappNumber', event)" title="Copiar número">
                                 <i class="far fa-copy"></i>
                             </button>
-                            <button class="btn-wa" onclick="openWhatsAppChatModal(null, document.getElementById('whatsappNumber').value)" title="Abrir chat de WhatsApp">
-                                <i class="fab fa-whatsapp"></i> Chat
+                            <button class="btn-wa" onclick="openWhatsAppTemplateModal('whatsappNumber')" title="Enviar plantilla de WhatsApp">
+                                <i class="fab fa-whatsapp"></i> Plantilla
+                            </button>
+                            <button class="btn-wa btn-wa-sm" onclick="openWhatsAppChatModal(null, document.getElementById('whatsappNumber').value)" title="Abrir chat de WhatsApp">
+                                <i class="fab fa-whatsapp"></i>
                             </button>
                         </div>
                     </div>
@@ -2758,6 +2779,52 @@
         </div>
     </div>
 
+    <!-- WHATSAPP SEND TEMPLATE MODAL -->
+    <div id="whatsappSendTemplateModal" class="wa-chat-modal" onclick="if(event.target===this)closeWhatsAppSendTemplateModal()">
+        <div class="wa-chat-box" style="width: 520px;">
+            <div class="wa-chat-header" style="background:#075e54;">
+                <div class="wa-chat-title">
+                    <h3>Enviar plantilla de WhatsApp</h3>
+                    <div class="wa-chat-sub">Elige la plantilla y escribe la categoría del estudio</div>
+                </div>
+                <button class="wa-chat-close" onclick="closeWhatsAppSendTemplateModal()">&times;</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;color:#1e293b;">
+                <input type="hidden" id="waTemplateSourceField" value="">
+                <label style="font-weight:600;font-size:0.9rem;">Selecciona la plantilla</label>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
+                        <input type="radio" name="waTemplateKey" value="manana_1" checked style="margin-top:3px;">
+                        <div>
+                            <div style="font-weight:600;">Buenos días (mañana)</div>
+                            <div style="font-size:0.8rem;color:#64748b;">manana_1</div>
+                        </div>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
+                        <input type="radio" name="waTemplateKey" value="manana_2" style="margin-top:3px;">
+                        <div>
+                            <div style="font-weight:600;">Buenas tardes (tarde)</div>
+                            <div style="font-size:0.8rem;color:#64748b;">manana_2</div>
+                        </div>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
+                        <input type="radio" name="waTemplateKey" value="manana_3" style="margin-top:3px;">
+                        <div>
+                            <div style="font-weight:600;">Buenas tardes (recordatorio)</div>
+                            <div style="font-size:0.8rem;color:#64748b;">manana_3</div>
+                        </div>
+                    </label>
+                </div>
+                <label>Categoría / Tipo de estudio<input id="waTemplateCategory" type="text" placeholder="Ej: hábitos de compra, shampoo, alimento de perros..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <div id="waTemplateError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button onclick="closeWhatsAppSendTemplateModal()" style="padding:9px 14px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:pointer;">Cancelar</button>
+                    <button id="waTemplateSend" onclick="sendWhatsAppTemplate()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Enviar plantilla</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- WHATSAPP CHAT MODAL -->
     <div id="whatsappChatModal" class="wa-chat-modal" onclick="if(event.target===this)closeWhatsAppChatModal()">
         <div class="wa-chat-box">
@@ -2767,6 +2834,9 @@
                     <h3 id="waChatTitle">Chat WhatsApp</h3>
                     <div class="wa-chat-sub" id="waChatSub"></div>
                 </div>
+                <button class="wa-chat-close" onclick="openWhatsAppTemplateModalFromChat()" title="Enviar otra plantilla" style="font-size:0.85rem;padding:4px 10px;margin-right:6px;background:#128c7e;border-color:#0e7267;">
+                    <i class="fab fa-whatsapp"></i> Plantilla
+                </button>
                 <button class="wa-chat-close" onclick="closeWhatsAppChatModal()">&times;</button>
             </div>
             <div class="wa-chat-body" id="waChatBody">

@@ -23,6 +23,9 @@ TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamad
 ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "alerta_seguimiento")
 FILTER_TEMPLATE = os.getenv("WHATSAPP_FILTER_TEMPLATE", "az_filtro_participacion")
 FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
+MANANA_1_TEMPLATE = os.getenv("WHATSAPP_TEMPLATE_MANANA_1_NAME", "manana_1")
+MANANA_2_TEMPLATE = os.getenv("WHATSAPP_TEMPLATE_MANANA_2_NAME", "manana_2")
+MANANA_3_TEMPLATE = os.getenv("WHATSAPP_TEMPLATE_MANANA_3_NAME", "manana_3")
 API_VERSION = "v21.0"
 GRAPH = f"https://graph.facebook.com/{API_VERSION}"
 
@@ -52,6 +55,28 @@ FORM_BODY = (
     "Para conocer la información y completar el formulario, ingresa aquí: {{2}}"
 )
 FORM_EXAMPLE = [["hábitos de compra", "https://az-marketing.com.co/formulario/estudio-demo"]]
+
+MANANA_1_BODY = (
+    "Buenos días, Sr(a). {{1}}. Le saluda {{2}} de AZ-Marketing. "
+    "Estamos realizando la encuesta de investigación de mercado sobre {{3}} que nos está colaborando "
+    "y le agradeceríamos mucho que nos pueda contestar la videollamada en este momento. ¿Cuenta con unos minutos?"
+)
+MANANA_1_EXAMPLE = [["María Pérez", "Karol David", "hábitos de compra"]]
+
+MANANA_2_BODY = (
+    "Buenas tardes, Sr(a). {{1}}. De nuevo le escribe {{2}} de AZ-Marketing. "
+    "Queríamos saber si podría colaborar con la videollamada en este momento sobre la encuesta de investigación de mercado "
+    "de {{3}} que nos está colaborando. Solo le tomará unos minutos y su opinión es muy valiosa."
+)
+MANANA_2_EXAMPLE = [["María Pérez", "Karol David", "hábitos de compra"]]
+
+MANANA_3_BODY = (
+    "Buenas tardes, Sr(a). {{1}}. Le escribe {{2}} de AZ-Marketing. Entendemos que está ocupado/a, "
+    "pero si tiene un momento nos encantaría contar con su participación en la encuesta de investigación de mercado "
+    "sobre {{3}} que nos está colaborando y que nos pueda contestar la videollamada en este momento. "
+    "Su opinión nos ayuda mucho. Gracias."
+)
+MANANA_3_EXAMPLE = [["María Pérez", "Karol David", "hábitos de compra"]]
 
 
 def token():
@@ -109,6 +134,9 @@ def setup_template():
     create_template(ALERT_TEMPLATE, ALERT_BODY, ALERT_EXAMPLE)
     create_template(FILTER_TEMPLATE, FILTER_BODY, FILTER_EXAMPLE)
     create_template(FORM_TEMPLATE, FORM_BODY, FORM_EXAMPLE)
+    create_template(MANANA_1_TEMPLATE, MANANA_1_BODY, MANANA_1_EXAMPLE)
+    create_template(MANANA_2_TEMPLATE, MANANA_2_BODY, MANANA_2_EXAMPLE)
+    create_template(MANANA_3_TEMPLATE, MANANA_3_BODY, MANANA_3_EXAMPLE)
     print("IMPORTANTE: espera la aprobación de Meta antes de enviar (minutos/horas).")
 
 

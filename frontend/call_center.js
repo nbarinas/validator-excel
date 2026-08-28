@@ -4696,6 +4696,101 @@ async function waSetInboxPermission(userId, enabled) {
     }
 }
 
+let waTemplateSourceField = null;
+
+function openWhatsAppTemplateModal(fieldId) {
+    waTemplateSourceField = fieldId || null;
+    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_1'));
+    document.getElementById('waTemplateCategory').value = '';
+    document.getElementById('waTemplateError').style.display = 'none';
+    document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
+}
+
+function openWhatsAppTemplateModalFromChat() {
+    waTemplateSourceField = 'chat';
+    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_1'));
+    document.getElementById('waTemplateCategory').value = '';
+    document.getElementById('waTemplateError').style.display = 'none';
+    document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
+}
+
+function closeWhatsAppSendTemplateModal() {
+    document.getElementById('whatsappSendTemplateModal').style.display = 'none';
+    waTemplateSourceField = null;
+}
+
+async function sendWhatsAppTemplate() {
+    const error = document.getElementById('waTemplateError');
+    const button = document.getElementById('waTemplateSend');
+    const selected = document.querySelector('input[name="waTemplateKey"]:checked');
+    const category = document.getElementById('waTemplateCategory').value.trim();
+
+    error.style.display = 'none';
+
+    if (!selected) {
+        error.textContent = 'Selecciona una plantilla.';
+        error.style.display = 'block';
+        return;
+    }
+    if (!category) {
+        error.textContent = 'Indica la categoría o tipo de estudio.';
+        error.style.display = 'block';
+        return;
+    }
+
+    const payload = { template_key: selected.value, category };
+
+    if (waTemplateSourceField === 'chat') {
+        if (waChatCallId) payload.call_id = waChatCallId;
+        else if (waChatPhone) payload.phone_number = waChatPhone;
+        else {
+            error.textContent = 'No hay un número de chat activo.';
+            error.style.display = 'block';
+            return;
+        }
+    } else if (waTemplateSourceField) {
+        const field = document.getElementById(waTemplateSourceField);
+        const phone = field ? String(field.value || '').replace(/\D/g, '') : '';
+        if (phone) {
+            payload.phone_number = phone;
+        }
+        if (currentCallId) {
+            payload.call_id = currentCallId;
+        }
+        if (!payload.phone_number && !payload.call_id) {
+            error.textContent = 'No hay número de teléfono disponible.';
+            error.style.display = 'block';
+            return;
+        }
+    } else {
+        error.textContent = 'No se indicó origen del número.';
+        error.style.display = 'block';
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Enviando...';
+    try {
+        const res = await fetch('/whatsapp/send-template', { method: 'POST', headers, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'No se pudo enviar la plantilla');
+        closeWhatsAppSendTemplateModal();
+        if (waTemplateSourceField === 'chat') {
+            openWhatsAppChatModal(waChatCallId, waChatPhone);
+        } else if (payload.call_id) {
+            openWhatsAppChatModal(payload.call_id);
+        } else {
+            openWhatsAppChatModal(null, payload.phone_number);
+        }
+    } catch (e) {
+        error.textContent = e.message;
+        error.style.display = 'block';
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Enviar plantilla';
+    }
+}
+
 function openWhatsAppNewChat() {
     document.getElementById('waNewChatPhone').value = '';
     document.getElementById('waNewChatSubject').value = '';

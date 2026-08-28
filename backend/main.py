@@ -949,6 +949,13 @@ WHATSAPP_FILTER_TEMPLATE = os.getenv("WHATSAPP_FILTER_TEMPLATE", "az_filtro_part
 WHATSAPP_FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
 WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
 WHATSAPP_ALERT_LANGUAGE = os.getenv("WHATSAPP_ALERT_LANGUAGE", "es")
+# Plantillas de seguimiento para encuestas (botones del call center)
+WHATSAPP_TEMPLATE_MANANA_1_NAME = os.getenv("WHATSAPP_TEMPLATE_MANANA_1_NAME", "manana_1")
+WHATSAPP_TEMPLATE_MANANA_1_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_MANANA_1_LANGUAGE", "es")
+WHATSAPP_TEMPLATE_MANANA_2_NAME = os.getenv("WHATSAPP_TEMPLATE_MANANA_2_NAME", "manana_2")
+WHATSAPP_TEMPLATE_MANANA_2_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_MANANA_2_LANGUAGE", "es")
+WHATSAPP_TEMPLATE_MANANA_3_NAME = os.getenv("WHATSAPP_TEMPLATE_MANANA_3_NAME", "manana_3")
+WHATSAPP_TEMPLATE_MANANA_3_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_MANANA_3_LANGUAGE", "es")
 WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573136623816")
 WHATSAPP_ESCALATE_MINUTES = int(os.getenv("WHATSAPP_ESCALATE_MINUTES", "15"))
 CRM_LINK_BASE = os.getenv("CRM_LINK_BASE", "https://validator-excel.onrender.com/call-center-page")
@@ -1124,6 +1131,23 @@ def _wa_phone_variants(call):
         if norm:
             variants.add(norm)
     return variants
+
+
+# Mapa de plantillas de seguimiento disponibles en los botones del call center
+WHATSAPP_TEMPLATE_MAP = {
+    "manana_1": {
+        "name": WHATSAPP_TEMPLATE_MANANA_1_NAME,
+        "language": WHATSAPP_TEMPLATE_MANANA_1_LANGUAGE,
+    },
+    "manana_2": {
+        "name": WHATSAPP_TEMPLATE_MANANA_2_NAME,
+        "language": WHATSAPP_TEMPLATE_MANANA_2_LANGUAGE,
+    },
+    "manana_3": {
+        "name": WHATSAPP_TEMPLATE_MANANA_3_NAME,
+        "language": WHATSAPP_TEMPLATE_MANANA_3_LANGUAGE,
+    },
+}
 
 
 def _wa_escalate_stale():
@@ -1695,6 +1719,121 @@ def whatsapp_new_chat(
     db.add(rec)
     db.commit()
     return {"id": rec.id, "phone_number": phone, "template": template_name, "status": "sent"}
+
+
+class WhatsAppSendTemplateRequest(BaseModel):
+    call_id: Optional[int] = None
+    phone_number: Optional[str] = None
+    template_key: str
+    category: str
+
+
+@app.post("/whatsapp/send-template")
+def whatsapp_send_template(
+    request: WhatsAppSendTemplateRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Send a predefined Meta template from the call-center buttons.
+    The caller only chooses the template and types the category; nombre and
+    encuestador are filled automatically from the call and current user.
+    """
+    template_config = WHATSAPP_TEMPLATE_MAP.get(request.template_key)
+    if not template_config:
+        raise HTTPException(status_code=400, detail="Plantilla no válida")
+
+    call = None
+    if request.call_id is not None:
+        call = db.query(models.Call).filter(models.Call.id == request.call_id).first()
+        if not call:
+            raise HTTPException(status_code=404, detail="Llamada no encontrada")
+        if not _has_global_whatsapp_inbox(db, current_user) and not _can_view_whatsapp(current_user, call):
+            raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
+    elif request.phone_number:
+        if not _has_global_whatsapp_inbox(db, current_user):
+            raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+    else:
+        raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
+
+    raw_phone = request.phone_number if request.phone_number else None
+    if not raw_phone and call:
+        raw_phone = call.phone_number or call.whatsapp
+    if not raw_phone:
+        raise HTTPException(status_code=400, detail="La llamada no tiene número de teléfono")
+    phone = _normalize_wa_phone(raw_phone)
+    if not phone:
+        raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+
+    person_name = (call.person_name or "").strip() if call else ""
+    if not person_name:
+        last_in = (
+            db.query(models.WhatsAppMessage)
+            .filter(models.WhatsAppMessage.phone_number == phone)
+            .order_by(models.WhatsAppMessage.id.desc())
+            .first()
+        )
+        person_name = (last_in.profile_name or "").strip() if last_in and last_in.profile_name else ""
+    if not person_name:
+        person_name = "Cliente"
+    agent_name = (current_user.full_name or current_user.username or "").strip() or "Encuestador"
+
+    category = request.category.strip()
+    if not category:
+        raise HTTPException(status_code=400, detail="Indica la categoría o tipo de estudio")
+
+    template_name = template_config["name"]
+    template_language = template_config["language"]
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": phone,
+        "type": "template",
+        "template": {
+            "name": template_name,
+            "language": {"code": template_language},
+            "components": [{
+                "type": "body",
+                "parameters": [
+                    {"type": "text", "text": person_name},
+                    {"type": "text", "text": agent_name},
+                    {"type": "text", "text": category},
+                ],
+            }],
+        },
+    }
+    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+    if "error" in result:
+        raise HTTPException(status_code=502, detail=f"Error enviando plantilla: {result['error']}")
+
+    messages = result.get("messages") or []
+    meta_id = messages[0].get("id") if messages else None
+    preview = f"[{request.template_key}] {person_name} / {agent_name} / {category}"
+
+    rec = models.WhatsAppMessage(
+        call_id=call.id if call else None,
+        phone_number=phone,
+        direction="out",
+        message_text=preview,
+        message_type="template",
+        message_id=meta_id,
+        wa_status="sent",
+        sender_agent_id=current_user.id,
+    )
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return {
+        "id": rec.id,
+        "call_id": rec.call_id,
+        "phone_number": rec.phone_number,
+        "direction": rec.direction,
+        "message_text": rec.message_text,
+        "message_type": rec.message_type,
+        "wa_status": rec.wa_status,
+        "created_at": rec.created_at,
+        "template": template_name,
+        "template_key": request.template_key,
+    }
 
 
 @app.get("/whatsapp/history/{call_id}")
