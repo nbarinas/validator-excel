@@ -4793,6 +4793,7 @@ async function sendWhatsAppTemplate() {
 
 function openWhatsAppNewChat() {
     document.getElementById('waNewChatPhone').value = '';
+    document.getElementById('waNewChatName').value = '';
     document.getElementById('waNewChatSubject').value = '';
     document.getElementById('waNewChatLink').value = '';
     document.getElementById('waNewChatError').style.display = 'none';
@@ -4806,7 +4807,9 @@ function closeWhatsAppNewChat() {
 
 function waToggleNewChatLink() {
     const kind = document.getElementById('waNewChatKind').value;
+    const isManana = ['manana_1', 'manana_2', 'manana_3'].includes(kind);
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
+    document.getElementById('waNewChatNameLabel').style.display = isManana ? 'block' : 'none';
 }
 
 async function sendWhatsAppNewChat() {
@@ -4821,10 +4824,18 @@ async function sendWhatsAppNewChat() {
     button.textContent = 'Enviando...';
     try {
         if (['manana_1', 'manana_2', 'manana_3'].includes(kind)) {
+            const personName = document.getElementById('waNewChatName').value.trim();
+            if (!personName) {
+                throw new Error('Indica el nombre del encuestado.');
+            }
+            if (!subject) {
+                throw new Error('Indica la categoría o tipo de estudio.');
+            }
             const payload = {
                 phone_number: phone,
                 template_key: kind,
                 category: subject,
+                person_name: personName,
             };
             const res = await fetch('/whatsapp/send-template', { method: 'POST', headers, body: JSON.stringify(payload) });
             const data = await res.json();

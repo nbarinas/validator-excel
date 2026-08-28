@@ -1726,6 +1726,7 @@ class WhatsAppSendTemplateRequest(BaseModel):
     phone_number: Optional[str] = None
     template_key: str
     category: str
+    person_name: Optional[str] = None
 
 
 @app.post("/whatsapp/send-template")
@@ -1734,9 +1735,9 @@ def whatsapp_send_template(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    """Send a predefined Meta template from the call-center buttons.
-    The caller only chooses the template and types the category; nombre and
-    encuestador are filled automatically from the call and current user.
+    """Send a predefined Meta template from the call-center buttons or inbox.
+    nombre and encuestador are filled automatically from the call/current user,
+    but person_name can be provided explicitly (e.g. from the inbox modal).
     """
     template_config = WHATSAPP_TEMPLATE_MAP.get(request.template_key)
     if not template_config:
@@ -1764,7 +1765,11 @@ def whatsapp_send_template(
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
 
-    person_name = (call.person_name or "").strip() if call else ""
+    person_name = ""
+    if request.person_name:
+        person_name = request.person_name.strip()
+    if not person_name and call:
+        person_name = (call.person_name or "").strip()
     if not person_name:
         last_in = (
             db.query(models.WhatsAppMessage)
