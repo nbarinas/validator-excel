@@ -4812,22 +4812,40 @@ function waToggleNewChatLink() {
 async function sendWhatsAppNewChat() {
     const error = document.getElementById('waNewChatError');
     const button = document.getElementById('waNewChatSend');
-    const payload = {
-        phone_number: document.getElementById('waNewChatPhone').value.trim(),
-        template_kind: document.getElementById('waNewChatKind').value,
-        study_subject: document.getElementById('waNewChatSubject').value.trim(),
-        form_url: document.getElementById('waNewChatLink').value.trim() || null,
-    };
+    const kind = document.getElementById('waNewChatKind').value;
+    const phone = document.getElementById('waNewChatPhone').value.trim();
+    const subject = document.getElementById('waNewChatSubject').value.trim();
+
     error.style.display = 'none';
     button.disabled = true;
     button.textContent = 'Enviando...';
     try {
-        const res = await fetch('/whatsapp/new-chat', { method: 'POST', headers, body: JSON.stringify(payload) });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'No se pudo iniciar el chat');
-        closeWhatsAppNewChat();
-        closeWhatsAppInbox();
-        openWhatsAppChatModal(null, payload.phone_number);
+        if (['manana_1', 'manana_2', 'manana_3'].includes(kind)) {
+            const payload = {
+                phone_number: phone,
+                template_key: kind,
+                category: subject,
+            };
+            const res = await fetch('/whatsapp/send-template', { method: 'POST', headers, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'No se pudo enviar la plantilla');
+            closeWhatsAppNewChat();
+            closeWhatsAppInbox();
+            openWhatsAppChatModal(null, phone);
+        } else {
+            const payload = {
+                phone_number: phone,
+                template_kind: kind,
+                study_subject: subject,
+                form_url: document.getElementById('waNewChatLink').value.trim() || null,
+            };
+            const res = await fetch('/whatsapp/new-chat', { method: 'POST', headers, body: JSON.stringify(payload) });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.detail || 'No se pudo iniciar el chat');
+            closeWhatsAppNewChat();
+            closeWhatsAppInbox();
+            openWhatsAppChatModal(null, phone);
+        }
     } catch (e) {
         error.textContent = e.message;
         error.style.display = 'block';

@@ -2770,7 +2770,15 @@
             <div class="wa-chat-header" style="background:#075e54;"><div class="wa-chat-title"><h3>Nuevo chat WhatsApp</h3><div class="wa-chat-sub">Elige una plantilla para iniciar</div></div><button class="wa-chat-close" onclick="closeWhatsAppNewChat()">&times;</button></div>
             <div style="padding:16px;display:flex;flex-direction:column;gap:10px;color:#1e293b;">
                 <label>Número WhatsApp<input id="waNewChatPhone" type="tel" placeholder="3181234567" style="width:100%;padding:9px;box-sizing:border-box;"></label>
-                <label>Tipo de contacto<select id="waNewChatKind" onchange="waToggleNewChatLink()" style="width:100%;padding:9px;box-sizing:border-box;"><option value="filter">Filtro de participación</option><option value="form">Enviar formulario</option></select></label>
+                <label>Tipo de contacto<select id="waNewChatKind" onchange="waToggleNewChatLink()" style="width:100%;padding:9px;box-sizing:border-box;">
+                    <option value="filter">Filtro de participación</option>
+                    <option value="form">Enviar formulario</option>
+                    <optgroup label="Plantillas de seguimiento">
+                        <option value="manana_1">Buenos días (mañana) — manana_1</option>
+                        <option value="manana_2">Buenas tardes (tarde) — manana_2</option>
+                        <option value="manana_3">Buenas tardes (recordatorio) — manana_3</option>
+                    </optgroup>
+                </select></label>
                 <label>Estudio o tema<input id="waNewChatSubject" type="text" placeholder="Ej: hábitos de compra" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label id="waNewChatLinkLabel" style="display:none;">Enlace del formulario<input id="waNewChatLink" type="url" placeholder="https://..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <div id="waNewChatError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
