@@ -1129,7 +1129,7 @@ def _wa_phone_variants(call):
 # Mapa de plantillas de seguimiento disponibles en los botones del call center y el inbox.
 # Las keys deben coincidir con los nombres de las plantillas en Meta.
 WHATSAPP_TEMPLATE_MAP = {
-    "manana_1": {"name": "manana_1", "language": "es_ES"},
+    "manana_1": {"name": "manana_1", "language": "es"},
     "manana_2": {"name": "manana_2", "language": "es"},
     "manana_3": {"name": "manana_3", "language": "es_ES"},
 }
