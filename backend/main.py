@@ -949,13 +949,6 @@ WHATSAPP_FILTER_TEMPLATE = os.getenv("WHATSAPP_FILTER_TEMPLATE", "az_filtro_part
 WHATSAPP_FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
 WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
 WHATSAPP_ALERT_LANGUAGE = os.getenv("WHATSAPP_ALERT_LANGUAGE", "es")
-# Plantillas de seguimiento para encuestas (botones del call center)
-WHATSAPP_TEMPLATE_MANANA_1_NAME = os.getenv("WHATSAPP_TEMPLATE_MANANA_1_NAME", "manana_1")
-WHATSAPP_TEMPLATE_MANANA_1_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_MANANA_1_LANGUAGE", "es")
-WHATSAPP_TEMPLATE_MANANA_2_NAME = os.getenv("WHATSAPP_TEMPLATE_MANANA_2_NAME", "manana_2")
-WHATSAPP_TEMPLATE_MANANA_2_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_MANANA_2_LANGUAGE", "es")
-WHATSAPP_TEMPLATE_MANANA_3_NAME = os.getenv("WHATSAPP_TEMPLATE_MANANA_3_NAME", "manana_3")
-WHATSAPP_TEMPLATE_MANANA_3_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_MANANA_3_LANGUAGE", "es")
 WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573136623816")
 WHATSAPP_ESCALATE_MINUTES = int(os.getenv("WHATSAPP_ESCALATE_MINUTES", "15"))
 CRM_LINK_BASE = os.getenv("CRM_LINK_BASE", "https://validator-excel.onrender.com/call-center-page")
@@ -1133,20 +1126,12 @@ def _wa_phone_variants(call):
     return variants
 
 
-# Mapa de plantillas de seguimiento disponibles en los botones del call center
+# Mapa de plantillas de seguimiento disponibles en los botones del call center y el inbox.
+# Las keys deben coincidir con los nombres de las plantillas en Meta.
 WHATSAPP_TEMPLATE_MAP = {
-    "manana_1": {
-        "name": WHATSAPP_TEMPLATE_MANANA_1_NAME,
-        "language": WHATSAPP_TEMPLATE_MANANA_1_LANGUAGE,
-    },
-    "manana_2": {
-        "name": WHATSAPP_TEMPLATE_MANANA_2_NAME,
-        "language": WHATSAPP_TEMPLATE_MANANA_2_LANGUAGE,
-    },
-    "manana_3": {
-        "name": WHATSAPP_TEMPLATE_MANANA_3_NAME,
-        "language": WHATSAPP_TEMPLATE_MANANA_3_LANGUAGE,
-    },
+    "manana_1": {"name": "manana_1", "language": "es"},
+    "manana_2": {"name": "manana_2", "language": "es"},
+    "manana_3": {"name": "manana_3", "language": "es"},
 }
 
 

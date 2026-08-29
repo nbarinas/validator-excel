@@ -23,9 +23,9 @@ TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamad
 ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "alerta_seguimiento")
 FILTER_TEMPLATE = os.getenv("WHATSAPP_FILTER_TEMPLATE", "az_filtro_participacion")
 FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
-MANANA_1_TEMPLATE = os.getenv("WHATSAPP_TEMPLATE_MANANA_1_NAME", "manana_1")
-MANANA_2_TEMPLATE = os.getenv("WHATSAPP_TEMPLATE_MANANA_2_NAME", "manana_2")
-MANANA_3_TEMPLATE = os.getenv("WHATSAPP_TEMPLATE_MANANA_3_NAME", "manana_3")
+MANANA_1_TEMPLATE = "manana_1"
+MANANA_2_TEMPLATE = "manana_2"
+MANANA_3_TEMPLATE = "manana_3"
 API_VERSION = "v21.0"
 GRAPH = f"https://graph.facebook.com/{API_VERSION}"
 
