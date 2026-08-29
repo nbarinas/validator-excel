@@ -1773,6 +1773,10 @@ def whatsapp_send_template(
 
     template_name = template_config["name"]
     template_language = template_config["language"]
+    if not template_name or not template_language:
+        raise HTTPException(status_code=500, detail=f"Plantilla no configurada: name={template_name!r}, language={template_language!r}")
+
+    print(f"[WHATSAPP] Enviando plantilla {template_name!r} ({template_language!r}) a {phone} (categoria={category!r})")
 
     payload = {
         "messaging_product": "whatsapp",
