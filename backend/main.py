@@ -950,6 +950,7 @@ WHATSAPP_FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_form
 WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
 WHATSAPP_ALERT_LANGUAGE = os.getenv("WHATSAPP_ALERT_LANGUAGE", "es")
 WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573136623816")
+WHATSAPP_COPY_NUMBERS = [n.strip() for n in os.getenv("WHATSAPP_COPY_NUMBERS", "573234968972").split(",") if n.strip()]
 WHATSAPP_ESCALATE_MINUTES = int(os.getenv("WHATSAPP_ESCALATE_MINUTES", "15"))
 CRM_LINK_BASE = os.getenv("CRM_LINK_BASE", "https://validator-excel.onrender.com/call-center-page")
 META_GRAPH_URL = "https://graph.facebook.com/v21.0"
@@ -1207,17 +1208,17 @@ def _wa_escalate_stale():
             db.commit()
 
             last = msgs[-1]
-            _wa_send_superuser_alert(db, last, call, reason, agent)
+            _wa_escalate_notify_all(db, last, call, reason, agent)
     finally:
         db.close()
 
 
-def _wa_send_superuser_alert(db, msg, call, reason, agent):
-    """Send an alert copy to the superuser's personal WhatsApp with a deep link to the CRM."""
-    phone = _normalize_wa_phone(WHATSAPP_SUPERUSER_NUMBER)
-    if not phone:
-        print("[WHATSAPP] WHATSAPP_SUPERUSER_NUMBER no válido; solo se marcó en el inbox.")
-        return
+def _wa_send_alert_to(phone, msg, call, reason, agent):
+    """Send an alert copy to a target WhatsApp number (template) with a deep link to the CRM."""
+    target = _normalize_wa_phone(phone)
+    if not target:
+        print(f"[WHATSAPP] Número de destino inválido: {phone!r}; se omite.")
+        return False
     person = None
     if call:
         person = call.person_name
@@ -1238,7 +1239,7 @@ def _wa_send_superuser_alert(db, msg, call, reason, agent):
     def build_payload(parameters):
         return {
             "messaging_product": "whatsapp",
-            "to": phone,
+            "to": target,
             "type": "template",
             "template": {
                 "name": WHATSAPP_ALERT_TEMPLATE,
@@ -1254,9 +1255,35 @@ def _wa_send_superuser_alert(db, msg, call, reason, agent):
             print(f"[WHATSAPP] Plantilla {WHATSAPP_ALERT_TEMPLATE} acepta menos variables; reintentando sin enlace.")
             result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", build_payload(params_without_link))
     if "error" in result:
-        print(f"[WHATSAPP] Alerta superusuario NO enviada: {result['error']}")
-    else:
-        print(f"[WHATSAPP] Alerta superusuario enviada a {phone} (hilo {msg.phone_number})")
+        print(f"[WHATSAPP] Alerta NO enviada a {target}: {result['error']}")
+        return False
+    print(f"[WHATSAPP] Alerta enviada a {target} (hilo {msg.phone_number})")
+    return True
+
+
+def _wa_escalate_notify_all(db, msg, call, reason, agent):
+    """Notify all escalation targets about an unattended thread.
+
+    Sends the same template alert (one per included target):
+      - superuser (WHATSAPP_SUPERUSER_NUMBER)
+      - extra copy numbers (WHATSAPP_COPY_NUMBERS), e.g. 3234968972
+      - the encuestador (agente) assigned to the call, via users.phone_number
+    Deduplicates identical numbers so nobody gets the alert twice.
+    """
+    targets = {WHATSAPP_SUPERUSER_NUMBER}
+    targets.update(WHATSAPP_COPY_NUMBERS)
+    if call and call.user_id and agent and agent.phone_number:
+        targets.add(agent.phone_number)
+
+    sent_any = False
+    for t in targets:
+        normalized = _normalize_wa_phone(t)
+        if not normalized:
+            print(f"[WHATSAPP] Destino no normalizable, omitido: {t!r}")
+            continue
+        if _wa_send_alert_to(normalized, msg, call, reason, agent):
+            sent_any = True
+
     # Mark notified (attempted) so we don't retry every cycle
     for m in db.query(models.WhatsAppMessage).filter(
         models.WhatsAppMessage.phone_number == msg.phone_number,
