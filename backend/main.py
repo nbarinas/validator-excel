@@ -1130,9 +1130,10 @@ def _wa_phone_variants(call):
 # Mapa de plantillas de seguimiento disponibles en los botones del call center y el inbox.
 # Las keys deben coincidir con los nombres de las plantillas en Meta.
 WHATSAPP_TEMPLATE_MAP = {
-    "manana_1": {"name": "manana_1", "language": "es"},
-    "manana_2": {"name": "manana_2", "language": "es"},
-    "manana_3": {"name": "manana_3", "language": "es_ES"},
+    "manana_1": {"name": "manana_1", "language": "es", "params": ["nombre", "encuestador", "categoria"]},
+    "manana_2": {"name": "manana_2", "language": "es", "params": ["nombre", "encuestador", "categoria"]},
+    "manana_3": {"name": "manana_3", "language": "es_ES", "params": ["nombre", "encuestador", "categoria"]},
+    "mensaje_01": {"name": "mensaje_01", "language": "es", "params": ["cliente"]},
 }
 
 
@@ -1754,6 +1755,7 @@ def whatsapp_send_template(
     template_config = WHATSAPP_TEMPLATE_MAP.get(request.template_key)
     if not template_config:
         raise HTTPException(status_code=400, detail="Plantilla no válida")
+    template_params = template_config.get("params", [])
 
     call = None
     if request.call_id is not None:
@@ -1795,7 +1797,7 @@ def whatsapp_send_template(
     agent_name = (current_user.full_name or current_user.username or "").strip() or "Encuestador"
 
     category = request.category.strip()
-    if not category:
+    if not category and "categoria" in template_params:
         raise HTTPException(status_code=400, detail="Indica la categoría o tipo de estudio")
 
     template_name = template_config["name"]
@@ -1804,6 +1806,17 @@ def whatsapp_send_template(
         raise HTTPException(status_code=500, detail=f"Plantilla no configurada: name={template_name!r}, language={template_language!r}")
 
     print(f"[WHATSAPP] Enviando plantilla {template_name!r} ({template_language!r}) a {phone} (categoria={category!r})")
+
+    param_values = {
+        "nombre": person_name,
+        "encuestador": agent_name,
+        "categoria": category,
+        "cliente": person_name,
+    }
+    parameters = [
+        {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
+        for p in template_params
+    ]
 
     payload = {
         "messaging_product": "whatsapp",
@@ -1814,11 +1827,7 @@ def whatsapp_send_template(
             "language": {"code": template_language},
             "components": [{
                 "type": "body",
-                "parameters": [
-                    {"type": "text", "text": person_name, "parameter_name": "nombre"},
-                    {"type": "text", "text": agent_name, "parameter_name": "encuestador"},
-                    {"type": "text", "text": category, "parameter_name": "categoria"},
-                ],
+                "parameters": parameters,
             }],
         },
     }
@@ -1828,7 +1837,9 @@ def whatsapp_send_template(
 
     messages = result.get("messages") or []
     meta_id = messages[0].get("id") if messages else None
-    preview = f"[{request.template_key}] {person_name} / {agent_name} / {category}"
+    preview = f"[{request.template_key}] {person_name}"
+    if "categoria" in template_params:
+        preview += f" / {agent_name} / {category}"
 
     rec = models.WhatsAppMessage(
         call_id=call.id if call else None,
@@ -1854,6 +1865,115 @@ def whatsapp_send_template(
         "created_at": rec.created_at,
         "template": template_name,
         "template_key": request.template_key,
+    }
+
+
+class WhatsAppBulkContact(BaseModel):
+    nombre: str = ""
+    telefono: str = ""
+
+
+class WhatsAppSendBulkRequest(BaseModel):
+    template_key: str
+    category: str = ""
+    contacts: List[WhatsAppBulkContact] = []
+    batch_size: int = 20
+
+
+@app.post("/whatsapp/send-bulk")
+def whatsapp_send_bulk(
+    request: WhatsAppSendBulkRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Envío masivo de una plantilla en lotes (por defecto de 20 en 20).
+    Solo supervisores con inbox global. Normaliza números a E.164 (Colombia)
+    y guarda un registro WhatsAppMessage por cada envío.
+    """
+    if not _has_global_whatsapp_inbox(db, current_user):
+        raise HTTPException(status_code=403, detail="No tienes permiso para envíos masivos")
+
+    template_config = WHATSAPP_TEMPLATE_MAP.get(request.template_key)
+    if not template_config:
+        raise HTTPException(status_code=400, detail="Plantilla no válida")
+    template_params = template_config.get("params", [])
+    template_name = template_config["name"]
+    template_language = template_config["language"]
+
+    category = request.category.strip()
+    if not category and "categoria" in template_params:
+        raise HTTPException(status_code=400, detail="Indica la categoría o tipo de estudio")
+
+    agent_name = (current_user.full_name or current_user.username or "").strip() or "Encuestador"
+
+    valid = []
+    errors = []
+    for item in request.contacts:
+        phone = _normalize_wa_phone(item.telefono)
+        nombre = (item.nombre or "").strip() or "Cliente"
+        if not phone:
+            errors.append({"telefono": item.telefono, "nombre": nombre, "razon": "Número inválido (se espera un número de Colombia de 10 dígitos)"})
+            continue
+        valid.append({"nombre": nombre, "telefono": phone})
+
+    batch_size = max(1, int(request.batch_size or 20))
+    batches = [valid[i:i + batch_size] for i in range(0, len(valid), batch_size)] or [[]]
+
+    sent = 0
+    failed = []
+    for batch_idx, batch in enumerate(batches, start=1):
+        print(f"[WHATSAPP-BULK] Lote {batch_idx}/{len(batches)} ({len(batch)} mensajes) plantilla {template_name!r}")
+        for contact in batch:
+            person_name = contact["nombre"]
+            phone = contact["telefono"]
+            param_values = {
+                "nombre": person_name,
+                "encuestador": agent_name,
+                "categoria": category,
+                "cliente": person_name,
+            }
+            parameters = [
+                {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
+                for p in template_params
+            ]
+            payload = {
+                "messaging_product": "whatsapp",
+                "to": phone,
+                "type": "template",
+                "template": {
+                    "name": template_name,
+                    "language": {"code": template_language},
+                    "components": [{"type": "body", "parameters": parameters}],
+                },
+            }
+            result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+            if "error" in result:
+                failed.append({"telefono": phone, "nombre": person_name, "razon": str(result["error"])})
+                continue
+            messages = result.get("messages") or []
+            preview = f"[{request.template_key}] {person_name}"
+            if "categoria" in template_params:
+                preview += f" / {agent_name} / {category}"
+            rec = models.WhatsAppMessage(
+                call_id=None,
+                phone_number=phone,
+                direction="out",
+                message_text=preview,
+                message_type="template",
+                message_id=messages[0].get("id") if messages else None,
+                wa_status="sent",
+                sender_agent_id=current_user.id,
+            )
+            db.add(rec)
+            sent += 1
+            time.sleep(1.5)
+        db.commit()
+
+    return {
+        "sent": sent,
+        "failed": failed,
+        "invalid_count": len(errors),
+        "errors": errors,
     }
 
 

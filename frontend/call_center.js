@@ -4732,7 +4732,8 @@ async function sendWhatsAppTemplate() {
         error.style.display = 'block';
         return;
     }
-    if (!category) {
+    const needsCategory = selected.value !== 'mensaje_01';
+    if (needsCategory && !category) {
         error.textContent = 'Indica la categoría o tipo de estudio.';
         error.style.display = 'block';
         return;
@@ -4797,6 +4798,14 @@ function openWhatsAppNewChat() {
     document.getElementById('waNewChatSubject').value = '';
     document.getElementById('waNewChatLink').value = '';
     document.getElementById('waNewChatError').style.display = 'none';
+    document.getElementById('waBulkList').value = '';
+    document.getElementById('waBulkBatch').value = '20';
+    document.getElementById('waBulkStatus').style.display = 'none';
+    document.getElementById('waBulkError').style.display = 'none';
+    const bulkBtn = document.getElementById('waBulkSend');
+    bulkBtn.disabled = false;
+    bulkBtn.textContent = 'Enviar masivo (20 de 20)';
+    waResetBulkKind();
     waToggleNewChatLink();
     document.getElementById('whatsappNewChatModal').style.display = 'flex';
 }
@@ -4808,8 +4817,21 @@ function closeWhatsAppNewChat() {
 function waToggleNewChatLink() {
     const kind = document.getElementById('waNewChatKind').value;
     const isManana = ['manana_1', 'manana_2', 'manana_3'].includes(kind);
+    const needsName = isManana || kind === 'mensaje_01';
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
-    document.getElementById('waNewChatNameLabel').style.display = isManana ? 'block' : 'none';
+    document.getElementById('waNewChatNameLabel').style.display = needsName ? 'block' : 'none';
+    document.getElementById('waNewChatSubjectLabel').style.display = (kind === 'form' || kind === 'filter' || isManana) ? 'block' : 'none';
+}
+
+function waNewChatTemplateParams() {
+    const kind = document.getElementById('waNewChatKind').value;
+    return {
+        needsName: kind === 'mensaje_01' || ['manana_1', 'manana_2', 'manana_3'].includes(kind),
+        needsCategory: kind === 'filter' || kind === 'form' || ['manana_1', 'manana_2', 'manana_3'].includes(kind),
+        needsLink: kind === 'form',
+        isManana: ['manana_1', 'manana_2', 'manana_3'].includes(kind),
+        isMensaje01: kind === 'mensaje_01',
+    };
 }
 
 async function sendWhatsAppNewChat() {
@@ -4818,17 +4840,18 @@ async function sendWhatsAppNewChat() {
     const kind = document.getElementById('waNewChatKind').value;
     const phone = document.getElementById('waNewChatPhone').value.trim();
     const subject = document.getElementById('waNewChatSubject').value.trim();
+    const params = waNewChatTemplateParams();
 
     error.style.display = 'none';
     button.disabled = true;
     button.textContent = 'Enviando...';
     try {
-        if (['manana_1', 'manana_2', 'manana_3'].includes(kind)) {
+        if (kind === 'mensaje_01' || params.isManana) {
             const personName = document.getElementById('waNewChatName').value.trim();
             if (!personName) {
                 throw new Error('Indica el nombre del encuestado.');
             }
-            if (!subject) {
+            if (params.needsCategory && !subject) {
                 throw new Error('Indica la categoría o tipo de estudio.');
             }
             const payload = {
@@ -4863,6 +4886,100 @@ async function sendWhatsAppNewChat() {
     } finally {
         button.disabled = false;
         button.textContent = 'Enviar plantilla';
+    }
+}
+
+function waResetBulkKind() {
+    document.getElementById('waNewChatKind').value = 'mensaje_01';
+    waToggleNewChatLink();
+}
+
+function parseBulkList(text) {
+    const contacts = [];
+    const lines = String(text || '').split(/\r?\n/);
+    lines.forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+        const parts = trimmed.split(/[,;\t]/);
+        let nombre = (parts[0] || '').trim();
+        let telefono = (parts.length > 1 ? parts[parts.length - 1] : '').trim();
+        if (parts.length > 1) {
+            telefono = telefono.replace(/\D/g, '');
+        } else {
+            telefono = telefono.replace(/\D/g, '');
+            nombre = '';
+        }
+        if (!telefono) return;
+        contacts.push({ nombre, telefono });
+    });
+    return contacts;
+}
+
+function waUpdateBulkButton() {
+    const list = document.getElementById('waBulkList').value.trim();
+    const batch = parseInt(document.getElementById('waBulkBatch').value || '20', 10) || 20;
+    const contacts = parseBulkList(list);
+    const btn = document.getElementById('waBulkSend');
+    if (contacts.length === 0) {
+        btn.textContent = 'Enviar masivo';
+        return;
+    }
+    btn.textContent = `Enviar masivo (${contacts.length} contactos, ${batch} por lote)`;
+}
+
+async function sendWhatsAppBulk() {
+    const listEl = document.getElementById('waBulkList');
+    const statusEl = document.getElementById('waBulkStatus');
+    const errorEl = document.getElementById('waBulkError');
+    const btn = document.getElementById('waBulkSend');
+    const batch = parseInt(document.getElementById('waBulkBatch').value || '20', 10) || 20;
+    const kind = document.getElementById('waNewChatKind').value;
+    const params = waNewChatTemplateParams();
+    const subject = document.getElementById('waNewChatSubject').value.trim();
+
+    errorEl.style.display = 'none';
+    statusEl.style.display = 'none';
+    const contacts = parseBulkList(listEl.value);
+    if (contacts.length === 0) {
+        errorEl.textContent = 'Pega al menos una línea con Nombre, número.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    if (params.needsCategory && !subject) {
+        errorEl.textContent = 'Indica la categoría o tipo de estudio para esta plantilla.';
+        errorEl.style.display = 'block';
+        return;
+    }
+    const payload = {
+        template_key: kind,
+        category: subject,
+        contacts,
+        batch_size: batch,
+    };
+
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = 'Enviando...';
+    try {
+        const res = await fetch('/whatsapp/send-bulk', { method: 'POST', headers, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'No se pudo enviar el lote');
+        if (data.invalid_count > 0) {
+            errorEl.textContent = 'Números inválidos no enviados:\n' +
+                data.errors.map(e => `• ${e.nombre} — ${e.telefono}: ${e.razon}`).join('\n');
+            errorEl.style.display = 'block';
+        }
+        statusEl.textContent = `✅ Enviados: ${data.sent}` +
+            (data.failed.length ? `\nFallados: ${data.failed.length}` : '') +
+            (data.invalid_count ? `\nInválidos: ${data.invalid_count}` : '');
+        statusEl.style.display = 'block';
+    } catch (e) {
+        errorEl.textContent = e.message;
+        errorEl.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalText;
+        waUpdateBulkButton();
     }
 }
 

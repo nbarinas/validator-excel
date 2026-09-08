@@ -26,6 +26,7 @@ FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
 MANANA_1_TEMPLATE = "manana_1"
 MANANA_2_TEMPLATE = "manana_2"
 MANANA_3_TEMPLATE = "manana_3"
+MENSAJE_01_TEMPLATE = "mensaje_01"
 API_VERSION = "v21.0"
 GRAPH = f"https://graph.facebook.com/{API_VERSION}"
 
@@ -77,6 +78,19 @@ MANANA_3_BODY = (
     "Su opinión nos ayuda mucho. Gracias."
 )
 MANANA_3_EXAMPLE = [["María Pérez", "Karol David", "hábitos de compra"]]
+
+MENSAJE_01_BODY = (
+    "AZ-Marketing\n"
+    "Hola {{1}}, soy Armando Zarate de AZ-Marketing, especialistas en investigación de mercados.\n\n"
+    "Trabajamos con empresas como la suya brindando:\n"
+    "📊 Estudios de satisfacción del cliente\n"
+    "📈 Investigación de mercados\n"
+    "🎯 Encuestas a empleados y proveedores\n\n"
+    "¿Te gustaría conocer cómo podemos ayudarles a tomar mejores decisiones de negocio?\n\n"
+    "Responde SI para más información o NO para no recibir más mensajes.\n"
+    "Muchas gracias"
+)
+MENSAJE_01_EXAMPLE = [["Cliente"]]
 
 
 def token():
@@ -137,6 +151,7 @@ def setup_template():
     create_template(MANANA_1_TEMPLATE, MANANA_1_BODY, MANANA_1_EXAMPLE)
     create_template(MANANA_2_TEMPLATE, MANANA_2_BODY, MANANA_2_EXAMPLE)
     create_template(MANANA_3_TEMPLATE, MANANA_3_BODY, MANANA_3_EXAMPLE)
+    create_template(MENSAJE_01_TEMPLATE, MENSAJE_01_BODY, MENSAJE_01_EXAMPLE)
     print("IMPORTANTE: espera la aprobación de Meta antes de enviar (minutos/horas).")
 
 

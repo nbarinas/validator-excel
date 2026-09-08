@@ -2766,11 +2766,14 @@
     </div>
 
     <div id="whatsappNewChatModal" class="wa-chat-modal" onclick="if(event.target===this)closeWhatsAppNewChat()">
-        <div class="wa-chat-box" style="width: 500px;">
+        <div class="wa-chat-box" style="width: 560px;">
             <div class="wa-chat-header" style="background:#075e54;"><div class="wa-chat-title"><h3>Nuevo chat WhatsApp</h3><div class="wa-chat-sub">Elige una plantilla para iniciar</div></div><button class="wa-chat-close" onclick="closeWhatsAppNewChat()">&times;</button></div>
-            <div style="padding:16px;display:flex;flex-direction:column;gap:10px;color:#1e293b;">
+            <div style="padding:16px;display:flex;flex-direction:column;gap:10px;color:#1e293b;max-height:70vh;overflow-y:auto;">
                 <label>Número WhatsApp<input id="waNewChatPhone" type="tel" placeholder="3181234567" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label>Tipo de contacto<select id="waNewChatKind" onchange="waToggleNewChatLink()" style="width:100%;padding:9px;box-sizing:border-box;">
+                    <optgroup label="Plantillas AZ">
+                        <option value="mensaje_01" selected>Presentación / AZ-Marketing — mensaje_01</option>
+                    </optgroup>
                     <option value="filter">Filtro de participación</option>
                     <option value="form">Enviar formulario</option>
                     <optgroup label="Plantillas de seguimiento">
@@ -2780,10 +2783,20 @@
                     </optgroup>
                 </select></label>
                 <label id="waNewChatNameLabel" style="display:none;">Nombre del encuestado<input id="waNewChatName" type="text" placeholder="Ej: María Pérez" style="width:100%;padding:9px;box-sizing:border-box;"></label>
-                <label>Estudio o tema<input id="waNewChatSubject" type="text" placeholder="Ej: hábitos de compra" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <label id="waNewChatSubjectLabel">Estudio o tema<input id="waNewChatSubject" type="text" placeholder="Ej: hábitos de compra" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label id="waNewChatLinkLabel" style="display:none;">Enlace del formulario<input id="waNewChatLink" type="url" placeholder="https://..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <div id="waNewChatError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
                 <div style="display:flex;justify-content:flex-end;gap:8px;"><button onclick="closeWhatsAppNewChat()" style="padding:9px 14px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:pointer;">Cancelar</button><button id="waNewChatSend" onclick="sendWhatsAppNewChat()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Enviar plantilla</button></div>
+
+                <hr style="border:none;border-top:1px solid #e2e8f0;margin:4px 0;">
+                <div style="font-weight:700;color:#064e3b;">📤 Envío masivo</div>
+                <label>Pega tu lista (Nombre, número) — una por línea
+                    <textarea id="waBulkList" rows="6" oninput="waUpdateBulkButton()" placeholder="María Pérez, 3181234567&#10;Juan Gómez, 3109876543" style="width:100%;padding:9px;box-sizing:border-box;font-family:inherit;resize:vertical;"></textarea>
+                </label>
+                <label>Personas por lote<input id="waBulkBatch" type="number" value="20" min="1" max="50" oninput="waUpdateBulkButton()" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <div id="waBulkStatus" style="display:none;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;padding:8px;font-size:.85rem;color:#065f46;"></div>
+                <div id="waBulkError" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px;font-size:.8rem;color:#b91c1c;max-height:120px;overflow-y:auto;white-space:pre-wrap;"></div>
+                <button id="waBulkSend" onclick="sendWhatsAppBulk()" style="padding:9px 14px;border:0;border-radius:6px;background:#0f766e;color:#fff;font-weight:600;cursor:pointer;">Enviar masivo (20 de 20)</button>
             </div>
         </div>
     </div>
@@ -2802,6 +2815,13 @@
                 <input type="hidden" id="waTemplateSourceField" value="">
                 <label style="font-weight:600;font-size:0.9rem;">Selecciona la plantilla</label>
                 <div style="display:flex;flex-direction:column;gap:8px;">
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
+                        <input type="radio" name="waTemplateKey" value="mensaje_01" style="margin-top:3px;">
+                        <div>
+                            <div style="font-weight:600;">Presentación AZ-Marketing</div>
+                            <div style="font-size:0.8rem;color:#64748b;">mensaje_01</div>
+                        </div>
+                    </label>
                     <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
                         <input type="radio" name="waTemplateKey" value="manana_1" checked style="margin-top:3px;">
                         <div>
