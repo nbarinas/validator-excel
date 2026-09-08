@@ -924,6 +924,15 @@
             background: #fee2e2;
         }
 
+        .wa-inbox-item-blocked {
+            background: #fef2f2;
+            border-left: 4px solid #b91c1c;
+        }
+
+        .wa-inbox-item-blocked:hover {
+            background: #fee2e2;
+        }
+
         .wa-esc-badge {
             background: #ef4444;
             color: white;
@@ -2863,10 +2872,16 @@
                     <h3 id="waChatTitle">Chat WhatsApp</h3>
                     <div class="wa-chat-sub" id="waChatSub"></div>
                 </div>
+                <button id="waChatBlockBtn" onclick="toggleBlockContact()" title="Bloquear contacto para no volver a escribir" style="font-size:0.85rem;padding:4px 10px;margin-right:6px;background:#b91c1c;border-color:#991b1b;display:none;">
+                    🛑 Bloquear
+                </button>
                 <button class="wa-chat-close" onclick="openWhatsAppTemplateModalFromChat()" title="Enviar otra plantilla" style="font-size:0.85rem;padding:4px 10px;margin-right:6px;background:#128c7e;border-color:#0e7267;">
                     <i class="fab fa-whatsapp"></i> Plantilla
                 </button>
                 <button class="wa-chat-close" onclick="closeWhatsAppChatModal()">&times;</button>
+            </div>
+            <div id="waChatBlockedBanner" style="display:none;background:#fef2f2;border-bottom:1px solid #fecaca;color:#b91c1c;padding:8px 12px;font-size:.85rem;font-weight:600;">
+                🔒 Contacto bloqueado — no se pueden enviar mensajes (respondió NO)
             </div>
             <div class="wa-chat-body" id="waChatBody">
                 <div class="wa-msg-system">Cargando conversación...</div>

@@ -1094,6 +1094,20 @@ def _has_global_whatsapp_inbox(db, user):
     ).first())
 
 
+def _is_blocked(db, raw_phone):
+    """Return the blocked record (or None) for a phone number, if it is blocked."""
+    phone = _normalize_wa_phone(raw_phone)
+    if not phone:
+        return None
+    return db.query(models.WhatsAppBlocked).filter(models.WhatsAppBlocked.phone_number == phone).first()
+
+
+def _blocked_numbers(db):
+    """Set of normalized E.164 phone numbers that are currently blocked."""
+    rows = db.query(models.WhatsAppBlocked.phone_number).all()
+    return {r[0] for r in rows}
+
+
 def _find_call_by_phone(db, raw_phone):
     """Find a Call matching the given phone (tries normalized variants)."""
     if not raw_phone:
@@ -1446,6 +1460,8 @@ def whatsapp_send(
     phone = _normalize_wa_phone(raw_phone)
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    if _is_blocked(db, phone):
+        raise HTTPException(status_code=403, detail="Este número está bloqueado y no se puede contactar")
 
     has_conversation = db.query(models.WhatsAppMessage).filter(
         models.WhatsAppMessage.phone_number == phone,
@@ -1556,6 +1572,8 @@ def whatsapp_send_media(
     phone = _normalize_wa_phone(raw_phone)
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    if _is_blocked(db, phone):
+        raise HTTPException(status_code=403, detail="Este número está bloqueado y no se puede contactar")
 
     mime_type = (file.content_type or "application/octet-stream").lower()
     filename = os.path.basename(file.filename or "archivo")
@@ -1686,6 +1704,8 @@ def whatsapp_new_chat(
     phone = _normalize_wa_phone(request.phone_number)
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    if _is_blocked(db, phone):
+        raise HTTPException(status_code=403, detail="Este número está bloqueado y no se puede contactar")
     subject = request.study_subject.strip()
     if not subject:
         raise HTTPException(status_code=400, detail="Indica el tema o estudio")
@@ -1778,6 +1798,8 @@ def whatsapp_send_template(
     phone = _normalize_wa_phone(raw_phone)
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    if _is_blocked(db, phone):
+        raise HTTPException(status_code=403, detail="Este número está bloqueado y no se puede contactar")
 
     person_name = ""
     if request.person_name:
@@ -1908,11 +1930,16 @@ def whatsapp_send_bulk(
 
     valid = []
     errors = []
+    blocked = []
+    blocked_set = _blocked_numbers(db)
     for item in request.contacts:
         phone = _normalize_wa_phone(item.telefono)
         nombre = (item.nombre or "").strip() or "Cliente"
         if not phone:
             errors.append({"telefono": item.telefono, "nombre": nombre, "razon": "Número inválido (se espera un número de Colombia de 10 dígitos)"})
+            continue
+        if phone in blocked_set:
+            blocked.append({"telefono": phone, "nombre": nombre, "razon": "Número bloqueado (no se puede contactar)"})
             continue
         valid.append({"nombre": nombre, "telefono": phone})
 
@@ -1972,9 +1999,87 @@ def whatsapp_send_bulk(
     return {
         "sent": sent,
         "failed": failed,
+        "blocked": blocked,
+        "blocked_count": len(blocked),
         "invalid_count": len(errors),
         "errors": errors,
     }
+
+
+class WhatsAppBlockRequest(BaseModel):
+    phone_number: str
+    reason: Optional[str] = None
+
+
+class WhatsAppUnblockRequest(BaseModel):
+    phone_number: str
+
+
+@app.get("/whatsapp/blocked")
+def whatsapp_blocked_list(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """List blocked WhatsApp numbers. Requires global inbox supervision."""
+    if not _has_global_whatsapp_inbox(db, current_user):
+        raise HTTPException(status_code=403, detail="No tienes permiso para gestionar bloqueos")
+    rows = (
+        db.query(models.WhatsAppBlocked)
+        .order_by(models.WhatsAppBlocked.created_at.desc())
+        .all()
+    )
+    return [{
+        "id": b.id,
+        "phone_number": b.phone_number,
+        "reason": b.reason,
+        "blocked_by": b.blocked_by,
+        "created_at": b.created_at,
+    } for b in rows]
+
+
+@app.post("/whatsapp/block")
+def whatsapp_block(
+    request: WhatsAppBlockRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Block a phone number from any outgoing WhatsApp message. Idempotent."""
+    if not _has_global_whatsapp_inbox(db, current_user):
+        raise HTTPException(status_code=403, detail="No tienes permiso para bloquear contactos")
+    phone = _normalize_wa_phone(request.phone_number)
+    if not phone:
+        raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    existing = _is_blocked(db, phone)
+    if existing:
+        return {"id": existing.id, "phone_number": phone, "blocked": True, "reason": existing.reason}
+    rec = models.WhatsAppBlocked(
+        phone_number=phone,
+        reason=(request.reason or "").strip()[:255] or None,
+        blocked_by=current_user.id,
+    )
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+    return {"id": rec.id, "phone_number": phone, "blocked": True, "reason": rec.reason}
+
+
+@app.post("/whatsapp/unblock")
+def whatsapp_unblock(
+    request: WhatsAppUnblockRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Remove the block on a phone number. Idempotent."""
+    if not _has_global_whatsapp_inbox(db, current_user):
+        raise HTTPException(status_code=403, detail="No tienes permiso para desbloquear contactos")
+    phone = _normalize_wa_phone(request.phone_number)
+    if not phone:
+        raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    removed = db.query(models.WhatsAppBlocked).filter(
+        models.WhatsAppBlocked.phone_number == phone
+    ).delete()
+    db.commit()
+    return {"phone_number": phone, "blocked": False, "removed": removed}
 
 
 @app.get("/whatsapp/history/{call_id}")
@@ -2012,6 +2117,7 @@ def whatsapp_history(
         "call_id": call.id,
         "person_name": call.person_name,
         "phone_number": phone_display,
+        "blocked": _is_blocked(db, phone_display) is not None,
         "agent_id": call.user_id,
         "agent_name": (agent.full_name or agent.username) if agent else None,
         "messages": [{
@@ -2065,6 +2171,7 @@ def whatsapp_history_phone(
         "call_id": None,
         "person_name": person_name,
         "phone_number": norm,
+        "blocked": _is_blocked(db, norm) is not None,
         "agent_id": None,
         "agent_name": None,
         "messages": [{
@@ -2205,6 +2312,7 @@ def whatsapp_inbox(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     can_supervise = _has_global_whatsapp_inbox(db, current_user)
+    blocked_set = _blocked_numbers(db)
     sub = (
         db.query(models.WhatsAppMessage.call_id)
         .filter(models.WhatsAppMessage.call_id.isnot(None))
@@ -2246,6 +2354,7 @@ def whatsapp_inbox(
         agent = db.query(models.User).filter(models.User.id == call.user_id).first() if call.user_id else None
         study = db.query(models.Study).filter(models.Study.id == call.study_id).first() if call.study_id else None
         phone_display = variants.pop() if variants else (call.phone_number or call.whatsapp)
+        phone_norm = _normalize_wa_phone(phone_display)
         threads.append({
             "call_id": call.id,
             "phone_number": phone_display,
@@ -2262,6 +2371,7 @@ def whatsapp_inbox(
             "unassigned": call.user_id is None,
             "escalated": escalated,
             "esc_reason": esc_reason,
+            "blocked": phone_norm in blocked_set,
         })
 
     # Threads with no call in the CRM (numbers "que nadie tiene")
@@ -2317,6 +2427,7 @@ def whatsapp_inbox(
                 "unassigned": True,
                 "escalated": escalated,
                 "esc_reason": esc_reason,
+                "blocked": phone in blocked_set,
             })
 
     threads.sort(key=lambda t: (t["last_at"] is not None, t["last_at"] or datetime.min), reverse=True)

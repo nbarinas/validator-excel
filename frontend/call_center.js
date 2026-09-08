@@ -4419,6 +4419,7 @@ let waPollTimer = null;
 let waChatAgentId = null;
 let waInboxTab = 'all';
 let waLastHistorySignature = null;
+let waChatBlocked = false;
 
 const waEsc = (s) => {
     if (s === null || s === undefined) return '';
@@ -4447,6 +4448,7 @@ function openWhatsAppChatModal(callId, phone) {
     waChatPhone = hasPhone ? String(phone).replace(/\D/g, '') : null;
     waChatAgentId = null;
     waLastHistorySignature = null;
+    waSetChatBlockedUI(false);
     document.getElementById('whatsappChatModal').style.display = 'flex';
     document.getElementById('waChatTitle').textContent = 'Chat WhatsApp';
     document.getElementById('waChatSub').textContent = 'Cargando...';
@@ -4490,7 +4492,60 @@ function closeWhatsAppChatModal() {
     waChatCallId = null;
     waChatPhone = null;
     waLastHistorySignature = null;
+    waChatBlocked = false;
     closeWaMediaViewer();
+}
+
+function waCanBlock() {
+    return currentUserRole === 'superuser' || currentUserWhatsAppInboxEnabled;
+}
+
+function waSetChatBlockedUI(blocked) {
+    waChatBlocked = !!blocked;
+    const btn = document.getElementById('waChatBlockBtn');
+    const banner = document.getElementById('waChatBlockedBanner');
+    const input = document.getElementById('waChatInput');
+    const attachBtn = document.querySelector('#whatsappChatModal .wa-attach-btn');
+    const sendBtn = document.querySelector('#whatsappChatModal .wa-chat-input button[onclick="waSendMessage()"]');
+    if (banner) banner.style.display = blocked ? 'block' : 'none';
+    if (input) {
+        input.disabled = blocked;
+        input.placeholder = blocked ? 'Contacto bloqueado' : 'Escribe un mensaje...';
+    }
+    if (attachBtn) attachBtn.disabled = blocked;
+    if (sendBtn) sendBtn.disabled = blocked;
+    if (btn) {
+        if (!waCanBlock()) {
+            btn.style.display = 'none';
+            return;
+        }
+        btn.style.display = 'inline-flex';
+        btn.textContent = blocked ? '🔓 Desbloquear' : '🛑 Bloquear';
+        btn.title = blocked ? 'Desbloquear contacto' : 'Bloquear contacto para no volver a escribir';
+        btn.style.background = blocked ? '#15803d' : '#b91c1c';
+        btn.style.borderColor = blocked ? '#166534' : '#991b1b';
+    }
+}
+
+async function toggleBlockContact() {
+    if (!waChatPhone) return;
+    const btn = document.getElementById('waChatBlockBtn');
+    if (btn) btn.disabled = true;
+    try {
+        const url = waChatBlocked ? '/whatsapp/unblock' : '/whatsapp/block';
+        const body = waChatBlocked
+            ? { phone_number: waChatPhone }
+            : { phone_number: waChatPhone, reason: 'respondió NO' };
+        const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Error');
+        waSetChatBlockedUI(data.blocked);
+        if (window.openWhatsAppInbox) openWhatsAppInbox(); else waLoadInbox();
+    } catch (e) {
+        alert('No se pudo actualizar el bloqueo: ' + e.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 async function waLoadHistory() {
@@ -4501,6 +4556,10 @@ async function waLoadHistory() {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         waChatAgentId = data.agent_id;
+        if (data.phone_number && !waChatPhone) {
+            waChatPhone = String(data.phone_number).replace(/\D/g, '');
+        }
+        waSetChatBlockedUI(data.blocked);
         document.getElementById('waChatTitle').textContent = `Chat WhatsApp · ${waEsc(data.person_name || 'Sin nombre')}`;
         let sub = waEsc(data.phone_number || '');
         if (!data.call_id) sub += ' <span style="opacity:.75">· Sin llamada asignada</span>';
@@ -4595,6 +4654,10 @@ function closeWaMediaViewer() {
 
 async function waSendMessage() {
     if (!waChatCallId && !waChatPhone) return;
+    if (waChatBlocked) {
+        alert("Este contacto está bloqueado. No se pueden enviar mensajes.");
+        return;
+    }
     const input = document.getElementById('waChatInput');
     const fileInput = document.getElementById('waChatFile');
     const selectedFile = fileInput && fileInput.files ? fileInput.files[0] : null;
@@ -4964,13 +5027,20 @@ async function sendWhatsAppBulk() {
         const res = await fetch('/whatsapp/send-bulk', { method: 'POST', headers, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'No se pudo enviar el lote');
+        if (res.ok && data.blocked_count > 0) {
+            errorEl.textContent = 'Contactos bloqueados (NO) no enviados:\n' +
+                data.blocked.map(e => `• ${e.nombre} — ${e.telefono}`).join('\n');
+            errorEl.style.display = 'block';
+        }
         if (data.invalid_count > 0) {
-            errorEl.textContent = 'Números inválidos no enviados:\n' +
+            errorEl.textContent = (errorEl.style.display === 'block' ? errorEl.textContent + '\n\n' : '') +
+                'Números inválidos no enviados:\n' +
                 data.errors.map(e => `• ${e.nombre} — ${e.telefono}: ${e.razon}`).join('\n');
             errorEl.style.display = 'block';
         }
         statusEl.textContent = `✅ Enviados: ${data.sent}` +
             (data.failed.length ? `\nFallados: ${data.failed.length}` : '') +
+            (data.blocked_count ? `\nBloqueados: ${data.blocked_count}` : '') +
             (data.invalid_count ? `\nInválidos: ${data.invalid_count}` : '');
         statusEl.style.display = 'block';
     } catch (e) {
@@ -5022,15 +5092,16 @@ async function waLoadInbox() {
             const initial = (t.person_name || t.phone_number || '?').trim().charAt(0).toUpperCase();
             const escBadge = t.escalated ? `<span class="wa-esc-badge" title="${t.esc_reason === 'sin_asignar' ? 'Sin encuestador asignado' : 'Encuestador desconectado'}">${t.esc_reason === 'sin_asignar' ? 'SIN ASIGNAR' : 'DESCONECTADO'}</span>` : '';
             const unassignedTag = t.unassigned && !t.call_id ? '<span class="wa-unassigned-tag">SIN LLAMADA</span>' : '';
+            const blockedTag = t.blocked ? '<span class="wa-esc-badge" style="background:#b91c1c;" title="Contacto bloqueado (respondió NO)">🔒 BLOQUEADO</span>' : '';
             const agentInfo = t.agent_name ? `<span style="color:#94a3b8; font-weight:400; font-size:0.75rem;">· ${waEsc(t.agent_name)}</span>` : '';
             const click = t.call_id
                 ? `openWhatsAppChatModal(${t.call_id})`
                 : `openWhatsAppChatModal(null, '${waEsc(t.phone_number)}')`;
-            html += `<div class="wa-inbox-item ${t.escalated ? 'wa-inbox-item-escalated' : ''}" onclick="${click}">
+            html += `<div class="wa-inbox-item ${t.escalated ? 'wa-inbox-item-escalated' : ''}${t.blocked ? ' wa-inbox-item-blocked' : ''}" onclick="${click}">
                 <div class="wa-inbox-avatar">${waEsc(initial)}</div>
                 <div class="wa-inbox-info">
-                    <div class="wa-inbox-name">${waEsc(t.person_name || 'Sin nombre')} ${agentInfo}${escBadge}${unassignedTag}</div>
-                    <div class="wa-inbox-last">${waEsc(t.last_message || '')}</div>
+                    <div class="wa-inbox-name">${waEsc(t.person_name || 'Sin nombre')} ${agentInfo}${escBadge}${unassignedTag}${blockedTag}</div>
+                    <div class="wa-inbox-last">${t.blocked ? '<span style="color:#b91c1c;">🔒 Contacto bloqueado (NO). No se puede contactar.</span>' : waEsc(t.last_message || '')}</div>
                 </div>
                 <div style="text-align:right; flex-shrink:0;">
                     ${t.unread ? `<span class="wa-inbox-badge">${t.unread}</span>` : ''}

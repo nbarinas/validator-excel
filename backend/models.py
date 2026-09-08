@@ -451,6 +451,17 @@ class WhatsAppInboxPermission(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
+class WhatsAppBlocked(Base):
+    __tablename__ = "whatsapp_blocked"
+
+    id = Column(Integer, primary_key=True, index=True)
+    phone_number = Column(String(20), unique=True, index=True, nullable=False)
+    reason = Column(String(255), nullable=True)
+    blocked_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+
 class ChatMessage(Base):
     __tablename__ = "chat_messages"
 
