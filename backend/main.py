@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Str
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload, subqueryload
-from sqlalchemy import func
+from sqlalchemy import func, asc, desc
 import json
 import urllib.request
 import urllib.error
@@ -1141,6 +1141,36 @@ def _wa_phone_variants(call):
     return variants
 
 
+_DEFAULT_HISTORY_LIMIT = 100
+_MAX_HISTORY_LIMIT = 200
+
+
+def _paginated_wa_messages(query, limit: int, before_id: Optional[int], after_id: Optional[int]):
+    """Apply cursor pagination to a WhatsAppMessage query and return (messages, has_more).
+
+    Messages are always returned sorted by id ascending (chronological order).
+    - before_id: return older messages with id < before_id (used for "load more").
+    - after_id: return newer messages with id > after_id (used for polling).
+    """
+    limit = min(max(1, limit), _MAX_HISTORY_LIMIT)
+    if after_id is not None:
+        query = query.filter(models.WhatsAppMessage.id > after_id).order_by(asc(models.WhatsAppMessage.id))
+    elif before_id is not None:
+        query = query.filter(models.WhatsAppMessage.id < before_id).order_by(desc(models.WhatsAppMessage.id))
+    else:
+        query = query.order_by(desc(models.WhatsAppMessage.id))
+
+    rows = query.limit(limit + 1).all()
+    has_more = len(rows) > limit
+    if has_more:
+        rows = rows[:limit]
+
+    if after_id is None:
+        rows = list(reversed(rows))
+
+    return rows, has_more
+
+
 # Mapa de plantillas de seguimiento disponibles en los botones del call center y el inbox.
 # Las keys deben coincidir con los nombres de las plantillas en Meta.
 WHATSAPP_TEMPLATE_MAP = {
@@ -2085,6 +2115,9 @@ def whatsapp_unblock(
 @app.get("/whatsapp/history/{call_id}")
 def whatsapp_history(
     call_id: int,
+    limit: int = _DEFAULT_HISTORY_LIMIT,
+    before_id: Optional[int] = None,
+    after_id: Optional[int] = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
@@ -2095,17 +2128,16 @@ def whatsapp_history(
         raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
 
     variants = _wa_phone_variants(call)
-    msgs = []
-    if variants:
-        msgs = (
-            db.query(models.WhatsAppMessage)
-            .filter(
-                (models.WhatsAppMessage.call_id == call.id) |
-                (models.WhatsAppMessage.phone_number.in_(list(variants)))
-            )
-            .order_by(models.WhatsAppMessage.id.asc())
-            .all()
+    query = (
+        db.query(models.WhatsAppMessage)
+        .filter(
+            (models.WhatsAppMessage.call_id == call.id) |
+            (models.WhatsAppMessage.phone_number.in_(list(variants)))
         )
+    ) if variants else db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.call_id == call.id)
+
+    msgs, has_more = _paginated_wa_messages(query, limit, before_id, after_id)
+
     for m in msgs:
         if m.direction == "in" and m.read_at is None:
             m.read_at = datetime.utcnow()
@@ -2120,6 +2152,7 @@ def whatsapp_history(
         "blocked": _is_blocked(db, phone_display) is not None,
         "agent_id": call.user_id,
         "agent_name": (agent.full_name or agent.username) if agent else None,
+        "has_more": has_more,
         "messages": [{
             "id": m.id,
             "call_id": m.call_id,
@@ -2143,6 +2176,9 @@ def whatsapp_history(
 @app.get("/whatsapp/history-phone")
 def whatsapp_history_phone(
     phone: str,
+    limit: int = _DEFAULT_HISTORY_LIMIT,
+    before_id: Optional[int] = None,
+    after_id: Optional[int] = None,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
@@ -2152,12 +2188,9 @@ def whatsapp_history_phone(
     norm = _normalize_wa_phone(phone)
     if not norm:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
-    msgs = (
-        db.query(models.WhatsAppMessage)
-        .filter(models.WhatsAppMessage.phone_number == norm)
-        .order_by(models.WhatsAppMessage.id.asc())
-        .all()
-    )
+    query = db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.phone_number == norm)
+    msgs, has_more = _paginated_wa_messages(query, limit, before_id, after_id)
+
     for m in msgs:
         if m.direction == "in" and m.read_at is None:
             m.read_at = datetime.utcnow()
@@ -2174,6 +2207,7 @@ def whatsapp_history_phone(
         "blocked": _is_blocked(db, norm) is not None,
         "agent_id": None,
         "agent_name": None,
+        "has_more": has_more,
         "messages": [{
             "id": m.id,
             "call_id": m.call_id,

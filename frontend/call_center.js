@@ -4420,6 +4420,15 @@ let waChatAgentId = null;
 let waInboxTab = 'all';
 let waLastHistorySignature = null;
 let waChatBlocked = false;
+let waHistoryHasMore = false;
+let waHistoryLoading = false;
+let waHistoryMessages = [];
+let waMediaCache = new Map();
+let waHistoryPageVisible = true;
+
+document.addEventListener('visibilitychange', () => {
+    waHistoryPageVisible = !document.hidden;
+});
 
 const waEsc = (s) => {
     if (s === null || s === undefined) return '';
@@ -4448,6 +4457,11 @@ function openWhatsAppChatModal(callId, phone) {
     waChatPhone = hasPhone ? String(phone).replace(/\D/g, '') : null;
     waChatAgentId = null;
     waLastHistorySignature = null;
+    waHistoryHasMore = false;
+    waHistoryMessages = [];
+    waMediaCache.forEach(url => URL.revokeObjectURL(url));
+    waMediaCache.clear();
+    waHistoryPageVisible = true;
     waSetChatBlockedUI(false);
     document.getElementById('whatsappChatModal').style.display = 'flex';
     document.getElementById('waChatTitle').textContent = 'Chat WhatsApp';
@@ -4457,7 +4471,7 @@ function openWhatsAppChatModal(callId, phone) {
     waClearSelectedFile();
     waLoadHistory();
     clearInterval(waPollTimer);
-    waPollTimer = setInterval(waLoadHistory, 5000);
+    waPollTimer = setInterval(() => waLoadHistory({ polling: true }), 5000);
 }
 
 function waHandleFileSelection() {
@@ -4493,6 +4507,10 @@ function closeWhatsAppChatModal() {
     waChatPhone = null;
     waLastHistorySignature = null;
     waChatBlocked = false;
+    waHistoryHasMore = false;
+    waHistoryMessages = [];
+    waMediaCache.forEach(url => URL.revokeObjectURL(url));
+    waMediaCache.clear();
     closeWaMediaViewer();
 }
 
@@ -4548,10 +4566,24 @@ async function toggleBlockContact() {
     }
 }
 
-async function waLoadHistory() {
+async function waLoadHistory({ polling = false, loadMore = false } = {}) {
     if (!waChatCallId && !waChatPhone) return;
+    if (waHistoryLoading) return;
+    if (polling && !waHistoryPageVisible) return;
+    waHistoryLoading = true;
     try {
         let url = waChatCallId ? `/whatsapp/history/${waChatCallId}` : `/whatsapp/history-phone?phone=${encodeURIComponent(waChatPhone)}`;
+        const params = new URLSearchParams();
+        params.set('limit', '100');
+        if (polling && waHistoryMessages.length) {
+            const afterId = Math.max(...waHistoryMessages.map(m => m.id));
+            params.set('after_id', String(afterId));
+        } else if (loadMore && waHistoryMessages.length) {
+            const beforeId = Math.min(...waHistoryMessages.map(m => m.id));
+            params.set('before_id', String(beforeId));
+        }
+        const sep = url.includes('?') ? '&' : '?';
+        url += sep + params.toString();
         const res = await fetch(url, { headers });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
@@ -4566,74 +4598,151 @@ async function waLoadHistory() {
         if (data.agent_name) sub += ` · Encuestador: ${waEsc(data.agent_name)}`;
         document.getElementById('waChatSub').innerHTML = sub;
         const messages = data.messages || [];
-        const signature = JSON.stringify(messages.map(m => [
-            m.id, m.message_type, m.message_text, m.media_id, m.wa_status, m.created_at
-        ]));
-        if (signature === waLastHistorySignature) return;
-        waLastHistorySignature = signature;
-        waRenderMessages(messages);
+        waHistoryHasMore = data.has_more === true;
+
+        if (polling) {
+            const existingIds = new Set(waHistoryMessages.map(m => m.id));
+            const newMessages = messages.filter(m => !existingIds.has(m.id));
+            if (newMessages.length) {
+                waHistoryMessages.push(...newMessages);
+                waHistoryMessages.sort((a, b) => a.id - b.id);
+                waRenderMessages(newMessages, 'append');
+            }
+        } else if (loadMore) {
+            const existingIds = new Set(waHistoryMessages.map(m => m.id));
+            const olderMessages = messages.filter(m => !existingIds.has(m.id));
+            if (olderMessages.length) {
+                waHistoryMessages.unshift(...olderMessages);
+                waHistoryMessages.sort((a, b) => a.id - b.id);
+                waRenderMessages(olderMessages, 'prepend');
+            }
+            waUpdateLoadMoreButton();
+        } else {
+            const signature = JSON.stringify(messages.map(m => [
+                m.id, m.message_type, m.message_text, m.media_id, m.wa_status, m.created_at
+            ]));
+            if (signature === waLastHistorySignature) return;
+            waLastHistorySignature = signature;
+            waHistoryMessages = messages.slice();
+            waRenderMessages(messages, 'replace');
+        }
     } catch (e) {
         console.error('Error cargando historial WhatsApp:', e);
+    } finally {
+        waHistoryLoading = false;
     }
 }
 
-async function waRenderMessages(messages) {
-    const body = document.getElementById('waChatBody');
-    if (!body) return;
-    if (!messages.length) {
-        body.innerHTML = '<div class="wa-msg-system">No hay conversación aún. Envía el saludo para empezar.</div>';
-        return;
-    }
-    let html = '';
-    messages.forEach(m => {
-        const isOut = m.direction === 'out';
-        const time = waTime(m.created_at);
-        const escTag = m.escalated ? '<span style="color:#ef4444; font-size:0.7rem;"> ⚑ escalado</span>' : '';
-        const isMedia = ['image', 'audio', 'sticker', 'video', 'document'].includes(m.message_type);
-        if (isMedia) {
-            const label = { image: 'Imagen', audio: 'Audio', sticker: 'Sticker', video: 'Video', document: 'Documento' }[m.message_type];
-            let mediaHtml = `<div class="wa-media-loading" data-media-message="${m.id}">Cargando ${label.toLowerCase()}...</div>`;
-            if (m.message_type === 'audio') {
-                mediaHtml = `<audio class="wa-media-audio" controls data-media-message="${m.id}"></audio>`;
-            } else if (m.message_type === 'image' || m.message_type === 'sticker') {
-                mediaHtml = `<img class="wa-media-preview" data-media-message="${m.id}" alt="${label}">`;
-            } else if (m.message_type === 'video') {
-                mediaHtml = `<video class="wa-media-preview" controls data-media-message="${m.id}"></video>`;
-            }
-            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${mediaHtml}</div>${m.message_text ? `<div>${waEsc(m.message_text)}</div>` : ''}<div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
-        } else if (m.message_type === 'template') {
-            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time} · saludo${escTag}</div></div>`;
-        } else {
-            html += `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
+function waBuildMessageHtml(m) {
+    const isOut = m.direction === 'out';
+    const time = waTime(m.created_at);
+    const escTag = m.escalated ? '<span style="color:#ef4444; font-size:0.7rem;"> ⚑ escalado</span>' : '';
+    const isMedia = ['image', 'audio', 'sticker', 'video', 'document'].includes(m.message_type);
+    if (isMedia) {
+        const label = { image: 'Imagen', audio: 'Audio', sticker: 'Sticker', video: 'Video', document: 'Documento' }[m.message_type];
+        let mediaHtml = `<div class="wa-media-loading" data-media-message="${m.id}">Cargando ${label.toLowerCase()}...</div>`;
+        if (m.message_type === 'audio') {
+            mediaHtml = `<audio class="wa-media-audio" controls data-media-message="${m.id}"></audio>`;
+        } else if (m.message_type === 'image' || m.message_type === 'sticker') {
+            mediaHtml = `<img class="wa-media-preview" data-media-message="${m.id}" alt="${label}">`;
+        } else if (m.message_type === 'video') {
+            mediaHtml = `<video class="wa-media-preview" controls data-media-message="${m.id}"></video>`;
         }
-    });
-    body.innerHTML = html;
-    body.scrollTop = body.scrollHeight;
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${mediaHtml}</div>${m.message_text ? `<div>${waEsc(m.message_text)}</div>` : ''}<div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
+    } else if (m.message_type === 'template') {
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time} · saludo${escTag}</div></div>`;
+    } else {
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
+    }
+}
 
-    const mediaNodes = body.querySelectorAll('[data-media-message]');
-    mediaNodes.forEach(async (node) => {
-        try {
-            const response = await fetch(`/whatsapp/media/${node.dataset.mediaMessage}`, { headers });
+async function waLoadMediaForNode(node) {
+    if (node.dataset.mediaLoaded === 'true' || node.src) return;
+    const messageId = node.dataset.mediaMessage;
+    if (!messageId) return;
+    try {
+        let url = waMediaCache.get(messageId);
+        if (!url) {
+            const response = await fetch(`/whatsapp/media/${messageId}`, { headers });
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const blob = await response.blob();
-            const url = URL.createObjectURL(blob);
-            if (node.tagName === 'DIV') {
-                const link = document.createElement('a');
-                link.href = url;
-                link.target = '_blank';
-                link.textContent = 'Descargar archivo';
-                node.replaceWith(link);
-            } else {
-                node.src = url;
-                if (node.tagName === 'IMG') {
-                    node.style.cursor = 'zoom-in';
-                    node.addEventListener('click', () => openWaMediaViewer(url, node.alt || 'Imagen'));
-                }
-            }
-        } catch (e) {
-            node.textContent = 'No se pudo cargar el archivo';
+            url = URL.createObjectURL(blob);
+            waMediaCache.set(messageId, url);
         }
-    });
+        if (node.tagName === 'DIV') {
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.textContent = 'Descargar archivo';
+            link.dataset.mediaMessage = messageId;
+            link.dataset.mediaLoaded = 'true';
+            node.replaceWith(link);
+        } else {
+            node.src = url;
+            node.dataset.mediaLoaded = 'true';
+            if (node.tagName === 'IMG') {
+                node.style.cursor = 'zoom-in';
+                node.addEventListener('click', () => openWaMediaViewer(url, node.alt || 'Imagen'));
+            }
+        }
+    } catch (e) {
+        node.textContent = 'No se pudo cargar el archivo';
+        node.dataset.mediaLoaded = 'true';
+    }
+}
+
+function waUpdateLoadMoreButton() {
+    const body = document.getElementById('waChatBody');
+    if (!body) return;
+    let btn = document.getElementById('waChatLoadMore');
+    if (!btn) {
+        btn = document.createElement('div');
+        btn.id = 'waChatLoadMore';
+        btn.className = 'wa-msg-system';
+        btn.style.cursor = 'pointer';
+        btn.textContent = 'Cargar mensajes anteriores';
+        btn.onclick = () => waLoadHistory({ loadMore: true });
+        body.prepend(btn);
+    }
+    btn.style.display = waHistoryHasMore ? 'block' : 'none';
+}
+
+function waRenderMessages(messages, mode = 'replace') {
+    const body = document.getElementById('waChatBody');
+    if (!body) return;
+    if (mode === 'replace') {
+        if (!messages.length) {
+            body.innerHTML = '<div class="wa-msg-system">No hay conversación aún. Envía el saludo para empezar.</div>';
+            return;
+        }
+        body.innerHTML = messages.map(m => waBuildMessageHtml(m)).join('');
+        waUpdateLoadMoreButton();
+        body.scrollTop = body.scrollHeight;
+        body.querySelectorAll('[data-media-message]').forEach(node => waLoadMediaForNode(node));
+        return;
+    }
+    if (!messages.length) return;
+    if (mode === 'append') {
+        const wasAtBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 80;
+        body.insertAdjacentHTML('beforeend', messages.map(m => waBuildMessageHtml(m)).join(''));
+        body.querySelectorAll('[data-media-message]').forEach(node => waLoadMediaForNode(node));
+        if (wasAtBottom) body.scrollTop = body.scrollHeight;
+        return;
+    }
+    if (mode === 'prepend') {
+        const oldHeight = body.scrollHeight;
+        const oldScroll = body.scrollTop;
+        const btn = document.getElementById('waChatLoadMore');
+        const html = messages.map(m => waBuildMessageHtml(m)).join('');
+        if (btn) {
+            btn.insertAdjacentHTML('afterend', html);
+        } else {
+            body.insertAdjacentHTML('afterbegin', html);
+        }
+        body.querySelectorAll('[data-media-message]').forEach(node => waLoadMediaForNode(node));
+        body.scrollTop = oldScroll + (body.scrollHeight - oldHeight);
+        return;
+    }
 }
 
 function openWaMediaViewer(url, alt) {
@@ -4705,7 +4814,7 @@ async function waSendMessage() {
         }
         input.value = '';
         waClearSelectedFile();
-        waLoadHistory();
+        waLoadHistory({ polling: true });
     } catch (e) {
         console.error(e);
         alert("Error de conexión al enviar mensaje.");
