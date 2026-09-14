@@ -4420,6 +4420,9 @@ let waChatAgentId = null;
 let waInboxTab = 'all';
 let waLastHistorySignature = null;
 let waChatBlocked = false;
+let waInboxOffset = 0;
+let waInboxHasMore = false;
+let waInboxThreads = [];
 let waHistoryHasMore = false;
 let waHistoryLoading = false;
 let waHistoryMessages = [];
@@ -5164,6 +5167,9 @@ async function sendWhatsAppBulk() {
 
 function openWhatsAppInbox() {
     document.getElementById('whatsappInboxModal').style.display = 'flex';
+    waInboxOffset = 0;
+    waInboxHasMore = false;
+    waInboxThreads = [];
     waSetInboxTab(waInboxTab, true);
 }
 
@@ -5179,50 +5185,116 @@ function waSetInboxTab(tab, force) {
     });
     const active = document.getElementById(tab === 'all' ? 'waTabAll' : tab === 'unread' ? 'waTabUnread' : 'waTabEscalated');
     if (active) active.classList.add('active');
-    document.getElementById('whatsappInboxBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
-    waLoadInbox();
+    if (force) {
+        waInboxOffset = 0;
+        waInboxHasMore = false;
+        waInboxThreads = [];
+        document.getElementById('whatsappInboxBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
+        waLoadInbox();
+    } else {
+        waRenderInboxList();
+    }
+}
+
+function waGroupInboxThreadsByDate(threads) {
+    const groups = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    threads.forEach(t => {
+        let label;
+        if (!t.last_at) {
+            label = 'Sin fecha';
+        } else {
+            const d = new Date(t.last_at);
+            d.setHours(0, 0, 0, 0);
+            if (d.getTime() === today.getTime()) {
+                label = 'Hoy';
+            } else if (d.getTime() === yesterday.getTime()) {
+                label = 'Ayer';
+            } else {
+                label = new Date(t.last_at).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' });
+            }
+        }
+        const existing = groups.find(g => g.label === label);
+        if (existing) {
+            existing.threads.push(t);
+        } else {
+            groups.push({ label, threads: [t] });
+        }
+    });
+    return groups;
+}
+
+function waBuildInboxItemHtml(t) {
+    const initial = (t.person_name || t.phone_number || '?').trim().charAt(0).toUpperCase();
+    const escBadge = t.escalated ? `<span class="wa-esc-badge" title="${t.esc_reason === 'sin_asignar' ? 'Sin encuestador asignado' : 'Encuestador desconectado'}">${t.esc_reason === 'sin_asignar' ? 'SIN ASIGNAR' : 'DESCONECTADO'}</span>` : '';
+    const unassignedTag = t.unassigned && !t.call_id ? '<span class="wa-unassigned-tag">SIN LLAMADA</span>' : '';
+    const blockedTag = t.blocked ? '<span class="wa-esc-badge" style="background:#b91c1c;" title="Contacto bloqueado (respondió NO)">🔒 BLOQUEADO</span>' : '';
+    const agentInfo = t.agent_name ? `<span style="color:#94a3b8; font-weight:400; font-size:0.75rem;">· ${waEsc(t.agent_name)}</span>` : '';
+    const click = t.call_id
+        ? `openWhatsAppChatModal(${t.call_id})`
+        : `openWhatsAppChatModal(null, '${waEsc(t.phone_number)}')`;
+    return `<div class="wa-inbox-item ${t.escalated ? 'wa-inbox-item-escalated' : ''}${t.blocked ? ' wa-inbox-item-blocked' : ''}" onclick="${click}">
+        <div class="wa-inbox-avatar">${waEsc(initial)}</div>
+        <div class="wa-inbox-info">
+            <div class="wa-inbox-name">${waEsc(t.person_name || 'Sin nombre')} ${agentInfo}${escBadge}${unassignedTag}${blockedTag}</div>
+            <div class="wa-inbox-last">${t.blocked ? '<span style="color:#b91c1c;">🔒 Contacto bloqueado (NO). No se puede contactar.</span>' : waEsc(t.last_message || '')}</div>
+        </div>
+        <div style="text-align:right; flex-shrink:0;">
+            ${t.unread ? `<span class="wa-inbox-badge">${t.unread}</span>` : ''}
+            <div class="wa-inbox-time">${waEsc(waTime(t.last_at))}</div>
+        </div>
+    </div>`;
+}
+
+function waRenderInboxList() {
+    const body = document.getElementById('whatsappInboxBody');
+    if (!body) return;
+    let threads = waInboxThreads.slice();
+    if (waInboxTab === 'unread') threads = threads.filter(t => t.unread > 0);
+    if (waInboxTab === 'escalated') threads = threads.filter(t => t.escalated);
+    if (!threads.length && !waInboxHasMore) {
+        body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay conversaciones en esta vista.</div>';
+        return;
+    }
+
+    const groups = waGroupInboxThreadsByDate(threads);
+    let html = '';
+    groups.forEach(g => {
+        html += `<div style="position:sticky;top:0;background:#f0f2f5;padding:6px 12px;font-size:.75rem;font-weight:700;color:#64748b;text-transform:uppercase;z-index:5;border-bottom:1px solid #e2e8f0;">${waEsc(g.label)}</div>`;
+        g.threads.forEach(t => { html += waBuildInboxItemHtml(t); });
+    });
+
+    if (waInboxHasMore) {
+        html += `<div style="padding:14px;text-align:center;"><button onclick="waLoadMoreInbox()" style="padding:8px 16px;border:0;border-radius:6px;background:#075e54;color:#fff;cursor:pointer;font-weight:600;">Cargar más conversaciones</button></div>`;
+    }
+    body.innerHTML = html;
 }
 
 async function waLoadInbox() {
-    const body = document.getElementById('whatsappInboxBody');
-    if (!body) return;
+    if (!document.getElementById('whatsappInboxModal') || document.getElementById('whatsappInboxModal').style.display === 'none') return;
     try {
-        const res = await fetch('/whatsapp/inbox', { headers });
+        const res = await fetch(`/whatsapp/inbox?limit=50&offset=${waInboxOffset}`, { headers });
         if (!res.ok) throw new Error('HTTP ' + res.status);
-        let threads = await res.json();
-        if (waInboxTab === 'unread') threads = threads.filter(t => t.unread > 0);
-        if (waInboxTab === 'escalated') threads = threads.filter(t => t.escalated);
-        if (!threads.length) {
-            body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay conversaciones en esta vista.</div>';
-            return;
-        }
-        let html = '';
-        threads.forEach(t => {
-            const initial = (t.person_name || t.phone_number || '?').trim().charAt(0).toUpperCase();
-            const escBadge = t.escalated ? `<span class="wa-esc-badge" title="${t.esc_reason === 'sin_asignar' ? 'Sin encuestador asignado' : 'Encuestador desconectado'}">${t.esc_reason === 'sin_asignar' ? 'SIN ASIGNAR' : 'DESCONECTADO'}</span>` : '';
-            const unassignedTag = t.unassigned && !t.call_id ? '<span class="wa-unassigned-tag">SIN LLAMADA</span>' : '';
-            const blockedTag = t.blocked ? '<span class="wa-esc-badge" style="background:#b91c1c;" title="Contacto bloqueado (respondió NO)">🔒 BLOQUEADO</span>' : '';
-            const agentInfo = t.agent_name ? `<span style="color:#94a3b8; font-weight:400; font-size:0.75rem;">· ${waEsc(t.agent_name)}</span>` : '';
-            const click = t.call_id
-                ? `openWhatsAppChatModal(${t.call_id})`
-                : `openWhatsAppChatModal(null, '${waEsc(t.phone_number)}')`;
-            html += `<div class="wa-inbox-item ${t.escalated ? 'wa-inbox-item-escalated' : ''}${t.blocked ? ' wa-inbox-item-blocked' : ''}" onclick="${click}">
-                <div class="wa-inbox-avatar">${waEsc(initial)}</div>
-                <div class="wa-inbox-info">
-                    <div class="wa-inbox-name">${waEsc(t.person_name || 'Sin nombre')} ${agentInfo}${escBadge}${unassignedTag}${blockedTag}</div>
-                    <div class="wa-inbox-last">${t.blocked ? '<span style="color:#b91c1c;">🔒 Contacto bloqueado (NO). No se puede contactar.</span>' : waEsc(t.last_message || '')}</div>
-                </div>
-                <div style="text-align:right; flex-shrink:0;">
-                    ${t.unread ? `<span class="wa-inbox-badge">${t.unread}</span>` : ''}
-                    <div class="wa-inbox-time">${waEsc(waTime(t.last_at))}</div>
-                </div>
-            </div>`;
-        });
-        body.innerHTML = html;
+        const data = await res.json();
+        const threads = data.threads || [];
+        waInboxHasMore = data.has_more === true;
+        waInboxThreads.push(...threads);
+        waInboxOffset = waInboxThreads.length;
+        waRenderInboxList();
     } catch (e) {
         console.error(e);
-        body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ef4444;">Error cargando el inbox.</div>';
+        const body = document.getElementById('whatsappInboxBody');
+        if (body) body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #ef4444;">Error cargando el inbox.</div>';
     }
+}
+
+function waLoadMoreInbox() {
+    if (!waInboxHasMore) return;
+    waLoadInbox();
 }
 
 async function waPollUnreadBadge() {

@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, FileResponse, PlainTextResponse, Str
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session, joinedload, subqueryload
-from sqlalchemy import func, asc, desc
+from sqlalchemy import func, asc, desc, and_, case
 import json
 import urllib.request
 import urllib.error
@@ -2342,130 +2342,95 @@ def whatsapp_unread(
 
 @app.get("/whatsapp/inbox")
 def whatsapp_inbox(
+    limit: int = 50,
+    offset: int = 0,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    """Return recent WhatsApp threads with pagination.
+
+    Each thread contains only aggregated data and the last message, avoiding
+    loading every message in the conversation.
+    """
     can_supervise = _has_global_whatsapp_inbox(db, current_user)
     blocked_set = _blocked_numbers(db)
-    sub = (
-        db.query(models.WhatsAppMessage.call_id)
-        .filter(models.WhatsAppMessage.call_id.isnot(None))
-        .distinct()
-        .subquery()
+
+    # Aggregate messages by thread (call_id + phone_number)
+    agg_query = (
+        db.query(
+            models.WhatsAppMessage.call_id,
+            models.WhatsAppMessage.phone_number,
+            func.max(models.WhatsAppMessage.id).label("max_id"),
+            func.max(models.WhatsAppMessage.created_at).label("last_at"),
+            func.sum(
+                case(
+                    [(and_(models.WhatsAppMessage.direction == "in", models.WhatsAppMessage.read_at.is_(None)), 1)],
+                    else_=0,
+                )
+            ).label("unread"),
+            func.max(case([(models.WhatsAppMessage.escalated == True, 1)], else_=0)).label("escalated"),
+            func.max(case([(models.WhatsAppMessage.escalated == True, models.WhatsAppMessage.esc_reason)], else_=None)).label("esc_reason"),
+        )
+        .filter(models.WhatsAppMessage.phone_number.isnot(None))
+        .group_by(models.WhatsAppMessage.call_id, models.WhatsAppMessage.phone_number)
     )
-    calls = (
-        db.query(models.Call)
-        .filter(models.Call.id.in_(sub))
-        .order_by(models.Call.id.desc())
+
+    if not can_supervise:
+        allowed_call_ids = db.query(models.Call.id).filter(models.Call.user_id == current_user.id).subquery()
+        agg_query = agg_query.filter(models.WhatsAppMessage.call_id.in_(allowed_call_ids))
+
+    agg_sub = agg_query.subquery()
+
+    paginated = (
+        db.query(agg_sub, models.Call, models.User, models.Study)
+        .outerjoin(models.Call, agg_sub.c.call_id == models.Call.id)
+        .outerjoin(models.User, models.Call.user_id == models.User.id)
+        .outerjoin(models.Study, models.Call.study_id == models.Study.id)
+        .order_by(agg_sub.c.last_at.desc())
+        .limit(limit + 1)
+        .offset(offset)
         .all()
     )
+
+    # Fetch last message details for the returned threads
+    max_ids = [row.max_id for row in paginated]
+    last_messages = {}
+    if max_ids:
+        last_messages = {
+            m.id: m
+            for m in db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.id.in_(max_ids)).all()
+        }
+
     threads = []
-    for call in calls:
-        if not can_supervise and not _can_view_whatsapp(current_user, call):
-            continue
-        variants = _wa_phone_variants(call)
-        msgs = []
-        if variants:
-            msgs = (
-                db.query(models.WhatsAppMessage)
-                .filter(
-                    (models.WhatsAppMessage.call_id == call.id) |
-                    (models.WhatsAppMessage.phone_number.in_(list(variants)))
-                )
-                .order_by(models.WhatsAppMessage.id.desc())
-                .all()
-            )
-        if not msgs:
-            continue
-        last = msgs[0]
-        unread = sum(1 for m in msgs if m.direction == "in" and m.read_at is None)
-        escalated = any(m.escalated for m in msgs)
-        esc_reason = None
-        for m in msgs:
-            if m.escalated:
-                esc_reason = m.esc_reason
-                break
-        agent = db.query(models.User).filter(models.User.id == call.user_id).first() if call.user_id else None
-        study = db.query(models.Study).filter(models.Study.id == call.study_id).first() if call.study_id else None
-        phone_display = variants.pop() if variants else (call.phone_number or call.whatsapp)
+    has_more = len(paginated) > limit
+    for row in paginated[:limit]:
+        call = row.Call
+        agent = row.User
+        study = row.Study
+        last_msg = last_messages.get(row.max_id)
+        phone_display = row.phone_number
         phone_norm = _normalize_wa_phone(phone_display)
+        person_name = call.person_name if call else (last_msg.profile_name if last_msg else None)
         threads.append({
-            "call_id": call.id,
+            "call_id": call.id if call else None,
             "phone_number": phone_display,
-            "person_name": call.person_name,
-            "city": call.city,
+            "person_name": person_name,
+            "city": call.city if call else None,
             "study_name": study.name if study else None,
-            "status": call.status,
-            "agent_id": call.user_id,
+            "status": call.status if call else None,
+            "agent_id": call.user_id if call else None,
             "agent_name": (agent.full_name or agent.username) if agent else None,
-            "last_message": last.message_text,
-            "last_direction": last.direction,
-            "last_at": last.created_at,
-            "unread": unread,
-            "unassigned": call.user_id is None,
-            "escalated": escalated,
-            "esc_reason": esc_reason,
-            "blocked": phone_norm in blocked_set,
+            "last_message": last_msg.message_text if last_msg else None,
+            "last_direction": last_msg.direction if last_msg else None,
+            "last_at": row.last_at,
+            "unread": int(row.unread or 0),
+            "unassigned": (call.user_id is None) if call else True,
+            "escalated": bool(row.escalated),
+            "esc_reason": row.esc_reason,
+            "blocked": phone_norm in blocked_set if phone_norm else False,
         })
 
-    # Threads with no call in the CRM (numbers "que nadie tiene")
-    if can_supervise:
-        no_call_phones = (
-            db.query(models.WhatsAppMessage.phone_number)
-            .filter(
-                models.WhatsAppMessage.phone_number.isnot(None),
-                models.WhatsAppMessage.call_id.is_(None),
-            )
-            .distinct()
-            .all()
-        )
-        for (phone,) in no_call_phones:
-            if not phone:
-                continue
-            if _find_call_by_phone(db, phone):
-                continue
-            msgs = (
-                db.query(models.WhatsAppMessage)
-                .filter(models.WhatsAppMessage.phone_number == phone)
-                .order_by(models.WhatsAppMessage.id.desc())
-                .all()
-            )
-            if not msgs:
-                continue
-            last = msgs[0]
-            unread = sum(1 for m in msgs if m.direction == "in" and m.read_at is None)
-            escalated = any(m.escalated for m in msgs)
-            esc_reason = None
-            for m in msgs:
-                if m.escalated:
-                    esc_reason = m.esc_reason
-                    break
-            person_name = None
-            for m in msgs:
-                if m.profile_name:
-                    person_name = m.profile_name
-                    break
-            threads.append({
-                "call_id": None,
-                "phone_number": phone,
-                "person_name": person_name,
-                "city": None,
-                "study_name": None,
-                "status": None,
-                "agent_id": None,
-                "agent_name": None,
-                "last_message": last.message_text,
-                "last_direction": last.direction,
-                "last_at": last.created_at,
-                "unread": unread,
-                "unassigned": True,
-                "escalated": escalated,
-                "esc_reason": esc_reason,
-                "blocked": phone in blocked_set,
-            })
-
-    threads.sort(key=lambda t: (t["last_at"] is not None, t["last_at"] or datetime.min), reverse=True)
-    return threads
+    return {"threads": threads, "has_more": has_more}
 
 
 # --- PAGE ROUTES ---
