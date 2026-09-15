@@ -4457,7 +4457,7 @@ const waTime = (dt) => {
     } catch (e) { return dt || ''; }
 };
 
-function openWhatsAppChatModal(callId, phone) {
+async function openWhatsAppChatModal(callId, phone) {
     const hasPhone = (phone !== undefined && phone !== null && String(phone).trim() !== '');
     if ((callId === undefined || callId === null) && !hasPhone) callId = currentCallId;
     if ((callId === undefined || callId === null) && !hasPhone) {
@@ -4480,7 +4480,9 @@ function openWhatsAppChatModal(callId, phone) {
     document.getElementById('waChatBody').innerHTML = '<div class="wa-msg-system">Cargando conversación...</div>';
     document.getElementById('waChatInput').value = '';
     waClearSelectedFile();
-    waLoadHistory();
+    await waLoadHistory();
+    // History endpoint marks incoming messages as read; reflect that immediately in the grid
+    if (waChatCallId) waRefreshGridUnreadForCall(waChatCallId);
     clearInterval(waPollTimer);
     waPollTimer = setInterval(() => waLoadHistory({ polling: true }), 5000);
 }
@@ -4523,6 +4525,8 @@ function closeWhatsAppChatModal() {
     waMediaCache.forEach(url => URL.revokeObjectURL(url));
     waMediaCache.clear();
     closeWaMediaViewer();
+    // Refresh WhatsApp unread icons in the grid so the red badge disappears right away
+    waPollUnreadBadge();
 }
 
 function waCanBlock() {
@@ -5416,6 +5420,17 @@ function waRenderGridIcon(unreadCount, callId) {
            </span>`;
     }
     return '-';
+}
+
+function waRefreshGridUnreadForCall(callId) {
+    if (!callId) return;
+    const call = allCalls.find(c => c.id === callId);
+    if (call) call.whatsapp_unread_count = 0;
+    const tr = document.querySelector(`#callsTableBody tr[data-call-id="${callId}"]`);
+    if (tr) {
+        const cell = tr.querySelector('.wa-grid-cell');
+        if (cell) cell.innerHTML = waRenderGridIcon(0, callId);
+    }
 }
 
 async function waPollUnreadBadge() {
