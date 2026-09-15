@@ -4644,10 +4644,23 @@ async function waLoadHistory({ polling = false, loadMore = false } = {}) {
     }
 }
 
+function waStatusLabel(status) {
+    const map = {
+        'sent': 'Enviado',
+        'delivered': 'Entregado',
+        'read': 'Leído',
+        'received': 'Recibido',
+        'failed': 'No enviado',
+        'rejected': 'Rechazado',
+    };
+    return map[status] || (status ? status.charAt(0).toUpperCase() + status.slice(1) : 'Enviado');
+}
+
 function waBuildMessageHtml(m) {
     const isOut = m.direction === 'out';
     const time = waTime(m.created_at);
     const escTag = m.escalated ? '<span style="color:#ef4444; font-size:0.7rem;"> ⚑ escalado</span>' : '';
+    const statusSpan = isOut ? ` · <span class="wa-status-${m.wa_status || 'sent'}">${waStatusLabel(m.wa_status)}</span>` : '';
     const isMedia = ['image', 'audio', 'sticker', 'video', 'document'].includes(m.message_type);
     if (isMedia) {
         const label = { image: 'Imagen', audio: 'Audio', sticker: 'Sticker', video: 'Video', document: 'Documento' }[m.message_type];
@@ -4659,11 +4672,11 @@ function waBuildMessageHtml(m) {
         } else if (m.message_type === 'video') {
             mediaHtml = `<video class="wa-media-preview" controls data-media-message="${m.id}"></video>`;
         }
-        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${mediaHtml}</div>${m.message_text ? `<div>${waEsc(m.message_text)}</div>` : ''}<div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${mediaHtml}</div>${m.message_text ? `<div>${waEsc(m.message_text)}</div>` : ''}<div class="wa-msg-meta">${time}${statusSpan}${escTag}</div></div>`;
     } else if (m.message_type === 'template') {
-        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time} · saludo${escTag}</div></div>`;
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${statusSpan}${escTag}</div></div>`;
     } else {
-        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${isOut ? ' · ' + (m.wa_status || '') : ''}${escTag}</div></div>`;
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${statusSpan}${escTag}</div></div>`;
     }
 }
 
