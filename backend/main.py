@@ -944,7 +944,7 @@ WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
 WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID", "1185957884609871")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "az_crm_webhook_2026")
 WHATSAPP_TEMPLATE_NAME = os.getenv("WHATSAPP_TEMPLATE_NAME", "saludo_encuesta_videollamada")
-WHATSAPP_ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "whatsapp_template_language")
+WHATSAPP_ALERT_TEMPLATE = os.getenv("WHATSAPP_ALERT_TEMPLATE", "mensaje_whapsap_pendiente")
 WHATSAPP_FILTER_TEMPLATE = os.getenv("WHATSAPP_FILTER_TEMPLATE", "az_filtro_participacion")
 WHATSAPP_FORM_TEMPLATE = os.getenv("WHATSAPP_FORM_TEMPLATE", "az_invitacion_formulario")
 WHATSAPP_TEMPLATE_LANGUAGE = os.getenv("WHATSAPP_TEMPLATE_LANGUAGE", "es")
@@ -1258,7 +1258,11 @@ def _wa_escalate_stale():
 
 
 def _wa_send_alert_to(phone, msg, call, reason, agent):
-    """Send an alert copy to a target WhatsApp number (template) with a deep link to the CRM."""
+    """Send an alert copy to a target WhatsApp number using the configured template.
+
+    Uses the template mensaje_whapsap_pendiente (or the env override) with the
+    parameters: encuestador, encuestada, phone_numbre.
+    """
     target = _normalize_wa_phone(phone)
     if not target:
         print(f"[WHATSAPP] Número de destino inválido: {phone!r}; se omite.")
@@ -1270,34 +1274,26 @@ def _wa_send_alert_to(phone, msg, call, reason, agent):
         person = msg.profile_name
     if not person:
         person = "Cliente"
-    reason_text = "no tiene encuestador asignado" if reason == "sin_asignar" else "su encuestador está desconectado"
-    link = f"{CRM_LINK_BASE}?chat_phone={msg.phone_number}"
-    params_with_link = [
-        {"type": "text", "text": person},
-        {"type": "text", "text": msg.phone_number},
-        {"type": "text", "text": reason_text},
-        {"type": "text", "text": link},
+    agent_name = (agent.full_name or agent.username or "AZ Marketing").strip() if agent else "AZ Marketing"
+
+    parameters = [
+        {"type": "text", "text": agent_name, "parameter_name": "encuestador"},
+        {"type": "text", "text": person, "parameter_name": "encuestada"},
+        {"type": "text", "text": msg.phone_number or "", "parameter_name": "phone_numbre"},
     ]
-    params_without_link = params_with_link[:3]
 
-    def build_payload(parameters):
-        return {
-            "messaging_product": "whatsapp",
-            "to": target,
-            "type": "template",
-            "template": {
-                "name": WHATSAPP_ALERT_TEMPLATE,
-                "language": {"code": WHATSAPP_ALERT_LANGUAGE},
-                "components": [{"type": "body", "parameters": parameters}],
-            },
-        }
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": target,
+        "type": "template",
+        "template": {
+            "name": WHATSAPP_ALERT_TEMPLATE,
+            "language": {"code": WHATSAPP_ALERT_LANGUAGE},
+            "components": [{"type": "body", "parameters": parameters}],
+        },
+    }
 
-    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", build_payload(params_with_link))
-    if "error" in result:
-        err = str(result["error"])
-        if "expected number of params" in err:
-            print(f"[WHATSAPP] Plantilla {WHATSAPP_ALERT_TEMPLATE} acepta menos variables; reintentando sin enlace.")
-            result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", build_payload(params_without_link))
+    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
     if "error" in result:
         print(f"[WHATSAPP] Alerta NO enviada a {target}: {result['error']}")
         return False

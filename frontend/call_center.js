@@ -1755,6 +1755,7 @@ function renderCallGrid(calls) {
 
     calls.forEach(call => {
         const tr = document.createElement('tr');
+        tr.dataset.callId = call.id;
         tr.style.cursor = 'pointer';
         tr.style.borderBottom = '1px solid #dae1e7'; // Slightly darker border for contrast
 
@@ -1842,7 +1843,7 @@ function renderCallGrid(calls) {
             <td>${call.person_name || '-'}</td>
             <td>${call.city || '-'}</td>
             <td>${alertTime}</td>
-            <td>${waIcon}</td>
+            <td class="wa-grid-cell">${waIcon}</td>
             <!-- Old Obs Cell Removed -->
             
             <td><span style="background:${call.status === 'pending' ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.6)'}; border: 1px solid rgba(0,0,0,0.1); padding:2px 6px; border-radius:4px; font-size:0.8rem;">${translateStatus(call.status)}</span></td>
@@ -5394,6 +5395,16 @@ function waLoadMoreInbox() {
     waLoadInbox();
 }
 
+function waRenderGridIcon(unreadCount, callId) {
+    if (unreadCount > 0) {
+        return `<span class="wa-grid-icon" onclick="event.stopPropagation(); openWhatsAppChatModal(${callId})" title="${unreadCount} mensaje(s) de WhatsApp sin leer">
+             <i class="fab fa-whatsapp"></i>
+             <span class="wa-grid-badge">${unreadCount}</span>
+           </span>`;
+    }
+    return '-';
+}
+
 async function waPollUnreadBadge() {
     try {
         const res = await fetch('/whatsapp/unread', { headers });
@@ -5413,6 +5424,32 @@ async function waPollUnreadBadge() {
             grantedBadge.textContent = data.total > 0 ? data.total : '';
             grantedBadge.style.display = data.total > 0 ? 'inline-block' : 'none';
         }
+
+        // Update grid icons in real time
+        const unreadMap = {};
+        (data.unread || []).forEach(item => {
+            if (item.call_id) {
+                unreadMap[item.call_id] = item.unread;
+            }
+        });
+
+        // Update the allCalls cache so future re-renders keep the counts
+        allCalls.forEach(call => {
+            if (unreadMap.hasOwnProperty(call.id)) {
+                call.whatsapp_unread_count = unreadMap[call.id];
+            } else if (call.whatsapp_unread_count) {
+                call.whatsapp_unread_count = 0;
+            }
+        });
+
+        // Update visible rows without re-rendering the whole grid
+        document.querySelectorAll('#callsTableBody tr[data-call-id]').forEach(tr => {
+            const callId = parseInt(tr.dataset.callId, 10);
+            const cell = tr.querySelector('.wa-grid-cell');
+            if (!cell) return;
+            const count = unreadMap[callId] || 0;
+            cell.innerHTML = waRenderGridIcon(count, callId);
+        });
     } catch (e) { /* silencioso */ }
 }
 
