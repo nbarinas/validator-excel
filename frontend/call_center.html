@@ -2780,16 +2780,13 @@
             <div style="padding:16px;display:flex;flex-direction:column;gap:10px;color:#1e293b;max-height:70vh;overflow-y:auto;">
                 <label>Número WhatsApp<input id="waNewChatPhone" type="tel" placeholder="3181234567" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label>Tipo de contacto<select id="waNewChatKind" onchange="waToggleNewChatLink()" style="width:100%;padding:9px;box-sizing:border-box;">
-                    <optgroup label="Plantillas AZ">
-                        <option value="mensaje_01" selected>Presentación / AZ-Marketing — mensaje_01</option>
+                    <optgroup label="Plantillas de seguimiento">
+                        <option value="shampo_primer" selected>Shampoo — primer contacto — shampo_primer</option>
+                        <option value="shampo_segundo">Shampoo — segundo recordatorio — shampo_segundo</option>
+                        <option value="manana_3">Buenas tardes (recordatorio) — manana_3</option>
                     </optgroup>
                     <option value="filter">Filtro de participación</option>
                     <option value="form">Enviar formulario</option>
-                    <optgroup label="Plantillas de seguimiento">
-                        <option value="manana_1">Buenos días (mañana) — manana_1</option>
-                        <option value="manana_2">Buenas tardes (tarde) — manana_2</option>
-                        <option value="manana_3">Buenas tardes (recordatorio) — manana_3</option>
-                    </optgroup>
                 </select></label>
                 <label id="waNewChatNameLabel" style="display:none;">Nombre del encuestado<input id="waNewChatName" type="text" placeholder="Ej: María Pérez" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label id="waNewChatSubjectLabel">Estudio o tema<input id="waNewChatSubject" type="text" placeholder="Ej: hábitos de compra" style="width:100%;padding:9px;box-sizing:border-box;"></label>
@@ -2816,7 +2813,7 @@
             <div class="wa-chat-header" style="background:#075e54;">
                 <div class="wa-chat-title">
                     <h3>Enviar plantilla de WhatsApp</h3>
-                    <div class="wa-chat-sub">Elige la plantilla y escribe la categoría del estudio</div>
+                    <div class="wa-chat-sub">Elige la plantilla y revisa antes de enviar</div>
                 </div>
                 <button class="wa-chat-close" onclick="closeWhatsAppSendTemplateModal()">&times;</button>
             </div>
@@ -2825,39 +2822,66 @@
                 <label style="font-weight:600;font-size:0.9rem;">Selecciona la plantilla</label>
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="mensaje_01" style="margin-top:3px;">
-                        <div>
-                            <div style="font-weight:600;">Presentación AZ-Marketing</div>
-                            <div style="font-size:0.8rem;color:#64748b;">mensaje_01</div>
-                        </div>
-                    </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="manana_1" checked style="margin-top:3px;">
-                        <div>
-                            <div style="font-weight:600;">Buenos días (mañana)</div>
-                            <div style="font-size:0.8rem;color:#64748b;">manana_1</div>
-                        </div>
-                    </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="manana_2" style="margin-top:3px;">
-                        <div>
-                            <div style="font-weight:600;">Buenas tardes (tarde)</div>
-                            <div style="font-size:0.8rem;color:#64748b;">manana_2</div>
-                        </div>
-                    </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="manana_3" style="margin-top:3px;">
+                        <input type="radio" name="waTemplateKey" value="manana_3" checked style="margin-top:3px;">
                         <div>
                             <div style="font-weight:600;">Buenas tardes (recordatorio)</div>
                             <div style="font-size:0.8rem;color:#64748b;">manana_3</div>
                         </div>
                     </label>
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
+                        <input type="radio" name="waTemplateKey" value="shampo_primer" style="margin-top:3px;">
+                        <div>
+                            <div style="font-weight:600;">Shampoo — primer contacto</div>
+                            <div style="font-size:0.8rem;color:#64748b;">shampo_primer</div>
+                        </div>
+                    </label>
+                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
+                        <input type="radio" name="waTemplateKey" value="shampo_segundo" style="margin-top:3px;">
+                        <div>
+                            <div style="font-weight:600;">Shampoo — segundo recordatorio</div>
+                            <div style="font-size:0.8rem;color:#64748b;">shampo_segundo</div>
+                        </div>
+                    </label>
                 </div>
-                <label>Categoría / Tipo de estudio<input id="waTemplateCategory" type="text" placeholder="Ej: hábitos de compra, shampoo, alimento de perros..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <div id="waTemplateCategoryGroup">
+                    <label>Categoría / Tipo de estudio<input id="waTemplateCategory" type="text" placeholder="Ej: hábitos de compra, shampoo, alimento de perros..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                </div>
+                <div id="waTemplateHoraGroup" style="display:none;">
+                    <label>Hora programada<input id="waTemplateHora" type="text" readonly style="width:100%;padding:9px;box-sizing:border-box;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;"></label>
+                    <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Se toma de la hora de recogida del registro. Si no tiene, se enviará "hoy".</div>
+                </div>
                 <div id="waTemplateError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button onclick="closeWhatsAppSendTemplateModal()" style="padding:9px 14px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:pointer;">Cancelar</button>
-                    <button id="waTemplateSend" onclick="sendWhatsAppTemplate()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Enviar plantilla</button>
+                    <button id="waTemplateSend" onclick="showWhatsAppTemplatePreview()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Vista previa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WHATSAPP TEMPLATE PREVIEW CONFIRMATION MODAL -->
+    <div id="whatsappTemplatePreviewModal" class="wa-chat-modal" onclick="if(event.target===this)closeWhatsAppTemplatePreviewModal()">
+        <div class="wa-chat-box" style="width: 520px;">
+            <div class="wa-chat-header" style="background:#075e54;">
+                <div class="wa-chat-title">
+                    <h3>Confirmar envío</h3>
+                    <div class="wa-chat-sub">Revisa que sea la plantilla correcta</div>
+                </div>
+                <button class="wa-chat-close" onclick="closeWhatsAppTemplatePreviewModal()">&times;</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;color:#1e293b;">
+                <div>
+                    <div style="font-size:0.8rem;color:#64748b;font-weight:600;">PLANTILLA SELECCIONADA</div>
+                    <div id="waPreviewTemplateName" style="font-weight:700;color:#1e293b;"></div>
+                </div>
+                <div>
+                    <div style="font-size:0.8rem;color:#64748b;font-weight:600;margin-bottom:6px;">VISTA PREVIA DEL MENSAJE</div>
+                    <div id="waPreviewBody" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:0.9rem;line-height:1.5;white-space:pre-wrap;color:#334155;max-height:320px;overflow-y:auto;"></div>
+                </div>
+                <div id="waPreviewError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button onclick="closeWhatsAppTemplatePreviewModal()" style="padding:9px 14px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:pointer;">Volver</button>
+                    <button id="waPreviewConfirm" onclick="confirmSendWhatsAppTemplate()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Confirmar y enviar</button>
                 </div>
             </div>
         </div>

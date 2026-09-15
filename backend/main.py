@@ -1174,10 +1174,9 @@ def _paginated_wa_messages(query, limit: int, before_id: Optional[int], after_id
 # Mapa de plantillas de seguimiento disponibles en los botones del call center y el inbox.
 # Las keys deben coincidir con los nombres de las plantillas en Meta.
 WHATSAPP_TEMPLATE_MAP = {
-    "manana_1": {"name": "manana_1", "language": "es", "params": ["nombre", "encuestador", "categoria"]},
-    "manana_2": {"name": "manana_2", "language": "es", "params": ["nombre", "encuestador", "categoria"]},
     "manana_3": {"name": "manana_3", "language": "es_ES", "params": ["nombre", "encuestador", "categoria"]},
-    "mensaje_01": {"name": "mensaje_01", "language": "es", "params": ["cliente"]},
+    "shampo_primer": {"name": "shampo_primer", "language": "es", "params": ["encuestada", "encuestador", "hora"]},
+    "shampo_segundo": {"name": "shampo_segundo", "language": "es", "params": ["encuestado"]},
 }
 
 
@@ -1788,7 +1787,7 @@ class WhatsAppSendTemplateRequest(BaseModel):
     call_id: Optional[int] = None
     phone_number: Optional[str] = None
     template_key: str
-    category: str
+    category: Optional[str] = ""
     person_name: Optional[str] = None
 
 
@@ -1799,8 +1798,9 @@ def whatsapp_send_template(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     """Send a predefined Meta template from the call-center buttons or inbox.
-    nombre and encuestador are filled automatically from the call/current user,
-    but person_name can be provided explicitly (e.g. from the inbox modal).
+    nombre/encuestada/encuestado and encuestador are filled automatically from
+    the call/current user; hora is taken from collection_time or defaults to
+    'hoy'. person_name can be provided explicitly (e.g. from the inbox modal).
     """
     template_config = WHATSAPP_TEMPLATE_MAP.get(request.template_key)
     if not template_config:
@@ -1848,7 +1848,7 @@ def whatsapp_send_template(
         person_name = "Cliente"
     agent_name = (current_user.full_name or current_user.username or "").strip() or "Encuestador"
 
-    category = request.category.strip()
+    category = (request.category or "").strip()
     if not category and "categoria" in template_params:
         raise HTTPException(status_code=400, detail="Indica la categoría o tipo de estudio")
 
@@ -1857,6 +1857,11 @@ def whatsapp_send_template(
     if not template_name or not template_language:
         raise HTTPException(status_code=500, detail=f"Plantilla no configurada: name={template_name!r}, language={template_language!r}")
 
+    # Determine the scheduled time text for shampoo templates
+    hora_texto = "hoy"
+    if call and call.collection_time:
+        hora_texto = call.collection_time.strip() or "hoy"
+
     print(f"[WHATSAPP] Enviando plantilla {template_name!r} ({template_language!r}) a {phone} (categoria={category!r})")
 
     param_values = {
@@ -1864,6 +1869,9 @@ def whatsapp_send_template(
         "encuestador": agent_name,
         "categoria": category,
         "cliente": person_name,
+        "encuestada": person_name,
+        "encuestado": person_name,
+        "hora": hora_texto,
     }
     parameters = [
         {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
@@ -1892,6 +1900,8 @@ def whatsapp_send_template(
     preview = f"[{request.template_key}] {person_name}"
     if "categoria" in template_params:
         preview += f" / {agent_name} / {category}"
+    if "hora" in template_params:
+        preview += f" / {hora_texto}"
 
     rec = models.WhatsAppMessage(
         call_id=call.id if call else None,
@@ -1988,6 +1998,9 @@ def whatsapp_send_bulk(
                 "encuestador": agent_name,
                 "categoria": category,
                 "cliente": person_name,
+                "encuestada": person_name,
+                "encuestado": person_name,
+                "hora": "hoy",
             }
             parameters = [
                 {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
@@ -2011,6 +2024,8 @@ def whatsapp_send_bulk(
             preview = f"[{request.template_key}] {person_name}"
             if "categoria" in template_params:
                 preview += f" / {agent_name} / {category}"
+            if "hora" in template_params:
+                preview += f" / hoy"
             rec = models.WhatsAppMessage(
                 call_id=None,
                 phone_number=phone,

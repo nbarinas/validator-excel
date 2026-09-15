@@ -9,6 +9,7 @@ const headers = {
 
 // State
 let currentCallId = null;
+let currentCallData = null; // Full call object for the currently selected call
 let currentUserRole = null;
 let currentUserName = null; // Store full name of current agent
 let currentUserId = null; // Store current user id (for superuser chat alerts)
@@ -65,6 +66,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }, 0);
         });
     }
+
+    // Update template form fields when the selected template changes
+    document.querySelectorAll('input[name="waTemplateKey"]').forEach(radio => {
+        radio.addEventListener('change', waUpdateTemplateForm);
+    });
 
     // Load User Info
     try {
@@ -1986,6 +1992,7 @@ function closeFilter() {
 
 function openCallDetail(call) {
     currentCallId = call.id;
+    currentCallData = call;
     renderObservationShortcuts();
 
     const cleanFloatStr = (val) => {
@@ -4873,19 +4880,50 @@ async function waSetInboxPermission(userId, enabled) {
 
 let waTemplateSourceField = null;
 
+// Textos base para la vista previa (deben coincidir con las plantillas creadas en Meta).
+const WA_TEMPLATE_BODIES = {
+    "manana_3": "Buenas tardes, señora {{nombre}}, ¿cómo está?\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de {{categoria}} y quería confirmar si en este momento podríamos realizar la videollamada.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "shampo_primer": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de shampoo. Hace 15 días le entregamos el producto y el día de hoy tiene programada una videollamada a las {{hora}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!"
+};
+
+function getWhatsAppTemplateHora() {
+    if (currentCallData && currentCallData.collection_time) {
+        return currentCallData.collection_time.trim();
+    }
+    return 'hoy';
+}
+
+function waUpdateTemplateForm() {
+    const selected = document.querySelector('input[name="waTemplateKey"]:checked');
+    const kind = selected ? selected.value : 'manana_3';
+    const needsCategory = kind === 'manana_3';
+    const needsHora = kind === 'shampo_primer';
+    document.getElementById('waTemplateCategoryGroup').style.display = needsCategory ? 'block' : 'none';
+    const horaGroup = document.getElementById('waTemplateHoraGroup');
+    if (horaGroup) {
+        horaGroup.style.display = needsHora ? 'block' : 'none';
+        if (needsHora) {
+            document.getElementById('waTemplateHora').value = getWhatsAppTemplateHora();
+        }
+    }
+}
+
 function openWhatsAppTemplateModal(fieldId) {
     waTemplateSourceField = fieldId || null;
-    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_1'));
+    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_3'));
     document.getElementById('waTemplateCategory').value = '';
     document.getElementById('waTemplateError').style.display = 'none';
+    waUpdateTemplateForm();
     document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
 }
 
 function openWhatsAppTemplateModalFromChat() {
     waTemplateSourceField = 'chat';
-    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_1'));
+    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_3'));
     document.getElementById('waTemplateCategory').value = '';
     document.getElementById('waTemplateError').style.display = 'none';
+    waUpdateTemplateForm();
     document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
 }
 
@@ -4894,9 +4932,11 @@ function closeWhatsAppSendTemplateModal() {
     waTemplateSourceField = null;
 }
 
-async function sendWhatsAppTemplate() {
+// Pending payload while the preview modal is open.
+let waPendingTemplatePayload = null;
+
+function showWhatsAppTemplatePreview() {
     const error = document.getElementById('waTemplateError');
-    const button = document.getElementById('waTemplateSend');
     const selected = document.querySelector('input[name="waTemplateKey"]:checked');
     const category = document.getElementById('waTemplateCategory').value.trim();
 
@@ -4907,14 +4947,15 @@ async function sendWhatsAppTemplate() {
         error.style.display = 'block';
         return;
     }
-    const needsCategory = selected.value !== 'mensaje_01';
+    const kind = selected.value;
+    const needsCategory = kind === 'manana_3';
     if (needsCategory && !category) {
         error.textContent = 'Indica la categoría o tipo de estudio.';
         error.style.display = 'block';
         return;
     }
 
-    const payload = { template_key: selected.value, category };
+    const payload = { template_key: kind, category };
 
     if (waTemplateSourceField === 'chat') {
         if (waChatCallId) payload.call_id = waChatCallId;
@@ -4944,12 +4985,60 @@ async function sendWhatsAppTemplate() {
         return;
     }
 
+    // Build preview text
+    const personName = currentCallData && currentCallData.person_name
+        ? currentCallData.person_name.trim()
+        : 'Cliente';
+    const agentName = currentUserName || 'Encuestador';
+    const hora = getWhatsAppTemplateHora();
+    let body = WA_TEMPLATE_BODIES[kind] || '';
+    body = body.replace(/\{\{nombre\}\}/g, personName);
+    body = body.replace(/\{\{encuestada\}\}/g, personName);
+    body = body.replace(/\{\{encuestado\}\}/g, personName);
+    body = body.replace(/\{\{encuestador\}\}/g, agentName);
+    body = body.replace(/\{\{categoria\}\}/g, category || '-');
+    body = body.replace(/\{\{hora\}\}/g, hora);
+
+    const names = {
+        'manana_3': 'Buenas tardes (recordatorio) — manana_3',
+        'shampo_primer': 'Shampoo — primer contacto — shampo_primer',
+        'shampo_segundo': 'Shampoo — segundo recordatorio — shampo_segundo'
+    };
+    document.getElementById('waPreviewTemplateName').textContent = names[kind] || kind;
+    document.getElementById('waPreviewBody').textContent = body;
+    document.getElementById('waPreviewError').style.display = 'none';
+
+    waPendingTemplatePayload = payload;
+    document.getElementById('whatsappSendTemplateModal').style.display = 'none';
+    document.getElementById('whatsappTemplatePreviewModal').style.display = 'flex';
+}
+
+function closeWhatsAppTemplatePreviewModal() {
+    document.getElementById('whatsappTemplatePreviewModal').style.display = 'none';
+    waPendingTemplatePayload = null;
+    // Return to the selection modal
+    document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
+}
+
+async function confirmSendWhatsAppTemplate() {
+    const error = document.getElementById('waPreviewError');
+    const button = document.getElementById('waPreviewConfirm');
+
+    error.style.display = 'none';
+    if (!waPendingTemplatePayload) {
+        error.textContent = 'No hay plantilla pendiente de envío.';
+        error.style.display = 'block';
+        return;
+    }
+
     button.disabled = true;
     button.textContent = 'Enviando...';
     try {
+        const payload = waPendingTemplatePayload;
         const res = await fetch('/whatsapp/send-template', { method: 'POST', headers, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!res.ok) throw new Error(data.detail || 'No se pudo enviar la plantilla');
+        closeWhatsAppTemplatePreviewModal();
         closeWhatsAppSendTemplateModal();
         if (waTemplateSourceField === 'chat') {
             openWhatsAppChatModal(waChatCallId, waChatPhone);
@@ -4963,8 +5052,13 @@ async function sendWhatsAppTemplate() {
         error.style.display = 'block';
     } finally {
         button.disabled = false;
-        button.textContent = 'Enviar plantilla';
+        button.textContent = 'Confirmar y enviar';
     }
+}
+
+// Kept for compatibility; the UI now routes through the preview modal.
+async function sendWhatsAppTemplate() {
+    showWhatsAppTemplatePreview();
 }
 
 function openWhatsAppNewChat() {
@@ -4991,8 +5085,9 @@ function closeWhatsAppNewChat() {
 
 function waToggleNewChatLink() {
     const kind = document.getElementById('waNewChatKind').value;
-    const isManana = ['manana_1', 'manana_2', 'manana_3'].includes(kind);
-    const needsName = isManana || kind === 'mensaje_01';
+    const isManana = kind === 'manana_3';
+    const isShampo = ['shampo_primer', 'shampo_segundo'].includes(kind);
+    const needsName = isManana || isShampo;
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
     document.getElementById('waNewChatNameLabel').style.display = needsName ? 'block' : 'none';
     document.getElementById('waNewChatSubjectLabel').style.display = (kind === 'form' || kind === 'filter' || isManana) ? 'block' : 'none';
@@ -5000,12 +5095,14 @@ function waToggleNewChatLink() {
 
 function waNewChatTemplateParams() {
     const kind = document.getElementById('waNewChatKind').value;
+    const isManana = kind === 'manana_3';
+    const isShampo = ['shampo_primer', 'shampo_segundo'].includes(kind);
     return {
-        needsName: kind === 'mensaje_01' || ['manana_1', 'manana_2', 'manana_3'].includes(kind),
-        needsCategory: kind === 'filter' || kind === 'form' || ['manana_1', 'manana_2', 'manana_3'].includes(kind),
+        needsName: isManana || isShampo,
+        needsCategory: kind === 'filter' || kind === 'form' || isManana,
         needsLink: kind === 'form',
-        isManana: ['manana_1', 'manana_2', 'manana_3'].includes(kind),
-        isMensaje01: kind === 'mensaje_01',
+        isManana: isManana,
+        isShampo: isShampo,
     };
 }
 
@@ -5021,7 +5118,7 @@ async function sendWhatsAppNewChat() {
     button.disabled = true;
     button.textContent = 'Enviando...';
     try {
-        if (kind === 'mensaje_01' || params.isManana) {
+        if (params.isManana || params.isShampo) {
             const personName = document.getElementById('waNewChatName').value.trim();
             if (!personName) {
                 throw new Error('Indica el nombre del encuestado.');
@@ -5065,7 +5162,7 @@ async function sendWhatsAppNewChat() {
 }
 
 function waResetBulkKind() {
-    document.getElementById('waNewChatKind').value = 'mensaje_01';
+    document.getElementById('waNewChatKind').value = 'shampo_primer';
     waToggleNewChatLink();
 }
 
