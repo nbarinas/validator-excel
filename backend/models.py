@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Float, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import datetime
@@ -412,6 +412,10 @@ class LoanPayment(Base):
 
 class WhatsAppMessage(Base):
     __tablename__ = "whatsapp_messages"
+
+    __table_args__ = (
+        Index('ix_whatsapp_messages_phone_created', 'phone_number', 'created_at'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     call_id = Column(Integer, ForeignKey("calls.id"), nullable=True, index=True)

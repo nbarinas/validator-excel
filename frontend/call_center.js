@@ -4428,7 +4428,8 @@ let waChatAgentId = null;
 let waInboxTab = 'all';
 let waLastHistorySignature = null;
 let waChatBlocked = false;
-let waInboxOffset = 0;
+const WA_INBOX_PAGE_SIZE = 20;
+let waInboxPage = 0;
 let waInboxHasMore = false;
 let waInboxThreads = [];
 let waHistoryHasMore = false;
@@ -5282,7 +5283,7 @@ async function sendWhatsAppBulk() {
 
 function openWhatsAppInbox() {
     document.getElementById('whatsappInboxModal').style.display = 'flex';
-    waInboxOffset = 0;
+    waInboxPage = 0;
     waInboxHasMore = false;
     waInboxThreads = [];
     waSetInboxTab(waInboxTab, true);
@@ -5301,7 +5302,7 @@ function waSetInboxTab(tab, force) {
     const active = document.getElementById(tab === 'all' ? 'waTabAll' : tab === 'unread' ? 'waTabUnread' : 'waTabEscalated');
     if (active) active.classList.add('active');
     if (force) {
-        waInboxOffset = 0;
+        waInboxPage = 0;
         waInboxHasMore = false;
         waInboxThreads = [];
         document.getElementById('whatsappInboxBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
@@ -5383,22 +5384,30 @@ function waRenderInboxList() {
         g.threads.forEach(t => { html += waBuildInboxItemHtml(t); });
     });
 
-    if (waInboxHasMore) {
-        html += `<div style="padding:14px;text-align:center;"><button onclick="waLoadMoreInbox()" style="padding:8px 16px;border:0;border-radius:6px;background:#075e54;color:#fff;cursor:pointer;font-weight:600;">Cargar más conversaciones</button></div>`;
+    // Pagination controls
+    html += `<div style="padding:14px;text-align:center;display:flex;justify-content:center;align-items:center;gap:12px;">`;
+    if (waInboxPage > 0) {
+        html += `<button onclick="waPrevInboxPage()" style="padding:8px 16px;border:0;border-radius:6px;background:#64748b;color:#fff;cursor:pointer;font-weight:600;">← Página anterior</button>`;
     }
+    html += `<span style="color:#64748b;font-weight:600;">Página ${waInboxPage + 1}</span>`;
+    if (waInboxHasMore) {
+        html += `<button onclick="waNextInboxPage()" style="padding:8px 16px;border:0;border-radius:6px;background:#075e54;color:#fff;cursor:pointer;font-weight:600;">Página siguiente →</button>`;
+    }
+    html += `</div>`;
+
     body.innerHTML = html;
 }
 
 async function waLoadInbox() {
     if (!document.getElementById('whatsappInboxModal') || document.getElementById('whatsappInboxModal').style.display === 'none') return;
     try {
-        const res = await fetch(`/whatsapp/inbox?limit=50&offset=${waInboxOffset}`, { headers });
+        const offset = waInboxPage * WA_INBOX_PAGE_SIZE;
+        const res = await fetch(`/whatsapp/inbox?limit=${WA_INBOX_PAGE_SIZE}&offset=${offset}`, { headers });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const data = await res.json();
         const threads = data.threads || [];
         waInboxHasMore = data.has_more === true;
-        waInboxThreads.push(...threads);
-        waInboxOffset = waInboxThreads.length;
+        waInboxThreads = threads;
         waRenderInboxList();
     } catch (e) {
         console.error(e);
@@ -5407,8 +5416,15 @@ async function waLoadInbox() {
     }
 }
 
-function waLoadMoreInbox() {
+function waNextInboxPage() {
     if (!waInboxHasMore) return;
+    waInboxPage += 1;
+    waLoadInbox();
+}
+
+function waPrevInboxPage() {
+    if (waInboxPage <= 0) return;
+    waInboxPage -= 1;
     waLoadInbox();
 }
 

@@ -2367,7 +2367,7 @@ def whatsapp_unread(
 
 @app.get("/whatsapp/inbox")
 def whatsapp_inbox(
-    limit: int = 50,
+    limit: int = 20,
     offset: int = 0,
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
@@ -2376,11 +2376,37 @@ def whatsapp_inbox(
 
     Each thread contains only aggregated data and the last message, avoiding
     loading every message in the conversation.
+
+    Optimized for scale: first finds the most recent N phone_number threads
+    using an indexed subquery, then aggregates only those threads.
     """
     can_supervise = _has_global_whatsapp_inbox(db, current_user)
     blocked_set = _blocked_numbers(db)
 
-    # Aggregate messages by thread (call_id + phone_number)
+    # 1. Find the most recent N distinct phone_number threads.
+    #    This avoids grouping/aggregating the entire whatsapp_messages table.
+    latest_query = (
+        db.query(
+            models.WhatsAppMessage.phone_number,
+            func.max(models.WhatsAppMessage.created_at).label("last_at"),
+        )
+        .filter(models.WhatsAppMessage.phone_number.isnot(None))
+    )
+
+    if not can_supervise:
+        allowed_call_ids = db.query(models.Call.id).filter(models.Call.user_id == current_user.id).subquery()
+        latest_query = latest_query.filter(models.WhatsAppMessage.call_id.in_(allowed_call_ids))
+
+    latest_sub = (
+        latest_query.group_by(models.WhatsAppMessage.phone_number)
+        .order_by(func.max(models.WhatsAppMessage.created_at).desc())
+        .limit(limit + 1)
+        .offset(offset)
+        .subquery()
+    )
+
+    # 2. Aggregate metrics only for the selected phone numbers.
+    selected_phones = db.query(latest_sub.c.phone_number).subquery()
     agg_query = (
         db.query(
             models.WhatsAppMessage.call_id,
@@ -2389,14 +2415,14 @@ def whatsapp_inbox(
             func.max(models.WhatsAppMessage.created_at).label("last_at"),
             func.sum(
                 case(
-                    [(and_(models.WhatsAppMessage.direction == "in", models.WhatsAppMessage.read_at.is_(None)), 1)],
+                    (and_(models.WhatsAppMessage.direction == "in", models.WhatsAppMessage.read_at.is_(None)), 1),
                     else_=0,
                 )
             ).label("unread"),
-            func.max(case([(models.WhatsAppMessage.escalated == True, 1)], else_=0)).label("escalated"),
-            func.max(case([(models.WhatsAppMessage.escalated == True, models.WhatsAppMessage.esc_reason)], else_=None)).label("esc_reason"),
+            func.max(case((models.WhatsAppMessage.escalated == True, 1), else_=0)).label("escalated"),
+            func.max(case((models.WhatsAppMessage.escalated == True, models.WhatsAppMessage.esc_reason), else_=None)).label("esc_reason"),
         )
-        .filter(models.WhatsAppMessage.phone_number.isnot(None))
+        .filter(models.WhatsAppMessage.phone_number.in_(selected_phones))
         .group_by(models.WhatsAppMessage.call_id, models.WhatsAppMessage.phone_number)
     )
 
@@ -2412,8 +2438,6 @@ def whatsapp_inbox(
         .outerjoin(models.User, models.Call.user_id == models.User.id)
         .outerjoin(models.Study, models.Call.study_id == models.Study.id)
         .order_by(agg_sub.c.last_at.desc())
-        .limit(limit + 1)
-        .offset(offset)
         .all()
     )
 
