@@ -1187,10 +1187,15 @@ def _wa_escalate_stale():
       - sin_asignar: no existe llamada en el CRM o no tiene agente asignado.
       - agente_desconectado: el agente asignado no se ha conectado (last_seen viejo).
     Sends ONE alert copy to the superuser WhatsApp per thread.
+
+    Uses short-lived sessions per phone to avoid holding a DB connection
+    for the whole scan and exhausting the SQLAlchemy connection pool.
     """
+    threshold = datetime.utcnow() - timedelta(minutes=WHATSAPP_ESCALATE_MINUTES)
+
+    # 1. Candidate phones with a short-lived session
     db = database.SessionLocal()
     try:
-        threshold = datetime.utcnow() - timedelta(minutes=WHATSAPP_ESCALATE_MINUTES)
         phones = (
             db.query(models.WhatsAppMessage.phone_number)
             .filter(
@@ -1203,15 +1208,23 @@ def _wa_escalate_stale():
             .distinct()
             .all()
         )
-        for (phone,) in phones:
-            if not phone:
-                continue
+    finally:
+        db.close()
+
+    # 2. Process each phone in its own session so connections are released quickly
+    for (phone,) in phones:
+        if not phone:
+            continue
+
+        db = database.SessionLocal()
+        try:
             already = db.query(models.WhatsAppMessage).filter(
                 models.WhatsAppMessage.phone_number == phone,
                 models.WhatsAppMessage.escalated == True,
             ).first()
             if already:
                 continue
+
             msgs = (
                 db.query(models.WhatsAppMessage)
                 .filter(
@@ -1225,6 +1238,7 @@ def _wa_escalate_stale():
             )
             if not msgs:
                 continue
+
             call = None
             if msgs[0].call_id:
                 call = db.query(models.Call).filter(models.Call.id == msgs[0].call_id).first()
@@ -1253,8 +1267,8 @@ def _wa_escalate_stale():
 
             last = msgs[-1]
             _wa_escalate_notify_all(db, last, call, reason, agent)
-    finally:
-        db.close()
+        finally:
+            db.close()
 
 
 def _wa_send_alert_to(phone, msg, call, reason, agent):
