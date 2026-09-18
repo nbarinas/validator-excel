@@ -4903,7 +4903,9 @@ let waTemplateSourceField = null;
 const WA_TEMPLATE_BODIES = {
     "manana_3": "Buenas tardes, señora {{nombre}}, ¿cómo está?\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de {{categoria}} y quería confirmar si en este momento podríamos realizar la videollamada.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "shampo_primer": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de shampoo. Hace 15 días le entregamos el producto y el día de hoy tiene programada una videollamada a las {{hora}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
-    "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!"
+    "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
+    "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día."
 };
 
 function getWhatsAppTemplateHora() {
@@ -5078,6 +5080,121 @@ async function confirmSendWhatsAppTemplate() {
 // Kept for compatibility; the UI now routes through the preview modal.
 async function sendWhatsAppTemplate() {
     showWhatsAppTemplatePreview();
+}
+
+// --- WhatsApp Bonus Templates ---
+function openWhatsAppBonoModal(templateKey) {
+    if (!currentCallId) {
+        alert("Primero abra el detalle de una llamada.");
+        return;
+    }
+    const isParcial = templateKey === 'bono_parcial';
+    document.getElementById('waBonoTemplateKey').value = templateKey;
+    document.getElementById('waBonoTemplateName').textContent = isParcial ? 'Bono parcial — bono_parcial' : 'Bono final — bono_final';
+    document.getElementById('waBonoTitle').textContent = isParcial ? 'Enviar bono parcial' : 'Enviar bono final';
+    document.getElementById('waBonoError').style.display = 'none';
+
+    // Pre-fill dia_y_hora from collection_time or second_collection_time
+    const diaHoraInput = document.getElementById('waBonoDiaHora');
+    const diaHoraGroup = document.getElementById('waBonoDiaHoraGroup');
+    if (isParcial) {
+        diaHoraGroup.style.display = 'block';
+        const prefill = currentCallData
+            ? (currentCallData.collection_time || currentCallData.second_collection_time || '')
+            : '';
+        diaHoraInput.value = prefill;
+    } else {
+        diaHoraGroup.style.display = 'none';
+        diaHoraInput.value = '';
+    }
+
+    // Pre-fill monto (default 20000)
+    const montoInput = document.getElementById('waBonoMonto');
+    const montoGroup = document.getElementById('waBonoMontoGroup');
+    if (isParcial) {
+        montoGroup.style.display = 'block';
+        montoInput.value = '20000';
+    } else {
+        montoGroup.style.display = 'none';
+        montoInput.value = '';
+    }
+
+    updateWhatsAppBonoPreview();
+
+    // Attach listeners for live preview
+    diaHoraInput.oninput = updateWhatsAppBonoPreview;
+    montoInput.oninput = updateWhatsAppBonoPreview;
+
+    document.getElementById('whatsappBonoModal').style.display = 'flex';
+}
+
+function closeWhatsAppBonoModal() {
+    document.getElementById('whatsappBonoModal').style.display = 'none';
+    document.getElementById('waBonoTemplateKey').value = '';
+}
+
+function updateWhatsAppBonoPreview() {
+    const templateKey = document.getElementById('waBonoTemplateKey').value;
+    const personName = currentCallData && currentCallData.person_name
+        ? currentCallData.person_name.trim()
+        : 'Cliente';
+    const diaHora = document.getElementById('waBonoDiaHora').value.trim();
+    const monto = document.getElementById('waBonoMonto').value.trim();
+
+    let body = WA_TEMPLATE_BODIES[templateKey] || '';
+    body = body.replace(/\{\{encuestada\}\}/g, personName);
+    body = body.replace(/\{\{dia_y_hora\}\}/g, diaHora || '[fecha/hora]');
+    body = body.replace(/\{\{monto\}\}/g, monto || '[monto]');
+    document.getElementById('waBonoPreviewBody').textContent = body;
+}
+
+async function sendWhatsAppBono() {
+    const error = document.getElementById('waBonoError');
+    const button = document.getElementById('waBonoSend');
+    const templateKey = document.getElementById('waBonoTemplateKey').value;
+    const diaHora = document.getElementById('waBonoDiaHora').value.trim();
+    const monto = document.getElementById('waBonoMonto').value.trim();
+
+    error.style.display = 'none';
+
+    if (templateKey === 'bono_parcial') {
+        if (!diaHora) {
+            error.textContent = 'Indica la fecha y hora de la próxima videollamada.';
+            error.style.display = 'block';
+            return;
+        }
+        if (!monto) {
+            error.textContent = 'Indica el monto del bono.';
+            error.style.display = 'block';
+            return;
+        }
+    }
+
+    const payload = {
+        template_key: templateKey,
+        call_id: currentCallId,
+        category: ''
+    };
+    if (templateKey === 'bono_parcial') {
+        payload.dia_y_hora = diaHora;
+        payload.monto = monto;
+    }
+
+    button.disabled = true;
+    button.textContent = 'Enviando...';
+    try {
+        const res = await fetch('/whatsapp/send-template', { method: 'POST', headers, body: JSON.stringify(payload) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'No se pudo enviar la plantilla');
+        closeWhatsAppBonoModal();
+        openWhatsAppChatModal(currentCallId);
+    } catch (e) {
+        error.textContent = e.message;
+        error.style.display = 'block';
+    } finally {
+        button.disabled = false;
+        button.textContent = 'Confirmar y enviar';
+    }
 }
 
 function openWhatsAppNewChat() {

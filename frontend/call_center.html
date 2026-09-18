@@ -2154,6 +2154,18 @@
                     Contacto</button>
             </div>
 
+            <div class="form-section">
+                <h4>Bono</h4>
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <button class="btn-wa" onclick="openWhatsAppBonoModal('bono_final')" style="background: #f59e0b; border-color: #d97706;" title="Enviar bono final">
+                        <i class="fab fa-whatsapp"></i> Bono final
+                    </button>
+                    <button class="btn-wa" onclick="openWhatsAppBonoModal('bono_parcial')" style="background: #8b5cf6; border-color: #7c3aed;" title="Enviar bono parcial">
+                        <i class="fab fa-whatsapp"></i> Bono parcial
+                    </button>
+                </div>
+            </div>
+
             <!-- NEW SECTION: Second Collection & Shampoo -->
             <div class="form-section"
                 style="background: #f0fdf4; padding: 1rem; border-radius: 8px; border: 1px solid #bbf7d0; margin-top: 1rem;">
@@ -2888,6 +2900,41 @@
                 <div style="display:flex;justify-content:flex-end;gap:8px;">
                     <button onclick="closeWhatsAppTemplatePreviewModal()" style="padding:9px 14px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:pointer;">Volver</button>
                     <button id="waPreviewConfirm" onclick="confirmSendWhatsAppTemplate()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Confirmar y enviar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WHATSAPP BONUS TEMPLATE MODAL -->
+    <div id="whatsappBonoModal" class="wa-chat-modal" onclick="if(event.target===this)closeWhatsAppBonoModal()">
+        <div class="wa-chat-box" style="width: 520px;">
+            <div class="wa-chat-header" style="background:#075e54;">
+                <div class="wa-chat-title">
+                    <h3 id="waBonoTitle">Enviar bono por WhatsApp</h3>
+                    <div class="wa-chat-sub">Revisa el mensaje antes de enviar</div>
+                </div>
+                <button class="wa-chat-close" onclick="closeWhatsAppBonoModal()">&times;</button>
+            </div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:12px;color:#1e293b;">
+                <input type="hidden" id="waBonoTemplateKey" value="">
+                <div>
+                    <div style="font-size:0.8rem;color:#64748b;font-weight:600;">PLANTILLA</div>
+                    <div id="waBonoTemplateName" style="font-weight:700;color:#1e293b;"></div>
+                </div>
+                <div id="waBonoDiaHoraGroup">
+                    <label>Fecha y hora próxima videollamada<input id="waBonoDiaHora" type="text" placeholder="Ej: 20 de septiembre a las 2:00 pm" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                </div>
+                <div id="waBonoMontoGroup">
+                    <label>Monto del bono<input id="waBonoMonto" type="text" value="20000" placeholder="Ej: 20000" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                </div>
+                <div>
+                    <div style="font-size:0.8rem;color:#64748b;font-weight:600;margin-bottom:6px;">VISTA PREVIA DEL MENSAJE</div>
+                    <div id="waBonoPreviewBody" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:0.9rem;line-height:1.5;white-space:pre-wrap;color:#334155;max-height:320px;overflow-y:auto;"></div>
+                </div>
+                <div id="waBonoError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
+                <div style="display:flex;justify-content:flex-end;gap:8px;">
+                    <button onclick="closeWhatsAppBonoModal()" style="padding:9px 14px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:pointer;">Cancelar</button>
+                    <button id="waBonoSend" onclick="sendWhatsAppBono()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Confirmar y enviar</button>
                 </div>
             </div>
         </div>

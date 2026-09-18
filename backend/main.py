@@ -1174,9 +1174,12 @@ def _paginated_wa_messages(query, limit: int, before_id: Optional[int], after_id
 # Mapa de plantillas de seguimiento disponibles en los botones del call center y el inbox.
 # Las keys deben coincidir con los nombres de las plantillas en Meta.
 WHATSAPP_TEMPLATE_MAP = {
+    "saludo_corto": {"name": "saludo_corto", "language": "en", "params": ["encuestador"]},
     "manana_3": {"name": "manana_3", "language": "es_ES", "params": ["nombre", "encuestador", "categoria"]},
     "shampo_primer": {"name": "shampo_primer", "language": "es", "params": ["encuestada", "encuestador", "hora"]},
     "shampo_segundo": {"name": "shampo_segundo", "language": "es", "params": ["encuestado"]},
+    "bono_final": {"name": "bono_final", "language": "es", "params": ["encuestada"]},
+    "bono_parcial": {"name": "bono_parcial", "language": "es", "params": ["encuestada", "dia_y_hora", "monto"]},
 }
 
 
@@ -1799,6 +1802,8 @@ class WhatsAppSendTemplateRequest(BaseModel):
     template_key: str
     category: Optional[str] = ""
     person_name: Optional[str] = None
+    dia_y_hora: Optional[str] = None
+    monto: Optional[str] = None
 
 
 @app.post("/whatsapp/send-template")
@@ -1811,6 +1816,7 @@ def whatsapp_send_template(
     nombre/encuestada/encuestado and encuestador are filled automatically from
     the call/current user; hora is taken from collection_time or defaults to
     'hoy'. person_name can be provided explicitly (e.g. from the inbox modal).
+    Bonus templates (bono_parcial) accept dia_y_hora and monto.
     """
     template_config = WHATSAPP_TEMPLATE_MAP.get(request.template_key)
     if not template_config:
@@ -1862,6 +1868,14 @@ def whatsapp_send_template(
     if not category and "categoria" in template_params:
         raise HTTPException(status_code=400, detail="Indica la categoría o tipo de estudio")
 
+    # Validate bonus template inputs
+    dia_y_hora = (request.dia_y_hora or "").strip()
+    monto = (request.monto or "").strip()
+    if "dia_y_hora" in template_params and not dia_y_hora:
+        raise HTTPException(status_code=400, detail="Indica la fecha y hora de la próxima videollamada")
+    if "monto" in template_params and not monto:
+        raise HTTPException(status_code=400, detail="Indica el monto del bono")
+
     template_name = template_config["name"]
     template_language = template_config["language"]
     if not template_name or not template_language:
@@ -1882,6 +1896,8 @@ def whatsapp_send_template(
         "encuestada": person_name,
         "encuestado": person_name,
         "hora": hora_texto,
+        "dia_y_hora": dia_y_hora,
+        "monto": monto,
     }
     parameters = [
         {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
@@ -1912,6 +1928,10 @@ def whatsapp_send_template(
         preview += f" / {agent_name} / {category}"
     if "hora" in template_params:
         preview += f" / {hora_texto}"
+    if "dia_y_hora" in template_params:
+        preview += f" / {dia_y_hora}"
+    if "monto" in template_params:
+        preview += f" / ${monto}"
 
     rec = models.WhatsAppMessage(
         call_id=call.id if call else None,
