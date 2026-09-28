@@ -5666,6 +5666,7 @@ function openBulkLinkSendModal() {
     document.getElementById('bulkLinkStudy').innerHTML = '<option value="">Selecciona un estudio</option>';
     document.getElementById('bulkLinkTemplate').value = 'pepe_1';
     document.getElementById('bulkLinkDay').value = '1';
+    document.getElementById('bulkLinkFecha').value = '';
     document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
     document.getElementById('bulkLinkStatus').style.display = 'none';
     document.getElementById('bulkLinkError').style.display = 'none';
@@ -5686,7 +5687,9 @@ function closeBulkLinkSendModal() {
 function bulkLinkOnTemplateChange() {
     const template = document.getElementById('bulkLinkTemplate').value;
     const needsDay = template === 'sibate_2';
+    const needsFecha = template === 'recordatorio';
     document.getElementById('bulkLinkDayLabel').style.display = needsDay ? 'block' : 'none';
+    document.getElementById('bulkLinkFechaLabel').style.display = needsFecha ? 'block' : 'none';
 }
 
 async function bulkLinkLoadStudies() {
@@ -5840,8 +5843,12 @@ async function bulkLinkSendSelected() {
     if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
     const template = document.getElementById('bulkLinkTemplate').value;
     const day = document.getElementById('bulkLinkDay').value.trim();
+    const fecha = document.getElementById('bulkLinkFecha').value.trim();
     if (template === 'sibate_2' && (!day || parseInt(day, 10) < 1 || parseInt(day, 10) > 7)) {
         alert('Indica un día entre 1 y 7.'); return;
+    }
+    if (template === 'recordatorio' && !fecha) {
+        alert('Indica la fecha pendiente.'); return;
     }
     bulkLinkHideAlerts();
     let sent = 0;
@@ -5859,6 +5866,10 @@ async function bulkLinkSendSelected() {
         };
         if (template === 'sibate_2') {
             payload.dia = day;
+        }
+        if (template === 'recordatorio') {
+            payload.fecha = fecha;
+            payload.nombremascota = contact.dog_name || undefined;
         }
         try {
             const res = await fetch('/whatsapp/send-template', {

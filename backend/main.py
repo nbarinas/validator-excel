@@ -1238,6 +1238,7 @@ WHATSAPP_TEMPLATE_MAP = {
     "bono_parcial": {"name": "bono_parcial", "language": "es", "params": ["encuestada", "dia_y_hora", "monto"]},
     "pepe_1": {"name": "pepe_1", "language": "es", "params": ["encuestado", "nombre_mascota", "censo"]},
     "sibate_2": {"name": "sibate_2", "language": "es", "params": ["encuestado", "nombre_mascota", "censo", "dia"]},
+    "recordatorio": {"name": "recordatorio", "language": "es", "params": ["encuestado", "nombremascota", "fecha", "censo"]},
 }
 
 
@@ -1866,6 +1867,8 @@ class WhatsAppSendTemplateRequest(BaseModel):
     nombre_mascota: Optional[str] = None
     censo: Optional[str] = None
     dia: Optional[str] = None
+    nombremascota: Optional[str] = None
+    fecha: Optional[str] = None
 
 
 @app.post("/whatsapp/send-template")
@@ -1952,10 +1955,14 @@ def whatsapp_send_template(
     nombre_mascota = (request.nombre_mascota or "").strip()
     if not nombre_mascota and call:
         nombre_mascota = (call.dog_name or "").strip()
+    nombremascota = (request.nombremascota or "").strip()
+    if not nombremascota and call:
+        nombremascota = (call.dog_name or "").strip()
     censo = (request.censo or "").strip()
     if not censo and call:
         censo = (call.census or "").strip()
     dia = (request.dia or "").strip()
+    fecha = (request.fecha or "").strip()
 
     print(f"[WHATSAPP] Enviando plantilla {template_name!r} ({template_language!r}) a {phone} (categoria={category!r})")
 
@@ -1970,8 +1977,10 @@ def whatsapp_send_template(
         "dia_y_hora": dia_y_hora,
         "monto": monto,
         "nombre_mascota": nombre_mascota,
+        "nombremascota": nombremascota,
         "censo": censo,
         "dia": dia,
+        "fecha": fecha,
     }
     parameters = [
         {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
