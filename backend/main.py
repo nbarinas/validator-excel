@@ -182,6 +182,15 @@ def on_startup():
                 db.execute(text(f"ALTER TABLE whatsapp_messages ADD COLUMN {col} {dtype}"))
                 print(f"Migration: Added {col} to whatsapp_messages")
 
+        # WhatsApp messages (unread query performance): composite index (direction, read_at)
+        try:
+            wa_indexes = {ix['name'] for ix in inspect(database.engine).get_indexes('whatsapp_messages')}
+        except Exception:
+            wa_indexes = set()
+        if 'ix_whatsapp_messages_direction_read' not in wa_indexes:
+            db.execute(text("CREATE INDEX ix_whatsapp_messages_direction_read ON whatsapp_messages (direction, read_at)"))
+            print("Migration: Added index ix_whatsapp_messages_direction_read")
+
         db.commit()
     except Exception as e:
         print(f"Migration error: {e}")
@@ -1123,6 +1132,18 @@ def _wa_graph_request(path, payload):
         return {"error": {"code": e.code, "message": body}}
 
 
+# --- Cache compartida del resumen de mensajes no leídos de WhatsApp ---
+# El cálculo global (group-by sobre toda la tabla) se hace a lo sumo una vez
+# por TTL y se invalida al recibir un mensaje entrante o al marcar como leído.
+# Así N encuestadores en simultáneo leen la misma computación, no N por separado.
+_wa_unread_cache = {"ts": 0.0, "data": None, "dirty": True}
+_wa_unread_cache_ttl = 5.0
+
+
+def _wa_invalidate_unread_cache():
+    _wa_unread_cache["dirty"] = True
+
+
 def _normalize_wa_phone(raw):
     """Normalize a Colombian number to E.164 (57 + 10 digits)."""
     if raw is None:
@@ -1516,6 +1537,7 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
                         profile_name=profile_name,
                     )
                     db.add(rec)
+                    _wa_invalidate_unread_cache()
             db.commit()
     except Exception as e:
         print(f"[WHATSAPP] Error processing webhook: {e}")
@@ -2270,6 +2292,7 @@ def whatsapp_history(
         if m.direction == "in" and m.read_at is None:
             m.read_at = datetime.utcnow()
     db.commit()
+    _wa_invalidate_unread_cache()
 
     agent = db.query(models.User).filter(models.User.id == call.user_id).first() if call.user_id else None
     phone_display = variants.pop() if variants else call.phone_number
@@ -2323,6 +2346,7 @@ def whatsapp_history_phone(
         if m.direction == "in" and m.read_at is None:
             m.read_at = datetime.utcnow()
     db.commit()
+    _wa_invalidate_unread_cache()
     person_name = None
     for m in reversed(msgs):
         if m.profile_name:
@@ -2422,6 +2446,7 @@ def whatsapp_read(
             m.read_at = datetime.utcnow()
             updated += 1
         db.commit()
+        _wa_invalidate_unread_cache()
     return {"updated": updated}
 
 
@@ -2431,16 +2456,23 @@ def whatsapp_unread(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     can_supervise = _has_global_whatsapp_inbox(db, current_user)
-    rows = (
-        db.query(models.WhatsAppMessage.phone_number, func.count(models.WhatsAppMessage.id))
-        .filter(
-            models.WhatsAppMessage.direction == "in",
-            models.WhatsAppMessage.read_at.is_(None),
-            models.WhatsAppMessage.phone_number.isnot(None),
+    now = time.time()
+    cache = _wa_unread_cache
+    if cache["dirty"] or (now - cache["ts"]) > _wa_unread_cache_ttl:
+        rows = (
+            db.query(models.WhatsAppMessage.phone_number, func.count(models.WhatsAppMessage.id))
+            .filter(
+                models.WhatsAppMessage.direction == "in",
+                models.WhatsAppMessage.read_at.is_(None),
+                models.WhatsAppMessage.phone_number.isnot(None),
+            )
+            .group_by(models.WhatsAppMessage.phone_number)
+            .all()
         )
-        .group_by(models.WhatsAppMessage.phone_number)
-        .all()
-    )
+        cache["data"] = rows
+        cache["ts"] = now
+        cache["dirty"] = False
+    rows = cache["data"]
     result = []
     seen_calls = set()
     for phone, cnt in rows:

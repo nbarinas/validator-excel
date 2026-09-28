@@ -5652,14 +5652,47 @@ async function waPollUnreadBadge() {
             const count = unreadMap[callId] || 0;
             cell.innerHTML = waRenderGridIcon(count, callId);
         });
+
+        // Refresh-on-delta: reload the grid only when the unread set actually changed
+        // (e.g. someone wrote or a message was read). Avoids N*frecuencia reloads.
+        const sig = JSON.stringify(Object.keys(unreadMap).sort().map(k => [k, unreadMap[k]]));
+        if (waGridUnreadSignature !== null && sig !== waGridUnreadSignature && waIsGridActive()) {
+            waScheduleGridReload();
+        }
+        waGridUnreadSignature = sig;
     } catch (e) { /* silencioso */ }
 }
 
-// Poll unread badge for superuser/coordinator
+// Poll unread for EVERY role (encuestadores included) so the "1" appears in <=10s.
+// Skips while the tab is hidden. The grid only reloads when a real change is detected.
+let waGridUnreadSignature = null;
+let waGridReloadTimer = null;
+
+function waIsUserBusy() {
+    if (document.hidden) return true;
+    const el = document.activeElement;
+    return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT');
+}
+
+function waIsGridActive() {
+    const el = document.getElementById('crmInterface');
+    if (!el) return false;
+    return el.style.display !== 'none';
+}
+
+function waScheduleGridReload() {
+    if (waGridReloadTimer) return;
+    waGridReloadTimer = setTimeout(() => {
+        waGridReloadTimer = null;
+        if (waIsUserBusy()) return;
+        const sel = document.getElementById('studySelect');
+        if (sel) loadStudyData(sel.value || null);
+    }, 800);
+}
+
 setInterval(() => {
-    if (currentUserRole === 'superuser' || currentUserRole === 'coordinator' || currentUserRole === 'auxiliar' || currentUserWhatsAppInboxEnabled) {
-        waPollUnreadBadge();
-    }
+    if (document.hidden) return;
+    waPollUnreadBadge();
 }, 10000);
 
 // --- Bulk Link Send (multi-link WhatsApp) ---

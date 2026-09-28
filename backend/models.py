@@ -417,6 +417,7 @@ class WhatsAppMessage(Base):
 
     __table_args__ = (
         Index('ix_whatsapp_messages_phone_created', 'phone_number', 'created_at'),
+        Index('ix_whatsapp_messages_direction_read', 'direction', 'read_at'),
     )
 
     id = Column(Integer, primary_key=True, index=True)
