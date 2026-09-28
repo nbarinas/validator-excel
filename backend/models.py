@@ -152,6 +152,7 @@ class Call(Base):
     bonus_auxiliary = Column(String(100), nullable=True)
 
     reminder_sent = Column(Boolean, default=False) # Column from ClickPanda
+    bulk_send_status = Column(String(50), nullable=True) # responded, seen, etc. for multi-link WhatsApp sends
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

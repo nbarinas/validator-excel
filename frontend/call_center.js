@@ -72,6 +72,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         radio.addEventListener('change', waUpdateTemplateForm);
     });
 
+    // Bulk link send checkbox listener
+    bulkLinkAttachCheckboxListeners();
+
     // Load User Info
     try {
         const uRes = await fetch('/users/me', { headers });
@@ -124,6 +127,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 const btnWaInbox = document.getElementById('btnWhatsAppInboxLanding');
                 if (btnWaInbox) btnWaInbox.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+
+                const btnBulkLink = document.getElementById('btnBulkLinkSend');
+                if (btnBulkLink) btnBulkLink.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
 
                 const btnFilters = document.getElementById('btnFiltersLanding');
                 if (btnFilters) btnFilters.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
@@ -5620,3 +5626,281 @@ setInterval(() => {
         waPollUnreadBadge();
     }
 }, 10000);
+
+// --- Bulk Link Send (multi-link WhatsApp) ---
+let bulkLinkContacts = [];
+let bulkLinkFilter = 'all'; // all | pending
+
+function openBulkLinkSendModal() {
+    document.getElementById('bulkLinkStudy').innerHTML = '<option value="">Selecciona un estudio</option>';
+    document.getElementById('bulkLinkTemplate').value = 'sibate_1';
+    document.getElementById('bulkLinkDay').value = '1';
+    document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
+    document.getElementById('bulkLinkStatus').style.display = 'none';
+    document.getElementById('bulkLinkError').style.display = 'none';
+    document.getElementById('bulkLinkSelectAll').checked = false;
+    document.getElementById('bulkLinkHeaderCheck').checked = false;
+    bulkLinkContacts = [];
+    bulkLinkFilter = 'all';
+    bulkLinkOnTemplateChange();
+    bulkLinkLoadStudies();
+    document.getElementById('bulkLinkSendModal').style.display = 'flex';
+}
+
+function closeBulkLinkSendModal() {
+    document.getElementById('bulkLinkSendModal').style.display = 'none';
+}
+
+function bulkLinkOnTemplateChange() {
+    const template = document.getElementById('bulkLinkTemplate').value;
+    const needsDay = template === 'sibate_2';
+    document.getElementById('bulkLinkDayLabel').style.display = needsDay ? 'block' : 'none';
+}
+
+async function bulkLinkLoadStudies() {
+    try {
+        const res = await fetch('/studies', { headers });
+        if (!res.ok) throw new Error('No se pudieron cargar los estudios');
+        const studies = await res.json();
+        const select = document.getElementById('bulkLinkStudy');
+        select.innerHTML = '<option value="">Selecciona un estudio</option>' +
+            studies.map(s => `<option value="${s.id}">${waEsc(s.name)}</option>`).join('');
+    } catch (e) {
+        bulkLinkShowError(e.message);
+    }
+}
+
+async function bulkLinkLoadContacts() {
+    const studyId = document.getElementById('bulkLinkStudy').value;
+    if (!studyId) {
+        document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
+        bulkLinkContacts = [];
+        bulkLinkUpdateCount();
+        return;
+    }
+    try {
+        const res = await fetch(`/studies/${studyId}/contacts-for-bulk`, { headers });
+        if (!res.ok) throw new Error('No se pudieron cargar los contactos');
+        bulkLinkContacts = await res.json();
+        bulkLinkRenderTable();
+    } catch (e) {
+        bulkLinkShowError(e.message);
+    }
+}
+
+function bulkLinkStatusLabel(status, blocked) {
+    if (blocked) return '🔴 Bloqueado';
+    if (status === 'responded') return '🟢 Respondido';
+    if (status === 'seen') return '🟡 Visto';
+    return '⚪ Pendiente';
+}
+
+function bulkLinkRenderTable() {
+    const tbody = document.getElementById('bulkLinkTableBody');
+    const visible = bulkLinkContacts.filter(c => {
+        if (bulkLinkFilter === 'pending') {
+            return !c.blocked && c.bulk_send_status !== 'responded';
+        }
+        return true;
+    });
+    if (visible.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">No hay contactos</td></tr>';
+    } else {
+        tbody.innerHTML = visible.map(c => {
+            const lastText = c.last_message ? (c.last_message.text || '(sin texto)') : '';
+            const lastDir = c.last_message ? (c.last_message.direction === 'in' ? '📥' : '📤') : '';
+            const lastSnippet = lastText ? `${lastDir} ${lastText.substring(0, 60)}${lastText.length > 60 ? '...' : ''}` : '—';
+            return `<tr data-call-id="${c.id}" style="${c.blocked ? 'background:#fee2e2;' : c.bulk_send_status === 'responded' ? 'background:#dcfce7;' : ''}">
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><input type="checkbox" class="bulk-link-check" value="${c.id}" ${c.blocked ? 'disabled' : ''}></td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.census || '')}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.person_name || '')}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.dog_name || '')}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.phone_number || '')}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${bulkLinkStatusLabel(c.bulk_send_status, c.blocked)}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #475569;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(lastSnippet)}</td>
+            </tr>`;
+        }).join('');
+    }
+    bulkLinkUpdateCount();
+}
+
+function bulkLinkUpdateCount() {
+    const selected = document.querySelectorAll('.bulk-link-check:checked').length;
+    document.getElementById('bulkLinkCount').textContent = `${bulkLinkContacts.length} contactos · ${selected} seleccionados`;
+}
+
+function bulkLinkToggleSelectAll() {
+    const checked = document.getElementById('bulkLinkSelectAll').checked || document.getElementById('bulkLinkHeaderCheck').checked;
+    document.getElementById('bulkLinkSelectAll').checked = checked;
+    document.getElementById('bulkLinkHeaderCheck').checked = checked;
+    document.querySelectorAll('.bulk-link-check:not(:disabled)').forEach(cb => cb.checked = checked);
+    bulkLinkUpdateCount();
+}
+
+function bulkLinkFilterPending() {
+    bulkLinkFilter = 'pending';
+    bulkLinkRenderTable();
+}
+
+function bulkLinkFilterAll() {
+    bulkLinkFilter = 'all';
+    bulkLinkRenderTable();
+}
+
+function bulkLinkShowStatus(msg) {
+    const el = document.getElementById('bulkLinkStatus');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+function bulkLinkShowError(msg) {
+    const el = document.getElementById('bulkLinkError');
+    el.textContent = msg;
+    el.style.display = 'block';
+}
+
+function bulkLinkHideAlerts() {
+    document.getElementById('bulkLinkStatus').style.display = 'none';
+    document.getElementById('bulkLinkError').style.display = 'none';
+}
+
+function bulkLinkGetSelectedIds() {
+    return Array.from(document.querySelectorAll('.bulk-link-check:checked')).map(cb => parseInt(cb.value, 10));
+}
+
+async function bulkLinkMarkResponded() {
+    const ids = bulkLinkGetSelectedIds();
+    if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
+    bulkLinkHideAlerts();
+    let ok = 0;
+    for (const id of ids) {
+        try {
+            const res = await fetch(`/calls/${id}/bulk-status`, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ status: 'responded' })
+            });
+            if (res.ok) ok++;
+        } catch (e) { /* ignore individual errors */ }
+    }
+    bulkLinkShowStatus(`Marcados como respondidos: ${ok}/${ids.length}`);
+    await bulkLinkLoadContacts();
+}
+
+async function bulkLinkBlock() {
+    const ids = bulkLinkGetSelectedIds();
+    if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
+    if (!confirm(`¿Bloquear ${ids.length} número(s) para siempre?`)) return;
+    bulkLinkHideAlerts();
+    let ok = 0;
+    for (const id of ids) {
+        const contact = bulkLinkContacts.find(c => c.id === id);
+        if (!contact || !contact.phone_number) continue;
+        try {
+            const res = await fetch('/whatsapp/block', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ phone_number: contact.phone_number, reason: 'No me molesten más (envío múltiple)' })
+            });
+            if (res.ok) ok++;
+        } catch (e) { /* ignore individual errors */ }
+    }
+    bulkLinkShowStatus(`Bloqueados: ${ok}/${ids.length}`);
+    await bulkLinkLoadContacts();
+}
+
+async function bulkLinkSendSelected() {
+    const ids = bulkLinkGetSelectedIds();
+    if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
+    const template = document.getElementById('bulkLinkTemplate').value;
+    const day = document.getElementById('bulkLinkDay').value.trim();
+    if (template === 'sibate_2' && (!day || parseInt(day, 10) < 1 || parseInt(day, 10) > 7)) {
+        alert('Indica un día entre 1 y 7.'); return;
+    }
+    bulkLinkHideAlerts();
+    let sent = 0;
+    let failed = 0;
+    const errors = [];
+    for (const id of ids) {
+        const contact = bulkLinkContacts.find(c => c.id === id);
+        if (!contact || !contact.phone_number) continue;
+        const payload = {
+            call_id: id,
+            template_key: template,
+            person_name: contact.person_name || undefined,
+            nombre_mascota: contact.dog_name || undefined,
+            censo: contact.census || undefined,
+        };
+        if (template === 'sibate_2') {
+            payload.dia = day;
+        }
+        try {
+            const res = await fetch('/whatsapp/send-template', {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                sent++;
+            } else {
+                failed++;
+                errors.push(`${contact.person_name || contact.phone_number}: ${data.detail || 'Error'}`);
+            }
+        } catch (e) {
+            failed++;
+            errors.push(`${contact.person_name || contact.phone_number}: ${e.message}`);
+        }
+        // Small delay to avoid rate limits
+        await new Promise(r => setTimeout(r, 600));
+    }
+    bulkLinkShowStatus(`Enviados: ${sent} · Fallados: ${failed}`);
+    if (errors.length) {
+        bulkLinkShowError(errors.slice(0, 10).join('\n') + (errors.length > 10 ? `\n... y ${errors.length - 10} más` : ''));
+    }
+    await bulkLinkLoadContacts();
+}
+
+async function bulkLinkOpenPreview(callId) {
+    const contact = bulkLinkContacts.find(c => c.id === callId);
+    if (!contact) return;
+    document.getElementById('bulkLinkPreviewSubtitle').textContent = `${contact.census || ''} — ${contact.person_name || ''}`;
+    const body = document.getElementById('bulkLinkPreviewBody');
+    body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando historial...</div>';
+    document.getElementById('bulkLinkPreviewModal').style.display = 'flex';
+    try {
+        const res = await fetch(`/whatsapp/history/${callId}?limit=50`, { headers });
+        if (!res.ok) throw new Error('No se pudo cargar el historial');
+        const data = await res.json();
+        if (!data.messages || data.messages.length === 0) {
+            body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay mensajes aún.</div>';
+            return;
+        }
+        body.innerHTML = data.messages.map(m => {
+            const isOut = m.direction === 'out';
+            const time = m.created_at ? new Date(m.created_at).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+            return `<div style="margin-bottom: 12px; display: flex; justify-content: ${isOut ? 'flex-end' : 'flex-start'};">
+                <div style="max-width: 80%; padding: 10px 14px; border-radius: 12px; background: ${isOut ? '#d1fae5' : '#f1f5f9'}; color: #1e293b;">
+                    <div style="font-size: 0.85rem; margin-bottom: 4px;">${waEsc(m.message_text || '')}</div>
+                    <div style="font-size: 0.7rem; color: #64748b; text-align: right;">${time} ${m.wa_status || ''}</div>
+                </div>
+            </div>`;
+        }).join('');
+        body.scrollTop = body.scrollHeight;
+    } catch (e) {
+        body.innerHTML = `<div style="padding: 2rem; text-align: center; color: #b91c1c;">${e.message}</div>`;
+    }
+}
+
+function closeBulkLinkPreviewModal() {
+    document.getElementById('bulkLinkPreviewModal').style.display = 'none';
+}
+
+// Update visible count when checkboxes change
+function bulkLinkAttachCheckboxListeners() {
+    document.getElementById('bulkLinkTableBody').addEventListener('change', (e) => {
+        if (e.target.classList.contains('bulk-link-check')) {
+            bulkLinkUpdateCount();
+        }
+    });
+}

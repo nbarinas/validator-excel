@@ -151,6 +151,9 @@ def on_startup():
         if 'bonus_auxiliary' not in call_cols:
             db.execute(text("ALTER TABLE calls ADD COLUMN bonus_auxiliary VARCHAR(100)"))
             print("Migration: Added bonus_auxiliary to calls")
+        if 'bulk_send_status' not in call_cols:
+            db.execute(text("ALTER TABLE calls ADD COLUMN bulk_send_status VARCHAR(50)"))
+            print("Migration: Added bulk_send_status to calls")
 
         # WhatsApp messages (escalation columns)
         try:
@@ -1180,6 +1183,8 @@ WHATSAPP_TEMPLATE_MAP = {
     "shampo_segundo": {"name": "shampo_segundo", "language": "es", "params": ["encuestado"]},
     "bono_final": {"name": "bono_final", "language": "es", "params": ["encuestada"]},
     "bono_parcial": {"name": "bono_parcial", "language": "es", "params": ["encuestada", "dia_y_hora", "monto"]},
+    "sibate_1": {"name": "sibate_1", "language": "es", "params": ["encuestado", "nombre_mascota", "censo"]},
+    "sibate_2": {"name": "sibate_2", "language": "es", "params": ["encuestado", "nombre_mascota", "censo", "dia"]},
 }
 
 
@@ -1804,6 +1809,9 @@ class WhatsAppSendTemplateRequest(BaseModel):
     person_name: Optional[str] = None
     dia_y_hora: Optional[str] = None
     monto: Optional[str] = None
+    nombre_mascota: Optional[str] = None
+    censo: Optional[str] = None
+    dia: Optional[str] = None
 
 
 @app.post("/whatsapp/send-template")
@@ -1886,6 +1894,15 @@ def whatsapp_send_template(
     if call and call.collection_time:
         hora_texto = call.collection_time.strip() or "hoy"
 
+    # Sibate template values: prefer explicit request, fallback to call data
+    nombre_mascota = (request.nombre_mascota or "").strip()
+    if not nombre_mascota and call:
+        nombre_mascota = (call.dog_name or "").strip()
+    censo = (request.censo or "").strip()
+    if not censo and call:
+        censo = (call.census or "").strip()
+    dia = (request.dia or "").strip()
+
     print(f"[WHATSAPP] Enviando plantilla {template_name!r} ({template_language!r}) a {phone} (categoria={category!r})")
 
     param_values = {
@@ -1898,6 +1915,9 @@ def whatsapp_send_template(
         "hora": hora_texto,
         "dia_y_hora": dia_y_hora,
         "monto": monto,
+        "nombre_mascota": nombre_mascota,
+        "censo": censo,
+        "dia": dia,
     }
     parameters = [
         {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
@@ -2678,12 +2698,118 @@ def assign_study_assistants(study_id: int, assignment: AssistantAssignment, db: 
 def get_study_assistants(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
     if current_user.role != "superuser" and current_user.role != "coordinator":
          raise HTTPException(status_code=403, detail="Not authorized")
-         
+          
     study = db.query(models.Study).filter(models.Study.id == study_id).first()
     if not study:
          raise HTTPException(status_code=404, detail="Study not found")
-         
+          
     return [{"id": u.id, "username": u.username, "full_name": u.full_name, "role": u.role} for u in study.assistants]
+
+
+class CallBulkStatusUpdate(BaseModel):
+    status: Optional[str] = None  # responded, seen, or empty to clear
+
+
+@app.get("/studies/{study_id}/contacts-for-bulk")
+def get_study_contacts_for_bulk(
+    study_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Return all contacts from a study, ready for multi-link WhatsApp send.
+    Includes last WhatsApp message and blocked status.
+    """
+    if current_user.role not in ("superuser", "coordinator"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found")
+
+    calls = (
+        db.query(models.Call)
+        .filter(models.Call.study_id == study_id)
+        .order_by(models.Call.id.asc())
+        .all()
+    )
+
+    blocked_set = _blocked_numbers(db)
+
+    # Collect phone variants to query last messages in one go
+    phone_to_call = {}
+    all_variants = set()
+    for call in calls:
+        variants = _wa_phone_variants(call)
+        variants.add(_normalize_wa_phone(call.phone_number))
+        variants.add(_normalize_wa_phone(call.whatsapp))
+        variants.discard(None)
+        for v in variants:
+            phone_to_call.setdefault(v, call.id)
+            all_variants.add(v)
+
+    last_messages = {}
+    if all_variants:
+        msgs = (
+            db.query(models.WhatsAppMessage)
+            .filter(models.WhatsAppMessage.phone_number.in_(list(all_variants)))
+            .order_by(models.WhatsAppMessage.id.desc())
+            .all()
+        )
+        for m in msgs:
+            if m.phone_number not in last_messages:
+                last_messages[m.phone_number] = m
+
+    result = []
+    for call in calls:
+        variants = _wa_phone_variants(call)
+        variants.add(_normalize_wa_phone(call.phone_number))
+        variants.add(_normalize_wa_phone(call.whatsapp))
+        variants.discard(None)
+        last_msg = None
+        for v in variants:
+            if v in last_messages:
+                last_msg = last_messages[v]
+                break
+        is_blocked = bool(variants & blocked_set)
+        result.append({
+            "id": call.id,
+            "census": call.census,
+            "person_name": call.person_name,
+            "dog_name": call.dog_name,
+            "phone_number": call.phone_number,
+            "whatsapp": call.whatsapp,
+            "bulk_send_status": call.bulk_send_status,
+            "blocked": is_blocked,
+            "last_message": {
+                "text": last_msg.message_text if last_msg else None,
+                "direction": last_msg.direction if last_msg else None,
+                "created_at": last_msg.created_at.isoformat() if last_msg and last_msg.created_at else None,
+                "wa_status": last_msg.wa_status if last_msg else None,
+            } if last_msg else None,
+        })
+    return result
+
+
+@app.post("/calls/{call_id}/bulk-status")
+def update_call_bulk_status(
+    call_id: int,
+    update: CallBulkStatusUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Mark a call's bulk-send status (responded, seen, etc.)."""
+    if current_user.role not in ("superuser", "coordinator"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    call = db.query(models.Call).filter(models.Call.id == call_id).first()
+    if not call:
+        raise HTTPException(status_code=404, detail="Call not found")
+
+    call.bulk_send_status = (update.status or "").strip()[:50] or None
+    db.commit()
+    db.refresh(call)
+    return {"id": call.id, "bulk_send_status": call.bulk_send_status}
+
 
 @app.put("/studies/{study_id}/toggle")
 def toggle_study_status(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
