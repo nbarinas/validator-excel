@@ -5664,7 +5664,7 @@ let bulkLinkFilter = 'all'; // all | pending
 
 function openBulkLinkSendModal() {
     document.getElementById('bulkLinkStudy').innerHTML = '<option value="">Selecciona un estudio</option>';
-    document.getElementById('bulkLinkTemplate').value = 'sibate_1';
+    document.getElementById('bulkLinkTemplate').value = 'pepe_1';
     document.getElementById('bulkLinkDay').value = '1';
     document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
     document.getElementById('bulkLinkStatus').style.display = 'none';
