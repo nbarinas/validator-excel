@@ -2781,20 +2781,21 @@ def get_study_contacts_for_bulk(
 ):
     """Return all contacts from a study, ready for multi-link WhatsApp send.
     Includes last WhatsApp message and blocked status.
+    Managers (superuser/coordinator) see the whole study; other users with
+    the bulk-link permission (e.g. encuestador) only see their assigned calls.
     """
-    if current_user.role not in ("superuser", "coordinator"):
+    is_manager = current_user.role in ("superuser", "coordinator")
+    if not is_manager and not bool(current_user.bulk_link_enabled):
         raise HTTPException(status_code=403, detail="Not authorized")
 
     study = db.query(models.Study).filter(models.Study.id == study_id).first()
     if not study:
         raise HTTPException(status_code=404, detail="Study not found")
 
-    calls = (
-        db.query(models.Call)
-        .filter(models.Call.study_id == study_id)
-        .order_by(models.Call.id.asc())
-        .all()
-    )
+    calls = db.query(models.Call).filter(models.Call.study_id == study_id)
+    if not is_manager:
+        calls = calls.filter(models.Call.user_id == current_user.id)
+    calls = calls.order_by(models.Call.id.asc()).all()
 
     blocked_set = _blocked_numbers(db)
 

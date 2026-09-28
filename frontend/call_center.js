@@ -174,6 +174,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (grantedInboxButton) {
                 grantedInboxButton.style.display = user.whatsapp_inbox_enabled && !['superuser', 'coordinator', 'auxiliar'].includes(currentUserRole) ? 'block' : 'none';
             }
+            const bulkGrantedButton = document.getElementById('btnBulkLinkSendGranted');
+            if (bulkGrantedButton) {
+                bulkGrantedButton.style.display = user.bulk_link_enabled && !['superuser', 'coordinator', 'auxiliar'].includes(currentUserRole) ? 'block' : 'none';
+            }
 
             // Ensure search is visible for EVERYONE
             const search = document.getElementById('searchPanel');
