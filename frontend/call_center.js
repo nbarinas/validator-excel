@@ -136,8 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     btnBulkLink.style.display = canSeeBulkLink ? 'inline-block' : 'none';
                 }
 
-                const btnBulkLinkPermissions = document.getElementById('btnBulkLinkPermissions');
-                if (btnBulkLinkPermissions) btnBulkLinkPermissions.style.display = (currentUserRole === 'superuser') ? 'inline-block' : 'none';
+
 
                 const btnFilters = document.getElementById('btnFiltersLanding');
                 if (btnFilters) btnFilters.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
@@ -4885,11 +4884,20 @@ async function waLoadPermissions() {
             body.innerHTML = '<div style="padding:1rem;color:#64748b;">No hay usuarios para configurar.</div>';
             return;
         }
-        body.innerHTML = users.map(u => `<label style="display:flex;align-items:center;gap:10px;padding:10px;border-bottom:1px solid #e2e8f0;color:#1e293b;">
-            <input type="checkbox" ${u.enabled ? 'checked' : ''} onchange="waSetInboxPermission(${u.user_id}, this.checked)">
-            <span style="flex:1;"><strong>${waEsc(u.full_name)}</strong><br><small style="color:#64748b;">${waEsc(u.role)} · ${waEsc(u.username)}</small></span>
-            <span style="font-size:.78rem;color:${u.enabled ? '#15803d' : '#64748b'};">${u.enabled ? 'Puede ver todo' : 'Sin acceso global'}</span>
-        </label>`).join('');
+        body.innerHTML = users.map(u => `<div style="display:grid;grid-template-columns:1fr 110px 130px;gap:8px;align-items:center;padding:10px;border-bottom:1px solid #e2e8f0;color:#1e293b;">
+            <div>
+                <div style="font-weight:600;font-size:0.9rem;">${waEsc(u.full_name)}</div>
+                <div style="font-size:0.75rem;color:#64748b;text-transform:uppercase;">${waEsc(u.role)} · ${waEsc(u.username)}</div>
+            </div>
+            <label style="display:flex;justify-content:center;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" ${u.enabled ? 'checked' : ''} onchange="waSetInboxPermission(${u.user_id}, this.checked)">
+                <span style="font-size:0.75rem;color:${u.enabled ? '#15803d' : '#64748b'};">${u.enabled ? 'Sí' : 'No'}</span>
+            </label>
+            <label style="display:flex;justify-content:center;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" ${u.bulk_link_enabled ? 'checked' : ''} onchange="waSetBulkLinkPermission(${u.user_id}, this.checked)">
+                <span style="font-size:0.75rem;color:${u.bulk_link_enabled ? '#15803d' : '#64748b'};">${u.bulk_link_enabled ? 'Sí' : 'No'}</span>
+            </label>
+        </div>`).join('');
     } catch (e) {
         console.error(e);
         body.innerHTML = '<div style="padding:1rem;color:#b91c1c;">No se pudieron cargar los permisos.</div>';
@@ -4906,7 +4914,22 @@ async function waSetInboxPermission(userId, enabled) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         waLoadPermissions();
     } catch (e) {
-        alert('No se pudo actualizar el permiso.');
+        alert('No se pudo actualizar el permiso de inbox.');
+        waLoadPermissions();
+    }
+}
+
+async function waSetBulkLinkPermission(userId, enabled) {
+    try {
+        const res = await fetch(`/users/${userId}/bulk-link-permission`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ enabled })
+        });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        waLoadPermissions();
+    } catch (e) {
+        alert('No se pudo actualizar el permiso de envío múltiple.');
         waLoadPermissions();
     }
 }
@@ -5897,67 +5920,6 @@ async function bulkLinkOpenPreview(callId) {
 
 function closeBulkLinkPreviewModal() {
     document.getElementById('bulkLinkPreviewModal').style.display = 'none';
-}
-
-// --- Bulk Link Permissions ---
-function openBulkLinkPermissionsModal() {
-    document.getElementById('bulkLinkPermissionsBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
-    document.getElementById('bulkLinkPermissionsStatus').style.display = 'none';
-    document.getElementById('bulkLinkPermissionsModal').style.display = 'flex';
-    bulkLinkLoadPermissions();
-}
-
-function closeBulkLinkPermissionsModal() {
-    document.getElementById('bulkLinkPermissionsModal').style.display = 'none';
-}
-
-async function bulkLinkLoadPermissions() {
-    try {
-        const res = await fetch('/users/bulk-link-permissions', { headers });
-        if (!res.ok) throw new Error('No se pudieron cargar los permisos');
-        const users = await res.json();
-        const body = document.getElementById('bulkLinkPermissionsBody');
-        if (users.length === 0) {
-            body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay usuarios</div>';
-            return;
-        }
-        body.innerHTML = users.map(u => `
-            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0;">
-                <div>
-                    <div style="font-weight: 600;">${waEsc(u.full_name || u.username)}</div>
-                    <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase;">${waEsc(u.role)}</div>
-                </div>
-                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                    <input type="checkbox" onchange="bulkLinkTogglePermission(${u.id}, this.checked)" ${u.bulk_link_enabled ? 'checked' : ''}>
-                    <span style="font-size: 0.85rem;">Activo</span>
-                </label>
-            </div>
-        `).join('');
-    } catch (e) {
-        document.getElementById('bulkLinkPermissionsBody').innerHTML = `<div style="padding: 2rem; text-align: center; color: #b91c1c;">${e.message}</div>`;
-    }
-}
-
-async function bulkLinkTogglePermission(userId, enabled) {
-    const statusEl = document.getElementById('bulkLinkPermissionsStatus');
-    statusEl.style.display = 'none';
-    try {
-        const res = await fetch(`/users/${userId}/bulk-link-permission`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({ enabled })
-        });
-        if (!res.ok) throw new Error('No se pudo actualizar el permiso');
-        statusEl.textContent = enabled ? 'Permiso activado' : 'Permiso desactivado';
-        statusEl.style.display = 'block';
-    } catch (e) {
-        statusEl.textContent = e.message;
-        statusEl.style.background = '#fef2f2';
-        statusEl.style.borderColor = '#fecaca';
-        statusEl.style.color = '#b91c1c';
-        statusEl.style.display = 'block';
-        await bulkLinkLoadPermissions();
-    }
 }
 
 // Update visible count and master checkbox state when checkboxes change

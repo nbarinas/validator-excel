@@ -1759,6 +1759,7 @@ def whatsapp_inbox_permissions(
         "full_name": user.full_name or user.username,
         "role": user.role,
         "enabled": bool(permissions.get(user.id, False)),
+        "bulk_link_enabled": bool(user.bulk_link_enabled),
     } for user in users]
 
 
