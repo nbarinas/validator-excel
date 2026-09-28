@@ -155,6 +155,12 @@ def on_startup():
             db.execute(text("ALTER TABLE calls ADD COLUMN bulk_send_status VARCHAR(50)"))
             print("Migration: Added bulk_send_status to calls")
 
+        # Users (bulk link permission)
+        user_cols = [c['name'] for c in inspector.get_columns('users')]
+        if 'bulk_link_enabled' not in user_cols:
+            db.execute(text("ALTER TABLE users ADD COLUMN bulk_link_enabled BOOLEAN DEFAULT 0"))
+            print("Migration: Added bulk_link_enabled to users")
+
         # WhatsApp messages (escalation columns)
         try:
             wa_cols = [c['name'] for c in inspector.get_columns('whatsapp_messages')]
@@ -315,6 +321,7 @@ async def read_users_me(current_user: models.User = Depends(auth.get_current_use
         "address": current_user.address,
         "city": current_user.city,
         "whatsapp_inbox_enabled": current_user.role == "superuser" or bool(inbox_permission),
+        "bulk_link_enabled": bool(current_user.bulk_link_enabled),
     }
 
 @app.post("/users/heartbeat")
@@ -499,6 +506,52 @@ def list_users(exclude_roles: Optional[str] = None, db: Session = Depends(databa
         "cedula_ciudadania": u.cedula_ciudadania,
         "photo_base64": u.photo_base64
     } for u in users]
+
+
+class BulkLinkPermissionUpdate(BaseModel):
+    enabled: bool
+
+
+@app.get("/users/bulk-link-permissions")
+def get_bulk_link_permissions(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """List all users with their bulk link send permission. Superuser only."""
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    users = db.query(models.User).order_by(models.User.role, models.User.full_name, models.User.username).all()
+    return [{
+        "id": u.id,
+        "username": u.username,
+        "full_name": u.full_name,
+        "role": u.role,
+        "bulk_link_enabled": bool(u.bulk_link_enabled),
+    } for u in users]
+
+
+@app.post("/users/{user_id}/bulk-link-permission")
+def update_bulk_link_permission(
+    user_id: int,
+    update: BulkLinkPermissionUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Enable/disable bulk link send permission for a user. Superuser only."""
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.bulk_link_enabled = bool(update.enabled)
+    db.commit()
+    db.refresh(user)
+    return {
+        "id": user.id,
+        "username": user.username,
+        "bulk_link_enabled": bool(user.bulk_link_enabled),
+    }
+
 
 # @app.get("/debug/user-count")
 # def debug_user_count(db: Session = Depends(database.get_db)):

@@ -1158,6 +1158,11 @@
                     <i class="fas fa-paper-plane" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
                     Envío de links múltiple
                 </button>
+                <button id="btnBulkLinkPermissions" onclick="openBulkLinkPermissionsModal()"
+                    style="display:none; padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #6366f1; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
+                    <i class="fas fa-user-cog" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
+                    Permisos envío múltiple
+                </button>
                 <button id="btnWhatsAppPermissions" onclick="openWhatsAppPermissions()"
                     style="display:none; padding: 2rem; font-size: 1.5rem; border-radius: 12px; border: none; background: #0f766e; color: white; cursor: pointer; width: 300px; height: 200px; transition: transform 0.2s;">
                     <i class="fas fa-user-shield" style="display: block; font-size: 3rem; margin-bottom: 1rem;"></i>
@@ -2859,7 +2864,7 @@
                 </div>
                 <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center;">
                     <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.9rem;">
-                        <input type="checkbox" id="bulkLinkSelectAll" onchange="bulkLinkToggleSelectAll()"> Seleccionar todos los visibles
+                        <input type="checkbox" id="bulkLinkSelectAll" onchange="bulkLinkToggleSelectAll()"> Seleccionar / deseleccionar todos
                     </label>
                     <button onclick="bulkLinkFilterPending()" style="padding: 7px 12px; border: 0; border-radius: 6px; background: #f1f5f9; color: #0f172a; cursor: pointer; font-size: 0.85rem;">Ver solo pendientes</button>
                     <button onclick="bulkLinkFilterAll()" style="padding: 7px 12px; border: 0; border-radius: 6px; background: #f1f5f9; color: #0f172a; cursor: pointer; font-size: 0.85rem;">Ver todos</button>
@@ -2876,18 +2881,17 @@
                                 <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left;">Teléfono</th>
                                 <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left;">Estado</th>
                                 <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left;">Último mensaje</th>
+                                <th style="padding: 10px; border-bottom: 1px solid #e2e8f0; text-align: left; width: 80px;">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="bulkLinkTableBody">
-                            <tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>
+                            <tr><td colspan="8" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>
                         </tbody>
                     </table>
                 </div>
                 <div id="bulkLinkStatus" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 8px; font-size: 0.85rem; color: #065f46; white-space: pre-wrap;"></div>
                 <div id="bulkLinkError" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-size: 0.85rem; color: #b91c1c; white-space: pre-wrap;"></div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="bulkLinkMarkResponded()" style="padding: 10px 16px; border: 0; border-radius: 6px; background: #f59e0b; color: #fff; font-weight: 600; cursor: pointer;">Marcar respondido</button>
-                    <button onclick="bulkLinkBlock()" style="padding: 10px 16px; border: 0; border-radius: 6px; background: #ef4444; color: #fff; font-weight: 600; cursor: pointer;">Bloquear</button>
                     <button onclick="bulkLinkSendSelected()" style="padding: 10px 16px; border: 0; border-radius: 6px; background: #0ea5e9; color: #fff; font-weight: 600; cursor: pointer;">Enviar seleccionados</button>
                 </div>
             </div>
@@ -2902,6 +2906,32 @@
                 <button class="wa-chat-close" onclick="closeBulkLinkPreviewModal()">&times;</button>
             </div>
             <div id="bulkLinkPreviewBody" style="padding: 16px; overflow-y: auto; flex: 1; color: #1e293b; font-size: 0.9rem;"></div>
+        </div>
+    </div>
+
+    <!-- BULK LINK PERMISSIONS MODAL -->
+    <div id="bulkLinkPermissionsModal" class="wa-chat-modal" onclick="if(event.target===this)closeBulkLinkPermissionsModal()">
+        <div class="wa-chat-box" style="width: 560px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div class="wa-chat-header" style="background: #6366f1;">
+                <div class="wa-chat-title">
+                    <h3>Permisos de envío múltiple</h3>
+                    <div class="wa-chat-sub">Activa el botón "Envío de links múltiple" por usuario</div>
+                </div>
+                <button class="wa-chat-close" onclick="closeBulkLinkPermissionsModal()">&times;</button>
+            </div>
+            <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; color: #1e293b; flex: 1; overflow: hidden;">
+                <div style="display: flex; gap: 8px; align-items: center; font-size: 0.85rem; color: #64748b;">
+                    <span>Por defecto el botón está oculto para todos.</span>
+                    <span style="margin-left: auto;">Activo</span>
+                </div>
+                <div id="bulkLinkPermissionsBody" style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px;">
+                    <div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>
+                </div>
+                <div id="bulkLinkPermissionsStatus" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 8px; font-size: 0.85rem; color: #065f46;"></div>
+                <div style="display: flex; justify-content: flex-end;">
+                    <button onclick="closeBulkLinkPermissionsModal()" style="padding: 9px 14px; border: 0; border-radius: 6px; background: #94a3b8; color: #fff; cursor: pointer;">Cerrar</button>
+                </div>
+            </div>
         </div>
     </div>
 

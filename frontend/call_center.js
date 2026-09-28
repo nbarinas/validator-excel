@@ -14,6 +14,7 @@ let currentUserRole = null;
 let currentUserName = null; // Store full name of current agent
 let currentUserId = null; // Store current user id (for superuser chat alerts)
 let currentUserWhatsAppInboxEnabled = false;
+let currentUserBulkLinkEnabled = false;
 let isClosedView = false; // Track if we are in Closed Studies mode
 let studySelectTS = null; // TomSelect instance for main study dropdown
 
@@ -84,6 +85,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             currentUserName = user.full_name || user.username;
             currentUserId = user.id;
             currentUserWhatsAppInboxEnabled = Boolean(user.whatsapp_inbox_enabled);
+            currentUserBulkLinkEnabled = Boolean(user.bulk_link_enabled);
             const infoDivs = ['userInfoDisplay', 'userInfoDisplayLanding'];
             infoDivs.forEach(id => {
                 const ui = document.getElementById(id);
@@ -129,7 +131,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (btnWaInbox) btnWaInbox.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
 
                 const btnBulkLink = document.getElementById('btnBulkLinkSend');
-                if (btnBulkLink) btnBulkLink.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
+                if (btnBulkLink) {
+                    const canSeeBulkLink = currentUserRole === 'superuser' || currentUserBulkLinkEnabled;
+                    btnBulkLink.style.display = canSeeBulkLink ? 'inline-block' : 'none';
+                }
+
+                const btnBulkLinkPermissions = document.getElementById('btnBulkLinkPermissions');
+                if (btnBulkLinkPermissions) btnBulkLinkPermissions.style.display = (currentUserRole === 'superuser') ? 'inline-block' : 'none';
 
                 const btnFilters = document.getElementById('btnFiltersLanding');
                 if (btnFilters) btnFilters.style.display = (currentUserRole === 'superuser' || currentUserRole === 'coordinator') ? 'inline-block' : 'none';
@@ -5644,6 +5652,7 @@ function openBulkLinkSendModal() {
     bulkLinkFilter = 'all';
     bulkLinkOnTemplateChange();
     bulkLinkLoadStudies();
+    bulkLinkUpdateCount();
     document.getElementById('bulkLinkSendModal').style.display = 'flex';
 }
 
@@ -5664,7 +5673,9 @@ async function bulkLinkLoadStudies() {
         const studies = await res.json();
         const select = document.getElementById('bulkLinkStudy');
         select.innerHTML = '<option value="">Selecciona un estudio</option>' +
-            studies.map(s => `<option value="${s.id}">${waEsc(s.name)}</option>`).join('');
+            studies.filter(s => s.is_active === true || s.is_active === 1 || s.is_active === 'true')
+                .map(s => `<option value="${s.id}">${waEsc(s.name)}</option>`)
+                .join('');
     } catch (e) {
         bulkLinkShowError(e.message);
     }
@@ -5673,7 +5684,7 @@ async function bulkLinkLoadStudies() {
 async function bulkLinkLoadContacts() {
     const studyId = document.getElementById('bulkLinkStudy').value;
     if (!studyId) {
-        document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
+        document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="8" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
         bulkLinkContacts = [];
         bulkLinkUpdateCount();
         return;
@@ -5704,13 +5715,16 @@ function bulkLinkRenderTable() {
         return true;
     });
     if (visible.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">No hay contactos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="padding: 2rem; text-align: center; color: #64748b;">No hay contactos</td></tr>';
     } else {
         tbody.innerHTML = visible.map(c => {
             const lastText = c.last_message ? (c.last_message.text || '(sin texto)') : '';
             const lastDir = c.last_message ? (c.last_message.direction === 'in' ? '📥' : '📤') : '';
             const lastSnippet = lastText ? `${lastDir} ${lastText.substring(0, 60)}${lastText.length > 60 ? '...' : ''}` : '—';
-            return `<tr data-call-id="${c.id}" style="${c.blocked ? 'background:#fee2e2;' : c.bulk_send_status === 'responded' ? 'background:#dcfce7;' : ''}">
+            const blockButton = c.blocked
+                ? '<span style="color:#b91c1c;font-size:0.75rem;">Bloqueado</span>'
+                : `<button onclick="bulkLinkBlockOne(${c.id})" title="Bloquear este número" style="padding:4px 8px;border:0;border-radius:4px;background:#ef4444;color:#fff;cursor:pointer;font-size:0.75rem;">🛑 Bloquear</button>`;
+            return `<tr data-call-id="${c.id}" style="${c.blocked ? 'background:#fee2e2;' : ''}">
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><input type="checkbox" class="bulk-link-check" value="${c.id}" ${c.blocked ? 'disabled' : ''}></td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.census || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.person_name || '')}</td>
@@ -5718,9 +5732,11 @@ function bulkLinkRenderTable() {
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.phone_number || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${bulkLinkStatusLabel(c.bulk_send_status, c.blocked)}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #475569;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(lastSnippet)}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${blockButton}</td>
             </tr>`;
         }).join('');
     }
+    bulkLinkUpdateSelectAllState();
     bulkLinkUpdateCount();
 }
 
@@ -5730,11 +5746,20 @@ function bulkLinkUpdateCount() {
 }
 
 function bulkLinkToggleSelectAll() {
-    const checked = document.getElementById('bulkLinkSelectAll').checked || document.getElementById('bulkLinkHeaderCheck').checked;
-    document.getElementById('bulkLinkSelectAll').checked = checked;
-    document.getElementById('bulkLinkHeaderCheck').checked = checked;
-    document.querySelectorAll('.bulk-link-check:not(:disabled)').forEach(cb => cb.checked = checked);
+    const visibleChecks = Array.from(document.querySelectorAll('.bulk-link-check:not(:disabled)'));
+    const allChecked = visibleChecks.length > 0 && visibleChecks.every(cb => cb.checked);
+    const newState = !allChecked;
+    document.getElementById('bulkLinkSelectAll').checked = newState;
+    document.getElementById('bulkLinkHeaderCheck').checked = newState;
+    visibleChecks.forEach(cb => cb.checked = newState);
     bulkLinkUpdateCount();
+}
+
+function bulkLinkUpdateSelectAllState() {
+    const visibleChecks = Array.from(document.querySelectorAll('.bulk-link-check:not(:disabled)'));
+    const allChecked = visibleChecks.length > 0 && visibleChecks.every(cb => cb.checked);
+    document.getElementById('bulkLinkSelectAll').checked = allChecked;
+    document.getElementById('bulkLinkHeaderCheck').checked = allChecked;
 }
 
 function bulkLinkFilterPending() {
@@ -5768,44 +5793,22 @@ function bulkLinkGetSelectedIds() {
     return Array.from(document.querySelectorAll('.bulk-link-check:checked')).map(cb => parseInt(cb.value, 10));
 }
 
-async function bulkLinkMarkResponded() {
-    const ids = bulkLinkGetSelectedIds();
-    if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
+async function bulkLinkBlockOne(callId) {
+    const contact = bulkLinkContacts.find(c => c.id === callId);
+    if (!contact || !contact.phone_number) return;
+    if (!confirm(`¿Bloquear a ${waEsc(contact.person_name || contact.phone_number)} para siempre?`)) return;
     bulkLinkHideAlerts();
-    let ok = 0;
-    for (const id of ids) {
-        try {
-            const res = await fetch(`/calls/${id}/bulk-status`, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({ status: 'responded' })
-            });
-            if (res.ok) ok++;
-        } catch (e) { /* ignore individual errors */ }
+    try {
+        const res = await fetch('/whatsapp/block', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ phone_number: contact.phone_number, reason: 'No me molesten más (envío múltiple)' })
+        });
+        if (!res.ok) throw new Error('No se pudo bloquear');
+        bulkLinkShowStatus(`Bloqueado: ${waEsc(contact.person_name || contact.phone_number)}`);
+    } catch (e) {
+        bulkLinkShowError(e.message);
     }
-    bulkLinkShowStatus(`Marcados como respondidos: ${ok}/${ids.length}`);
-    await bulkLinkLoadContacts();
-}
-
-async function bulkLinkBlock() {
-    const ids = bulkLinkGetSelectedIds();
-    if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
-    if (!confirm(`¿Bloquear ${ids.length} número(s) para siempre?`)) return;
-    bulkLinkHideAlerts();
-    let ok = 0;
-    for (const id of ids) {
-        const contact = bulkLinkContacts.find(c => c.id === id);
-        if (!contact || !contact.phone_number) continue;
-        try {
-            const res = await fetch('/whatsapp/block', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify({ phone_number: contact.phone_number, reason: 'No me molesten más (envío múltiple)' })
-            });
-            if (res.ok) ok++;
-        } catch (e) { /* ignore individual errors */ }
-    }
-    bulkLinkShowStatus(`Bloqueados: ${ok}/${ids.length}`);
     await bulkLinkLoadContacts();
 }
 
@@ -5896,10 +5899,72 @@ function closeBulkLinkPreviewModal() {
     document.getElementById('bulkLinkPreviewModal').style.display = 'none';
 }
 
-// Update visible count when checkboxes change
+// --- Bulk Link Permissions ---
+function openBulkLinkPermissionsModal() {
+    document.getElementById('bulkLinkPermissionsBody').innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando...</div>';
+    document.getElementById('bulkLinkPermissionsStatus').style.display = 'none';
+    document.getElementById('bulkLinkPermissionsModal').style.display = 'flex';
+    bulkLinkLoadPermissions();
+}
+
+function closeBulkLinkPermissionsModal() {
+    document.getElementById('bulkLinkPermissionsModal').style.display = 'none';
+}
+
+async function bulkLinkLoadPermissions() {
+    try {
+        const res = await fetch('/users/bulk-link-permissions', { headers });
+        if (!res.ok) throw new Error('No se pudieron cargar los permisos');
+        const users = await res.json();
+        const body = document.getElementById('bulkLinkPermissionsBody');
+        if (users.length === 0) {
+            body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">No hay usuarios</div>';
+            return;
+        }
+        body.innerHTML = users.map(u => `
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0;">
+                <div>
+                    <div style="font-weight: 600;">${waEsc(u.full_name || u.username)}</div>
+                    <div style="font-size: 0.75rem; color: #64748b; text-transform: uppercase;">${waEsc(u.role)}</div>
+                </div>
+                <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                    <input type="checkbox" onchange="bulkLinkTogglePermission(${u.id}, this.checked)" ${u.bulk_link_enabled ? 'checked' : ''}>
+                    <span style="font-size: 0.85rem;">Activo</span>
+                </label>
+            </div>
+        `).join('');
+    } catch (e) {
+        document.getElementById('bulkLinkPermissionsBody').innerHTML = `<div style="padding: 2rem; text-align: center; color: #b91c1c;">${e.message}</div>`;
+    }
+}
+
+async function bulkLinkTogglePermission(userId, enabled) {
+    const statusEl = document.getElementById('bulkLinkPermissionsStatus');
+    statusEl.style.display = 'none';
+    try {
+        const res = await fetch(`/users/${userId}/bulk-link-permission`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ enabled })
+        });
+        if (!res.ok) throw new Error('No se pudo actualizar el permiso');
+        statusEl.textContent = enabled ? 'Permiso activado' : 'Permiso desactivado';
+        statusEl.style.display = 'block';
+    } catch (e) {
+        statusEl.textContent = e.message;
+        statusEl.style.background = '#fef2f2';
+        statusEl.style.borderColor = '#fecaca';
+        statusEl.style.color = '#b91c1c';
+        statusEl.style.display = 'block';
+        await bulkLinkLoadPermissions();
+    }
+}
+
+// Update visible count and master checkbox state when checkboxes change
 function bulkLinkAttachCheckboxListeners() {
     document.getElementById('bulkLinkTableBody').addEventListener('change', (e) => {
         if (e.target.classList.contains('bulk-link-check')) {
+            bulkLinkUpdateSelectAllState();
             bulkLinkUpdateCount();
         }
     });
