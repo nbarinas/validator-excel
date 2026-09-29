@@ -1934,6 +1934,37 @@ def whatsapp_send_template(
     if _is_blocked(db, phone):
         raise HTTPException(status_code=403, detail="Este número está bloqueado y no se puede contactar")
 
+    # Idempotencia: si esta misma llamada+plantilla ya se envió por este usuario
+    # en los últimos 30s (doble clic / reintento rápido), no reenviar.
+    if request.call_id is not None:
+        cutoff = datetime.utcnow() - timedelta(seconds=30)
+        recent = (
+            db.query(models.WhatsAppMessage)
+            .filter(
+                models.WhatsAppMessage.call_id == call.id,
+                models.WhatsAppMessage.sender_agent_id == current_user.id,
+                models.WhatsAppMessage.message_type == "template",
+                models.WhatsAppMessage.message_text.like(f"[{request.template_key}]%"),
+                models.WhatsAppMessage.created_at >= cutoff,
+            )
+            .order_by(models.WhatsAppMessage.id.desc())
+            .first()
+        )
+        if recent:
+            return {
+                "id": recent.id,
+                "call_id": recent.call_id,
+                "phone_number": recent.phone_number,
+                "direction": recent.direction,
+                "message_text": recent.message_text,
+                "message_type": recent.message_type,
+                "wa_status": recent.wa_status,
+                "created_at": recent.created_at,
+                "template": template_config["name"],
+                "template_key": request.template_key,
+                "duplicate": True,
+            }
+
     person_name = ""
     if request.person_name:
         person_name = request.person_name.strip()

@@ -5698,6 +5698,7 @@ setInterval(() => {
 // --- Bulk Link Send (multi-link WhatsApp) ---
 let bulkLinkContacts = [];
 let bulkLinkFilter = 'all'; // all | pending
+let bulkLinkSending = false; // bloquea doble clic / envíos concurrentes
 
 function openBulkLinkSendModal() {
     document.getElementById('bulkLinkStudy').innerHTML = '<option value="">Selecciona un estudio</option>';
@@ -5709,6 +5710,8 @@ function openBulkLinkSendModal() {
     document.getElementById('bulkLinkError').style.display = 'none';
     document.getElementById('bulkLinkSelectAll').checked = false;
     document.getElementById('bulkLinkHeaderCheck').checked = false;
+    document.getElementById('bulkLinkBusyOverlay').style.display = 'none';
+    bulkLinkSending = false;
     bulkLinkContacts = [];
     bulkLinkFilter = 'all';
     bulkLinkOnTemplateChange();
@@ -5718,7 +5721,37 @@ function openBulkLinkSendModal() {
 }
 
 function closeBulkLinkSendModal() {
+    if (bulkLinkSending) return;
     document.getElementById('bulkLinkSendModal').style.display = 'none';
+    document.getElementById('bulkLinkBusyOverlay').style.display = 'none';
+}
+
+function bulkLinkSetBusy(busy) {
+    const btn = document.getElementById('bulkLinkSendBtn');
+    if (btn) {
+        btn.disabled = busy;
+        btn.style.opacity = busy ? '0.55' : '1';
+        btn.style.cursor = busy ? 'default' : 'pointer';
+    }
+    document.getElementById('bulkLinkBusyOverlay').style.display = busy ? 'flex' : 'none';
+}
+
+function bulkLinkShowDone(sent, failed, errors) {
+    document.getElementById('bulkLinkDoneDetail').textContent = `Enviados: ${sent} · Fallados: ${failed}`;
+    const errBox = document.getElementById('bulkLinkDoneErrors');
+    if (errors.length) {
+        errBox.textContent = errors.slice(0, 10).join('\n') + (errors.length > 10 ? `\n... y ${errors.length - 10} más` : '');
+        errBox.style.display = 'block';
+    } else {
+        errBox.style.display = 'none';
+    }
+    document.getElementById('bulkLinkDoneModal').style.display = 'flex';
+}
+
+function closeBulkLinkDoneModal() {
+    document.getElementById('bulkLinkDoneModal').style.display = 'none';
+    bulkLinkSetBusy(false);
+    bulkLinkLoadContacts();
 }
 
 function bulkLinkOnTemplateChange() {
@@ -5876,6 +5909,7 @@ async function bulkLinkBlockOne(callId) {
 }
 
 async function bulkLinkSendSelected() {
+    if (bulkLinkSending) return;
     const ids = bulkLinkGetSelectedIds();
     if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
     const template = document.getElementById('bulkLinkTemplate').value;
@@ -5887,52 +5921,61 @@ async function bulkLinkSendSelected() {
     if (template === 'recordatorio' && !fecha) {
         alert('Indica la fecha pendiente.'); return;
     }
+    bulkLinkSending = true;
+    bulkLinkSetBusy(true);
     bulkLinkHideAlerts();
     let sent = 0;
     let failed = 0;
     const errors = [];
-    for (const id of ids) {
-        const contact = bulkLinkContacts.find(c => c.id === id);
-        if (!contact || !contact.phone_number) continue;
-        const payload = {
-            call_id: id,
-            template_key: template,
-            person_name: contact.person_name || undefined,
-            nombre_mascota: contact.dog_name || undefined,
-            censo: contact.census || undefined,
-        };
-        if (template === 'sibate_2') {
-            payload.dia = day;
-        }
-        if (template === 'recordatorio') {
-            payload.fecha = fecha;
-            payload.nombremascota = contact.dog_name || undefined;
-        }
-        try {
-            const res = await fetch('/whatsapp/send-template', {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            if (res.ok) {
-                sent++;
-            } else {
-                failed++;
-                errors.push(`${contact.person_name || contact.phone_number}: ${data.detail || 'Error'}`);
+    try {
+        for (let i = 0; i < ids.length; i++) {
+            const id = ids[i];
+            const contact = bulkLinkContacts.find(c => c.id === id);
+            if (!contact || !contact.phone_number) continue;
+            const label = contact.person_name || contact.phone_number;
+            bulkLinkShowStatus(`Enviando ${i + 1}/${ids.length}: ${waEsc(label)}…`);
+            const payload = {
+                call_id: id,
+                template_key: template,
+                person_name: contact.person_name || undefined,
+                nombre_mascota: contact.dog_name || undefined,
+                censo: contact.census || undefined,
+            };
+            if (template === 'sibate_2') {
+                payload.dia = day;
             }
-        } catch (e) {
-            failed++;
-            errors.push(`${contact.person_name || contact.phone_number}: ${e.message}`);
+            if (template === 'recordatorio') {
+                payload.fecha = fecha;
+                payload.nombremascota = contact.dog_name || undefined;
+            }
+            try {
+                const res = await fetch('/whatsapp/send-template', {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    sent++;
+                } else {
+                    failed++;
+                    errors.push(`${label}: ${data.detail || 'Error'}`);
+                }
+            } catch (e) {
+                failed++;
+                errors.push(`${label}: ${e.message}`);
+            }
+            // Small delay to avoid rate limits
+            await new Promise(r => setTimeout(r, 600));
         }
-        // Small delay to avoid rate limits
-        await new Promise(r => setTimeout(r, 600));
+    } finally {
+        bulkLinkSending = false;
     }
     bulkLinkShowStatus(`Enviados: ${sent} · Fallados: ${failed}`);
     if (errors.length) {
         bulkLinkShowError(errors.slice(0, 10).join('\n') + (errors.length > 10 ? `\n... y ${errors.length - 10} más` : ''));
     }
-    await bulkLinkLoadContacts();
+    bulkLinkShowDone(sent, failed, errors);
 }
 
 async function bulkLinkOpenPreview(callId) {

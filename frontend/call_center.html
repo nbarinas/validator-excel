@@ -2843,7 +2843,7 @@
 
     <!-- BULK LINK SEND MODAL -->
     <div id="bulkLinkSendModal" class="wa-chat-modal" onclick="if(event.target===this)closeBulkLinkSendModal()">
-        <div class="wa-chat-box" style="width: 900px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column;">
+        <div class="wa-chat-box" style="width: 900px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column; position: relative;">
             <div class="wa-chat-header" style="background: #0ea5e9;">
                 <div class="wa-chat-title">
                     <h3>Envío de links múltiple</h3>
@@ -2902,9 +2902,23 @@
                 <div id="bulkLinkStatus" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 8px; font-size: 0.85rem; color: #065f46; white-space: pre-wrap;"></div>
                 <div id="bulkLinkError" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-size: 0.85rem; color: #b91c1c; white-space: pre-wrap;"></div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
-                    <button onclick="bulkLinkSendSelected()" style="padding: 10px 16px; border: 0; border-radius: 6px; background: #0ea5e9; color: #fff; font-weight: 600; cursor: pointer;">Enviar seleccionados</button>
+                    <button id="bulkLinkSendBtn" onclick="bulkLinkSendSelected()" style="padding: 10px 16px; border: 0; border-radius: 6px; background: #0ea5e9; color: #fff; font-weight: 600; cursor: pointer;">Enviar seleccionados</button>
                 </div>
             </div>
+            <div id="bulkLinkBusyOverlay" style="display: none; position: absolute; inset: 0; background: rgba(248,250,252,0.8); border-radius: 12px; align-items: center; justify-content: center; z-index: 30; font-weight: 600; color: #0ea5e9; font-size: 1rem;">
+                <span style="display: inline-flex; align-items: center; gap: 10px;"><i class="fas fa-spinner fa-spin"></i> Enviando mensajes…</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- BULK LINK DONE MODAL -->
+    <div id="bulkLinkDoneModal" class="wa-chat-modal" style="z-index: 4100;">
+        <div class="wa-chat-box" style="width: 520px; max-width: 92vw; padding: 24px; text-align: center; align-items: center;">
+            <div style="font-size: 2.4rem; line-height: 1;">✅</div>
+            <h3 style="margin: 10px 0 4px; color: #0f172a;">Listo</h3>
+            <div id="bulkLinkDoneDetail" style="color: #334155; font-size: 0.95rem; font-weight: 600;">Enviados: 0 · Fallados: 0</div>
+            <div id="bulkLinkDoneErrors" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 10px; margin: 12px 0 0; text-align: left; font-size: 0.8rem; color: #b91c1c; white-space: pre-wrap; max-height: 140px; overflow-y: auto; width: 100%; box-sizing: border-box;"></div>
+            <button onclick="closeBulkLinkDoneModal()" style="margin-top: 16px; padding: 10px 36px; border: 0; border-radius: 8px; background: #22c55e; color: #fff; font-weight: 700; cursor: pointer; font-size: 0.95rem;">Aceptar</button>
         </div>
     </div>
 
