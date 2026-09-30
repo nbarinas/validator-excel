@@ -1260,6 +1260,7 @@ WHATSAPP_TEMPLATE_MAP = {
     "pepe_1": {"name": "pepe_1", "language": "es", "params": ["encuestado", "nombre_mascota", "censo"]},
     "sibate_2": {"name": "sibate_2", "language": "es", "params": ["encuestado", "nombre_mascota", "censo", "dia"]},
     "recordatorio": {"name": "recordatorio", "language": "es", "params": ["encuestado", "nombremascota", "fecha", "censo"]},
+    "sigue_interesado": {"name": "sigue_interesado", "language": "es", "params": ["encuestada", "mascota"]},
 }
 
 
@@ -2030,6 +2031,7 @@ def whatsapp_send_template(
         "dia_y_hora": dia_y_hora,
         "monto": monto,
         "nombre_mascota": nombre_mascota,
+        "mascota": nombre_mascota,
         "nombremascota": nombremascota,
         "censo": censo,
         "dia": dia,
