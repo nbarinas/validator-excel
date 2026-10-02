@@ -670,8 +670,11 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .bulk-status-badge.active {
-            ring: 2px solid currentColor;
             box-shadow: 0 0 0 2px currentColor;
+        }
+        .bulk-status-badge:has(.bulk-status-check:checked) {
+            box-shadow: 0 0 0 2px currentColor;
+            transform: translateY(-1px);
         }
         .bulk-status-badge[data-status="survey_done"] { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
         .bulk-status-badge[data-status="interested"] { background: #faf5ff; color: #6b21a8; border-color: #e9d5ff; }
@@ -2942,15 +2945,15 @@
                     <span id="bulkLinkCount" style="margin-left: auto; font-size: 0.85rem; color: #64748b;">0 contactos</span>
                 </div>
                 <div id="bulkLinkStatusDashboard" style="display: none; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
-                    <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Resumen:</span>
-                    <span class="bulk-status-badge" data-status="survey_done" onclick="bulkLinkFilterByStatus('survey_done')" style="cursor: pointer;">✅ <span class="bulk-status-count" id="bulkCountSurveyDone">0</span> Hecha</span>
-                    <span class="bulk-status-badge" data-status="interested" onclick="bulkLinkFilterByStatus('interested')" style="cursor: pointer;">🟣 <span class="bulk-status-count" id="bulkCountInterested">0</span> Interesado</span>
-                    <span class="bulk-status-badge" data-status="call_back" onclick="bulkLinkFilterByStatus('call_back')" style="cursor: pointer;">🟠 <span class="bulk-status-count" id="bulkCountCallBack">0</span> Después</span>
-                    <span class="bulk-status-badge" data-status="responded" onclick="bulkLinkFilterByStatus('responded')" style="cursor: pointer;">🟢 <span class="bulk-status-count" id="bulkCountResponded">0</span> Respondido</span>
-                    <span class="bulk-status-badge" data-status="read" onclick="bulkLinkFilterByStatus('read')" style="cursor: pointer;">🟡 <span class="bulk-status-count" id="bulkCountRead">0</span> Visto</span>
-                    <span class="bulk-status-badge" data-status="not_interested" onclick="bulkLinkFilterByStatus('not_interested')" style="cursor: pointer;">🔴 <span class="bulk-status-count" id="bulkCountNotInterested">0</span> No</span>
-                    <span class="bulk-status-badge" data-status="pending" onclick="bulkLinkFilterByStatus('pending')" style="cursor: pointer;">⚪ <span class="bulk-status-count" id="bulkCountPending">0</span> Pendiente</span>
-                    <span class="bulk-status-badge" data-status="blocked" onclick="bulkLinkFilterByStatus('blocked')" style="cursor: pointer;">⛔ <span class="bulk-status-count" id="bulkCountBlocked">0</span> Bloq</span>
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Filtrar:</span>
+                    <label class="bulk-status-badge" data-status="survey_done" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">✅ <span class="bulk-status-count" id="bulkCountSurveyDone">0</span> Hecha</label>
+                    <label class="bulk-status-badge" data-status="interested" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">🟣 <span class="bulk-status-count" id="bulkCountInterested">0</span> Interesado</label>
+                    <label class="bulk-status-badge" data-status="call_back" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">🟠 <span class="bulk-status-count" id="bulkCountCallBack">0</span> Después</label>
+                    <label class="bulk-status-badge" data-status="responded" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">🟢 <span class="bulk-status-count" id="bulkCountResponded">0</span> Respondido</label>
+                    <label class="bulk-status-badge" data-status="read" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">🟡 <span class="bulk-status-count" id="bulkCountRead">0</span> Visto</label>
+                    <label class="bulk-status-badge" data-status="not_interested" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">🔴 <span class="bulk-status-count" id="bulkCountNotInterested">0</span> No</label>
+                    <label class="bulk-status-badge" data-status="pending" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">⚪ <span class="bulk-status-count" id="bulkCountPending">0</span> Pendiente</label>
+                    <label class="bulk-status-badge" data-status="blocked" style="cursor: pointer;"><input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">⛔ <span class="bulk-status-count" id="bulkCountBlocked">0</span> Bloq</label>
                 </div>
                 <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
@@ -2974,6 +2977,7 @@
                 <div id="bulkLinkStatus" style="display: none; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 8px; font-size: 0.85rem; color: #065f46; white-space: pre-wrap;"></div>
                 <div id="bulkLinkError" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 8px; font-size: 0.85rem; color: #b91c1c; white-space: pre-wrap;"></div>
                 <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="bulkLinkExportExcel()" style="padding: 10px 16px; border: 0; border-radius: 6px; background: #16a34a; color: #fff; font-weight: 600; cursor: pointer;">📥 Descargar Excel</button>
                     <button id="bulkLinkSendBtn" onclick="bulkLinkSendSelected()" style="padding: 10px 16px; border: 0; border-radius: 6px; background: #0ea5e9; color: #fff; font-weight: 600; cursor: pointer;">Enviar seleccionados</button>
                 </div>
             </div>

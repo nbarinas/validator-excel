@@ -5866,24 +5866,21 @@ function bulkLinkUpdateDashboard() {
     document.getElementById('bulkLinkStatusDashboard').style.display = bulkLinkContacts.length > 0 ? 'flex' : 'none';
 }
 
-function bulkLinkFilterByStatus(status) {
-    bulkLinkFilter = bulkLinkFilter === `status:${status}` ? 'all' : `status:${status}`;
-    document.querySelectorAll('.bulk-status-badge').forEach(b => {
-        b.classList.toggle('active', b.dataset.status === status && bulkLinkFilter === `status:${status}`);
-    });
+function bulkLinkApplyStatusFilter() {
+    bulkLinkFilter = 'all';
     bulkLinkRenderTable();
 }
 
 function bulkLinkRenderTable() {
     const tbody = document.getElementById('bulkLinkTableBody');
+    const activeStatuses = Array.from(document.querySelectorAll('.bulk-status-check:checked')).map(cb => cb.closest('.bulk-status-badge')?.dataset.status).filter(Boolean);
     const visible = bulkLinkContacts.filter(c => {
         if (bulkLinkFilter === 'pending') {
             return !c.blocked && !['responded', 'survey_done', 'interested', 'not_interested', 'call_back'].includes(c.bulk_send_status);
         }
-        if (bulkLinkFilter && bulkLinkFilter.startsWith('status:')) {
-            const st = bulkLinkFilter.split(':')[1];
-            if (st === 'blocked') return c.blocked;
-            return !c.blocked && (c.bulk_send_status || '') === st;
+        if (activeStatuses.length > 0) {
+            if (activeStatuses.includes('blocked')) return c.blocked;
+            return !c.blocked && activeStatuses.includes(c.bulk_send_status || '');
         }
         return true;
     });
@@ -5896,8 +5893,8 @@ function bulkLinkRenderTable() {
             const lastTime = c.last_message && c.last_message.created_at ? bulkLinkTimeAgo(c.last_message.created_at) : '';
             const lastSnippet = lastText ? `${lastDir} ${lastText.substring(0, 60)}${lastText.length > 60 ? '...' : ''}` : '—';
             const blockButton = c.blocked
-                ? '<span style="color:#7f1d1d;font-size:0.75rem;">⛔</span>'
-                : `<button onclick="bulkLinkBlockOne(${c.id})" title="Bloquear este número" style="padding:4px 8px;border:0;border-radius:4px;background:#ef4444;color:#fff;cursor:pointer;font-size:0.75rem;">🛑</button>`;
+                ? '<span style="color:#7f1d1d;font-size:0.85rem;" title="Número bloqueado">🚫</span>'
+                : `<button onclick="bulkLinkBlockOne(${c.id})" title="Bloquear este número" style="padding:4px 8px;border:0;border-radius:4px;background:#ef4444;color:#fff;cursor:pointer;font-size:0.75rem;">🚫</button>`;
             return `<tr data-call-id="${c.id}" style="${c.blocked ? 'background:#fee2e2;' : ''}">
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><input type="checkbox" class="bulk-link-check" value="${c.id}" ${c.blocked ? 'disabled' : ''}></td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.census || '')}</td>
@@ -5947,15 +5944,34 @@ function bulkLinkUpdateSelectAllState() {
     document.getElementById('bulkLinkHeaderCheck').checked = allChecked;
 }
 
+function bulkLinkExportExcel() {
+    if (bulkLinkContacts.length === 0) { alert('No hay contactos para exportar.'); return; }
+    const rows = bulkLinkContacts.map(c => ({
+        'Censo': c.census || '',
+        'Nombre': c.person_name || '',
+        'Mascota': c.dog_name || '',
+        'Teléfono': c.phone_number || '',
+        'Estado': bulkLinkStatusLabel(c.bulk_send_status, c.blocked),
+        'Último mensaje': c.last_message ? (c.last_message.text || '') : '',
+        'Fecha último mensaje': c.last_message && c.last_message.created_at ? c.last_message.created_at : '',
+        'Bloqueado': c.blocked ? 'Sí' : 'No',
+    }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Contactos');
+    const studyName = document.getElementById('bulkLinkStudy').selectedOptions[0]?.text || 'estudio';
+    XLSX.writeFile(wb, `envio_masivo_${studyName.replace(/[^\w\s-]/g, '').trim().replace(/\s+/g, '_')}.xlsx`);
+}
+
 function bulkLinkFilterPending() {
     bulkLinkFilter = 'pending';
-    document.querySelectorAll('.bulk-status-badge').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.bulk-status-check').forEach(cb => cb.checked = false);
     bulkLinkRenderTable();
 }
 
 function bulkLinkFilterAll() {
     bulkLinkFilter = 'all';
-    document.querySelectorAll('.bulk-status-badge').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.bulk-status-check').forEach(cb => cb.checked = false);
     bulkLinkRenderTable();
 }
 
