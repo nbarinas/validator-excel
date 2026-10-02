@@ -653,6 +653,66 @@
             line-height: 1;
         }
 
+        .bulk-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            border: 1px solid #e2e8f0;
+            background: white;
+            transition: all 0.15s ease;
+        }
+        .bulk-status-badge:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .bulk-status-badge.active {
+            ring: 2px solid currentColor;
+            box-shadow: 0 0 0 2px currentColor;
+        }
+        .bulk-status-badge[data-status="survey_done"] { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+        .bulk-status-badge[data-status="interested"] { background: #faf5ff; color: #6b21a8; border-color: #e9d5ff; }
+        .bulk-status-badge[data-status="call_back"] { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+        .bulk-status-badge[data-status="responded"] { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+        .bulk-status-badge[data-status="read"] { background: #fefce8; color: #854d0e; border-color: #fef08a; }
+        .bulk-status-badge[data-status="not_interested"] { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+        .bulk-status-badge[data-status="pending"] { background: #f8fafc; color: #475569; border-color: #e2e8f0; }
+        .bulk-status-badge[data-status="blocked"] { background: #fef2f2; color: #7f1d1d; border-color: #fca5a5; }
+
+        .bulk-status-select {
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.78rem;
+            font-weight: 500;
+            cursor: pointer;
+            background: white;
+            max-width: 130px;
+        }
+        .bulk-status-select:focus {
+            outline: 2px solid #0ea5e9;
+            outline-offset: 1px;
+        }
+
+        .bulk-quick-btn {
+            padding: 3px 7px;
+            border: 0;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.1s ease;
+        }
+        .bulk-quick-btn:hover {
+            transform: scale(1.05);
+        }
+        .bulk-quick-btn.active {
+            box-shadow: 0 0 0 2px currentColor;
+        }
+
         .wa-chat-body {
             flex: 1;
             overflow-y: auto;
@@ -2880,6 +2940,17 @@
                     <button onclick="bulkLinkFilterPending()" style="padding: 7px 12px; border: 0; border-radius: 6px; background: #f1f5f9; color: #0f172a; cursor: pointer; font-size: 0.85rem;">Ver solo pendientes</button>
                     <button onclick="bulkLinkFilterAll()" style="padding: 7px 12px; border: 0; border-radius: 6px; background: #f1f5f9; color: #0f172a; cursor: pointer; font-size: 0.85rem;">Ver todos</button>
                     <span id="bulkLinkCount" style="margin-left: auto; font-size: 0.85rem; color: #64748b;">0 contactos</span>
+                </div>
+                <div id="bulkLinkStatusDashboard" style="display: none; gap: 8px; flex-wrap: wrap; align-items: center; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: #64748b;">Resumen:</span>
+                    <span class="bulk-status-badge" data-status="survey_done" onclick="bulkLinkFilterByStatus('survey_done')" style="cursor: pointer;">✅ <span class="bulk-status-count" id="bulkCountSurveyDone">0</span> Hecha</span>
+                    <span class="bulk-status-badge" data-status="interested" onclick="bulkLinkFilterByStatus('interested')" style="cursor: pointer;">🟣 <span class="bulk-status-count" id="bulkCountInterested">0</span> Interesado</span>
+                    <span class="bulk-status-badge" data-status="call_back" onclick="bulkLinkFilterByStatus('call_back')" style="cursor: pointer;">🟠 <span class="bulk-status-count" id="bulkCountCallBack">0</span> Después</span>
+                    <span class="bulk-status-badge" data-status="responded" onclick="bulkLinkFilterByStatus('responded')" style="cursor: pointer;">🟢 <span class="bulk-status-count" id="bulkCountResponded">0</span> Respondido</span>
+                    <span class="bulk-status-badge" data-status="read" onclick="bulkLinkFilterByStatus('read')" style="cursor: pointer;">🟡 <span class="bulk-status-count" id="bulkCountRead">0</span> Visto</span>
+                    <span class="bulk-status-badge" data-status="not_interested" onclick="bulkLinkFilterByStatus('not_interested')" style="cursor: pointer;">🔴 <span class="bulk-status-count" id="bulkCountNotInterested">0</span> No</span>
+                    <span class="bulk-status-badge" data-status="pending" onclick="bulkLinkFilterByStatus('pending')" style="cursor: pointer;">⚪ <span class="bulk-status-count" id="bulkCountPending">0</span> Pendiente</span>
+                    <span class="bulk-status-badge" data-status="blocked" onclick="bulkLinkFilterByStatus('blocked')" style="cursor: pointer;">⛔ <span class="bulk-status-count" id="bulkCountBlocked">0</span> Bloq</span>
                 </div>
                 <div style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px;">
                     <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">

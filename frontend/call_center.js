@@ -5795,45 +5795,149 @@ async function bulkLinkLoadContacts() {
     }
 }
 
+const BULK_LINK_STATUSES = [
+    { value: '', label: '⚪ Pendiente', short: 'Pendiente' },
+    { value: 'sent', label: '🔵 Enviado', short: 'Enviado' },
+    { value: 'read', label: '🟡 Visto', short: 'Visto' },
+    { value: 'responded', label: '🟢 Respondido', short: 'Respondido' },
+    { value: 'survey_done', label: '✅ Encuesta hecha', short: 'Hecha' },
+    { value: 'interested', label: '🟣 Interesado', short: 'Interesado' },
+    { value: 'call_back', label: '🟠 Llamar después', short: 'Después' },
+    { value: 'not_interested', label: '🔴 No interesado', short: 'No' },
+];
+
 function bulkLinkStatusLabel(status, blocked) {
-    if (blocked) return '🔴 Bloqueado';
-    if (status === 'responded') return '🟢 Respondido';
-    if (status === 'seen') return '🟡 Visto';
-    return '⚪ Pendiente';
+    if (blocked) return '⛔ Bloqueado';
+    const s = BULK_LINK_STATUSES.find(x => x.value === status);
+    return s ? s.label : '⚪ Pendiente';
+}
+
+function bulkLinkStatusSelect(callId, currentStatus, blocked) {
+    if (blocked) return '<span style="color:#7f1d1d;font-size:0.75rem;">⛔ Bloqueado</span>';
+    const options = BULK_LINK_STATUSES.map(s =>
+        `<option value="${s.value}" ${s.value === currentStatus ? 'selected' : ''}>${s.label}</option>`
+    ).join('');
+    return `<select class="bulk-status-select" onchange="bulkLinkSetStatus(${callId}, this.value)" title="Cambiar estado">${options}</select>`;
+}
+
+function bulkLinkQuickButtons(callId, currentStatus, blocked) {
+    if (blocked) return '';
+    const btns = [
+        { status: 'survey_done', emoji: '✅', title: 'Encuesta hecha' },
+        { status: 'call_back', emoji: '🔄', title: 'Llamar después' },
+        { status: 'not_interested', emoji: '🚫', title: 'No interesado' },
+    ];
+    return btns.map(b =>
+        `<button class="bulk-quick-btn ${currentStatus === b.status ? 'active' : ''}" onclick="bulkLinkSetStatus(${callId}, '${b.status}')" title="${b.title}" style="background:${currentStatus === b.status ? '#e2e8f0' : '#f8fafc'};">${b.emoji}</button>`
+    ).join('');
+}
+
+async function bulkLinkSetStatus(callId, newStatus) {
+    const contact = bulkLinkContacts.find(c => c.id === callId);
+    if (!contact) return;
+    contact.bulk_send_status = newStatus || null;
+    try {
+        await fetch(`/calls/${callId}/bulk-status`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ status: newStatus || '' }),
+        });
+    } catch (e) {
+        console.error('Error actualizando estado:', e);
+    }
+    bulkLinkRenderTable();
+    bulkLinkUpdateDashboard();
+}
+
+function bulkLinkUpdateDashboard() {
+    const counts = {};
+    BULK_LINK_STATUSES.forEach(s => counts[s.value] = 0);
+    counts['blocked'] = 0;
+    bulkLinkContacts.forEach(c => {
+        if (c.blocked) { counts['blocked']++; return; }
+        const st = c.bulk_send_status || '';
+        if (counts[st] !== undefined) counts[st]++;
+        else counts[''] = (counts[''] || 0) + 1;
+    });
+    const map = {
+        survey_done: 'bulkCountSurveyDone',
+        interested: 'bulkCountInterested',
+        call_back: 'bulkCountCallBack',
+        responded: 'bulkCountResponded',
+        read: 'bulkCountRead',
+        not_interested: 'bulkCountNotInterested',
+        '': 'bulkCountPending',
+        blocked: 'bulkCountBlocked',
+    };
+    Object.entries(map).forEach(([key, id]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = counts[key] || 0;
+    });
+    document.getElementById('bulkLinkStatusDashboard').style.display = bulkLinkContacts.length > 0 ? 'flex' : 'none';
+}
+
+function bulkLinkFilterByStatus(status) {
+    bulkLinkFilter = bulkLinkFilter === `status:${status}` ? 'all' : `status:${status}`;
+    document.querySelectorAll('.bulk-status-badge').forEach(b => {
+        b.classList.toggle('active', b.dataset.status === status && bulkLinkFilter === `status:${status}`);
+    });
+    bulkLinkRenderTable();
 }
 
 function bulkLinkRenderTable() {
     const tbody = document.getElementById('bulkLinkTableBody');
     const visible = bulkLinkContacts.filter(c => {
         if (bulkLinkFilter === 'pending') {
-            return !c.blocked && c.bulk_send_status !== 'responded';
+            return !c.blocked && !['responded', 'survey_done', 'interested', 'not_interested', 'call_back'].includes(c.bulk_send_status);
+        }
+        if (bulkLinkFilter && bulkLinkFilter.startsWith('status:')) {
+            const st = bulkLinkFilter.split(':')[1];
+            if (st === 'blocked') return c.blocked;
+            return !c.blocked && (c.bulk_send_status || '') === st;
         }
         return true;
     });
     if (visible.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" style="padding: 2rem; text-align: center; color: #64748b;">No hay contactos</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center; color: #64748b;">No hay contactos</td></tr>';
     } else {
         tbody.innerHTML = visible.map(c => {
             const lastText = c.last_message ? (c.last_message.text || '(sin texto)') : '';
             const lastDir = c.last_message ? (c.last_message.direction === 'in' ? '📥' : '📤') : '';
+            const lastTime = c.last_message && c.last_message.created_at ? bulkLinkTimeAgo(c.last_message.created_at) : '';
             const lastSnippet = lastText ? `${lastDir} ${lastText.substring(0, 60)}${lastText.length > 60 ? '...' : ''}` : '—';
             const blockButton = c.blocked
-                ? '<span style="color:#b91c1c;font-size:0.75rem;">Bloqueado</span>'
-                : `<button onclick="bulkLinkBlockOne(${c.id})" title="Bloquear este número" style="padding:4px 8px;border:0;border-radius:4px;background:#ef4444;color:#fff;cursor:pointer;font-size:0.75rem;">🛑 Bloquear</button>`;
+                ? '<span style="color:#7f1d1d;font-size:0.75rem;">⛔</span>'
+                : `<button onclick="bulkLinkBlockOne(${c.id})" title="Bloquear este número" style="padding:4px 8px;border:0;border-radius:4px;background:#ef4444;color:#fff;cursor:pointer;font-size:0.75rem;">🛑</button>`;
             return `<tr data-call-id="${c.id}" style="${c.blocked ? 'background:#fee2e2;' : ''}">
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;"><input type="checkbox" class="bulk-link-check" value="${c.id}" ${c.blocked ? 'disabled' : ''}></td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.census || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.person_name || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.dog_name || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.phone_number || '')}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${bulkLinkStatusLabel(c.bulk_send_status, c.blocked)}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #475569;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(lastSnippet)}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
+                    <div style="display: flex; flex-direction: column; gap: 4px;">
+                        ${bulkLinkStatusSelect(c.id, c.bulk_send_status, c.blocked)}
+                        <div style="display: flex; gap: 3px;">${bulkLinkQuickButtons(c.id, c.bulk_send_status, c.blocked)}</div>
+                    </div>
+                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #475569;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(lastSnippet)}${lastTime ? `<div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${lastTime}</div>` : ''}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${blockButton}</td>
             </tr>`;
         }).join('');
     }
     bulkLinkUpdateSelectAllState();
     bulkLinkUpdateCount();
+    bulkLinkUpdateDashboard();
+}
+
+function bulkLinkTimeAgo(dateStr) {
+    const now = new Date();
+    const then = new Date(dateStr);
+    const diff = Math.floor((now - then) / 1000);
+    if (diff < 60) return 'ahora';
+    if (diff < 3600) return `hace ${Math.floor(diff / 60)}m`;
+    if (diff < 86400) return `hace ${Math.floor(diff / 3600)}h`;
+    return `hace ${Math.floor(diff / 86400)}d`;
 }
 
 function bulkLinkUpdateCount() {
@@ -5860,11 +5964,13 @@ function bulkLinkUpdateSelectAllState() {
 
 function bulkLinkFilterPending() {
     bulkLinkFilter = 'pending';
+    document.querySelectorAll('.bulk-status-badge').forEach(b => b.classList.remove('active'));
     bulkLinkRenderTable();
 }
 
 function bulkLinkFilterAll() {
     bulkLinkFilter = 'all';
+    document.querySelectorAll('.bulk-status-badge').forEach(b => b.classList.remove('active'));
     bulkLinkRenderTable();
 }
 
