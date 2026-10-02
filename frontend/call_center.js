@@ -5820,17 +5820,7 @@ function bulkLinkStatusSelect(callId, currentStatus, blocked) {
     return `<select class="bulk-status-select" onchange="bulkLinkSetStatus(${callId}, this.value)" title="Cambiar estado">${options}</select>`;
 }
 
-function bulkLinkQuickButtons(callId, currentStatus, blocked) {
-    if (blocked) return '';
-    const btns = [
-        { status: 'survey_done', emoji: '✅', title: 'Encuesta hecha' },
-        { status: 'call_back', emoji: '🔄', title: 'Llamar después' },
-        { status: 'not_interested', emoji: '🚫', title: 'No interesado' },
-    ];
-    return btns.map(b =>
-        `<button class="bulk-quick-btn ${currentStatus === b.status ? 'active' : ''}" onclick="bulkLinkSetStatus(${callId}, '${b.status}')" title="${b.title}" style="background:${currentStatus === b.status ? '#e2e8f0' : '#f8fafc'};">${b.emoji}</button>`
-    ).join('');
-}
+
 
 async function bulkLinkSetStatus(callId, newStatus) {
     const contact = bulkLinkContacts.find(c => c.id === callId);
@@ -5914,12 +5904,7 @@ function bulkLinkRenderTable() {
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.person_name || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.dog_name || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.phone_number || '')}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">
-                    <div style="display: flex; flex-direction: column; gap: 4px;">
-                        ${bulkLinkStatusSelect(c.id, c.bulk_send_status, c.blocked)}
-                        <div style="display: flex; gap: 3px;">${bulkLinkQuickButtons(c.id, c.bulk_send_status, c.blocked)}</div>
-                    </div>
-                </td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${bulkLinkStatusSelect(c.id, c.bulk_send_status, c.blocked)}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #475569;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(lastSnippet)}${lastTime ? `<div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${lastTime}</div>` : ''}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${blockButton}</td>
             </tr>`;
