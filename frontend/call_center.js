@@ -6085,9 +6085,12 @@ async function bulkLinkSendSelected() {
     bulkLinkShowDone(sent, failed, errors);
 }
 
+let bulkLinkPreviewCallId = null;
+
 async function bulkLinkOpenPreview(callId) {
     const contact = bulkLinkContacts.find(c => c.id === callId);
     if (!contact) return;
+    bulkLinkPreviewCallId = callId;
     document.getElementById('bulkLinkPreviewSubtitle').textContent = `${contact.census || ''} — ${contact.person_name || ''}`;
     const body = document.getElementById('bulkLinkPreviewBody');
     body.innerHTML = '<div style="padding: 2rem; text-align: center; color: #64748b;">Cargando historial...</div>';
@@ -6116,8 +6119,32 @@ async function bulkLinkOpenPreview(callId) {
     }
 }
 
+async function bulkLinkSendFromPreview() {
+    if (!bulkLinkPreviewCallId) return;
+    const input = document.getElementById('bulkLinkPreviewInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    input.disabled = true;
+    try {
+        const res = await fetch('/whatsapp/send', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ call_id: bulkLinkPreviewCallId, message: text }),
+        });
+        if (!res.ok) throw new Error('No se pudo enviar');
+        await bulkLinkOpenPreview(bulkLinkPreviewCallId);
+    } catch (e) {
+        alert('Error enviando: ' + e.message);
+    } finally {
+        input.disabled = false;
+        input.focus();
+    }
+}
+
 function closeBulkLinkPreviewModal() {
     document.getElementById('bulkLinkPreviewModal').style.display = 'none';
+    bulkLinkPreviewCallId = null;
 }
 
 // Update visible count and master checkbox state when checkboxes change

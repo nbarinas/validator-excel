@@ -3006,6 +3006,10 @@
                 <button class="wa-chat-close" onclick="closeBulkLinkPreviewModal()">&times;</button>
             </div>
             <div id="bulkLinkPreviewBody" style="padding: 16px; overflow-y: auto; flex: 1; color: #1e293b; font-size: 0.9rem;"></div>
+            <div style="padding: 12px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; flex-shrink: 0;">
+                <input type="text" id="bulkLinkPreviewInput" placeholder="Escribe un mensaje..." style="flex: 1; padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 0.9rem; outline: none;" onkeydown="if(event.key==='Enter')bulkLinkSendFromPreview()">
+                <button onclick="bulkLinkSendFromPreview()" style="padding: 10px 16px; border: 0; border-radius: 8px; background: #22c55e; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.9rem;">Enviar</button>
+            </div>
         </div>
     </div>
 
