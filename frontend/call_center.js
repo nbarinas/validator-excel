@@ -5714,6 +5714,7 @@ function openBulkLinkSendModal() {
     bulkLinkSending = false;
     bulkLinkContacts = [];
     bulkLinkFilter = 'all';
+    bulkLinkInitTemplatePreview();
     bulkLinkOnTemplateChange();
     bulkLinkLoadStudies();
     bulkLinkUpdateCount();
@@ -5754,12 +5755,67 @@ function closeBulkLinkDoneModal() {
     bulkLinkLoadContacts();
 }
 
+// Textos de las plantillas del envío masivo (deben coincidir con las aprobadas en Meta).
+// Las que no estén aquí muestran solo las variables que usan.
+const BULK_TEMPLATE_BODIES = {
+    'es_recibido': 'Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto, que comenzarás a utilizar a partir del lunes 5 de octubre.\n\nPor favor, respóndenos "RECIBIDO" para confirmar que ya lo tienes.\n\n¡Muchas gracias! 🙌',
+    'siabate_producto': 'Te saluda el equipo de AZ Marketing Plus.\n\n🐶 ¡Hola, {{encuestada}}!\n\nHoy iniciamos el registro del consumo de concentrado de tu perro {{mascota}}, junto con el producto asignado para esta semana.\n\n📌 ¿Qué debes hacer cada día?\n* Observa una misma comida de tu perro (desayuno, almuerzo o cena).\n* Sírvele el concentrado junto con el producto que te entregamos.\n* Mide el tiempo desde que le sirves hasta que termina de comer o deja de hacerlo.\n* Después, completa la encuesta con lo observado.\n\n⏰ En lo posible, realiza el registro a la misma hora y con la misma comida todos los días.\n\n📹 El próximo lunes 12 de octubre tendremos una breve videollamada con el equipo de investigación, para que nos cuentes cómo vas con el producto y cómo ha sido la experiencia de tu perro.\n\nCenso: {{censo}}\n\n📝 Encuesta diaria:\nhttps://forms.gle/Xp7R9KsSD41Jgygw5\n¡Muchas gracias por tu participación!'
+};
+
+const BULK_TEMPLATE_VARS = {
+    'pepe_1': '{{encuestado}} · {{nombre_mascota}} · {{censo}}',
+    'sibate_2': '{{encuestado}} · {{nombre_mascota}} · {{censo}} · {{dia}}',
+    'recordatorio': '{{encuestado}} · {{nombremascota}} · {{fecha}} · {{censo}}',
+    'sigue_interesado': '{{encuestada}} · {{mascota}}'
+};
+
+function bulkLinkRenderTemplatePreview(key) {
+    const box = document.getElementById('bulkLinkTemplatePreview');
+    if (!box || !key || box.dataset.previewKey === key) return;
+    box.dataset.previewKey = key;
+    const option = document.querySelector('#bulkLinkTemplate option[value="' + key + '"]');
+    const label = option ? option.textContent.trim() : key;
+    const body = BULK_TEMPLATE_BODIES[key];
+    const vars = BULK_TEMPLATE_VARS[key] || '';
+    const header = '<div style="font-weight:700;color:#0f172a;margin-bottom:4px;">' + waEsc(label) + '</div>';
+    if (body) {
+        box.innerHTML = header + '<div>' + waEsc(body) + '</div>';
+    } else {
+        box.innerHTML = header
+            + '<div style="color:#64748b;">(sin texto de vista previa)</div>'
+            + '<div style="color:#0f766e;margin-top:4px;">Variables: ' + waEsc(vars) + '</div>';
+    }
+    box.scrollTop = 0;
+}
+
+function bulkLinkHoveredOption(select, clientY) {
+    const options = Array.from(select.options);
+    for (const option of options) {
+        const rect = option.getBoundingClientRect();
+        if (rect.height > 0 && clientY >= rect.top && clientY <= rect.bottom) return option.value;
+    }
+    return null;
+}
+
+function bulkLinkInitTemplatePreview() {
+    const select = document.getElementById('bulkLinkTemplate');
+    if (!select || select.dataset.previewBound) return;
+    select.dataset.previewBound = '1';
+    select.addEventListener('mouseenter', () => bulkLinkRenderTemplatePreview(select.value));
+    select.addEventListener('mouseleave', () => bulkLinkRenderTemplatePreview(select.value));
+    select.addEventListener('mousemove', (event) => {
+        const key = bulkLinkHoveredOption(select, event.clientY);
+        if (key) bulkLinkRenderTemplatePreview(key);
+    });
+}
+
 function bulkLinkOnTemplateChange() {
     const template = document.getElementById('bulkLinkTemplate').value;
     const needsDay = template === 'sibate_2';
     const needsFecha = template === 'recordatorio';
     document.getElementById('bulkLinkDayLabel').style.display = needsDay ? 'block' : 'none';
     document.getElementById('bulkLinkFechaLabel').style.display = needsFecha ? 'block' : 'none';
+    bulkLinkRenderTemplatePreview(template);
 }
 
 async function bulkLinkLoadStudies() {
