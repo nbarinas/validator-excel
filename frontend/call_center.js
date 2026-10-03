@@ -5702,7 +5702,7 @@ let bulkLinkSending = false; // bloquea doble clic / envíos concurrentes
 
 function openBulkLinkSendModal() {
     document.getElementById('bulkLinkStudy').innerHTML = '<option value="">Selecciona un estudio</option>';
-    document.getElementById('bulkLinkTemplate').value = 'es_recibido';
+    document.getElementById('bulkLinkTemplate').value = 'pepe_1';
     document.getElementById('bulkLinkDay').value = '1';
     document.getElementById('bulkLinkFecha').value = '';
     document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
