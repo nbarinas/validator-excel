@@ -1259,6 +1259,7 @@ WHATSAPP_TEMPLATE_MAP = {
     "bono_parcial": {"name": "bono_parcial", "language": "es", "params": ["encuestada", "dia_y_hora", "monto"]},
     "pepe_1": {"name": "pepe_1", "language": "es", "params": ["encuestado", "nombre_mascota", "censo"]},
     "sibate_2": {"name": "sibate_2", "language": "es", "params": ["encuestado", "nombre_mascota", "censo", "dia"]},
+    "siabate_producto": {"name": "siabate_producto", "language": "es", "params": ["encuestada", "mascota", "censo"]},
     "recordatorio": {"name": "recordatorio", "language": "es", "params": ["encuestado", "nombremascota", "fecha", "censo"]},
     "sigue_interesado": {"name": "sigue_interesado", "language": "es", "params": ["encuestada", "mascota"]},
 }
