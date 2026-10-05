@@ -1263,6 +1263,8 @@ WHATSAPP_TEMPLATE_MAP = {
     "sibate_2": {"name": "sibate_2", "language": "es", "params": ["encuestado", "nombre_mascota", "censo", "dia"]},
     "recordatorio": {"name": "recordatorio", "language": "es", "params": ["encuestado", "nombremascota", "fecha", "censo"]},
     "sigue_interesado": {"name": "sigue_interesado", "language": "es", "params": ["encuestada", "mascota"]},
+    "sibate_5_de_octubre": {"name": "sibate5octubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
+    "siabate_6_de_octubre": {"name": "siabate6deoctubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
 }
 
 
