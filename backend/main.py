@@ -176,6 +176,11 @@ def on_startup():
             'media_path': 'VARCHAR(500)',
             'mime_type': 'VARCHAR(100)',
             'filename': 'VARCHAR(255)',
+            'error_code': 'VARCHAR(20)',
+            'error_message': 'VARCHAR(500)',
+            'retry_payload': 'TEXT',
+            'retry_count': 'INTEGER DEFAULT 0',
+            'next_retry_at': 'DATETIME',
         }
         for col, dtype in wa_new_cols.items():
             if col not in wa_cols:
@@ -190,6 +195,9 @@ def on_startup():
         if 'ix_whatsapp_messages_direction_read' not in wa_indexes:
             db.execute(text("CREATE INDEX ix_whatsapp_messages_direction_read ON whatsapp_messages (direction, read_at)"))
             print("Migration: Added index ix_whatsapp_messages_direction_read")
+        if 'ix_whatsapp_messages_next_retry_at' not in wa_indexes:
+            db.execute(text("CREATE INDEX ix_whatsapp_messages_next_retry_at ON whatsapp_messages (next_retry_at)"))
+            print("Migration: Added index ix_whatsapp_messages_next_retry_at")
 
         db.commit()
     except Exception as e:
@@ -238,6 +246,7 @@ def on_startup():
         db.close()
 
     _wa_start_escalation_worker()
+    _wa_start_retry_worker()
 
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
@@ -1267,6 +1276,100 @@ WHATSAPP_TEMPLATE_MAP = {
     "siabate_6_de_octubre": {"name": "siabate6deoctubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
 }
 
+# Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
+# evitar que expire durante el envío.
+WHATSAPP_WINDOW_HOURS = float(os.getenv("WHATSAPP_WINDOW_HOURS", "23"))
+
+# Reintentos con incrementos crecientes (segundos) para el error 131049
+# (límite de plantillas de marketing de Meta). Por defecto: 15 min, 1 h, 4 h, 24 h.
+WHATSAPP_RETRY_BACKOFF = [
+    int(x) for x in os.getenv("WHATSAPP_RETRY_BACKOFF", "900,3600,14400,86400").split(",") if x.strip()
+]
+
+# Traducciones al español de los códigos de error de entrega de WhatsApp/Meta.
+WHATSAPP_ERROR_ES = {
+    "131049": "Meta no lo entregó por el límite de plantillas de marketing (el destinatario ya recibió demasiadas). Se reintentará automáticamente más tarde.",
+    "131047": "No entregado: pasaron más de 24 h desde el último mensaje del destinatario. Se requiere una plantilla para reiniciar la conversación.",
+    "131026": "No se pudo entregar: el número no puede recibir mensajes de WhatsApp.",
+    "131048": "No entregado: Meta lo marcó como mensaje no deseado (spam).",
+    "131051": "No entregado: tipo de mensaje no compatible con el destinatario.",
+    "470": "No entregado: la ventana de 24 h expiró (se requiere plantilla para reabrir la conversación).",
+    "132000": "Error de plantilla: la cantidad de parámetros no coincide con la aprobada.",
+    "132001": "Error de plantilla: la plantilla no existe o no está aprobada en ese idioma.",
+    "132005": "Error de plantilla: un parámetro tiene un formato no permitido.",
+    "132007": "Error de plantilla: la plantilla está pausada o deshabilitada.",
+    "132015": "Error de plantilla: la plantilla está deshabilitada temporalmente por baja calidad.",
+}
+
+# Cuerpos de las plantillas (deben coincidir con las aprobadas en Meta). Se usan
+# para poder enviar el mismo contenido como mensaje de texto libre cuando el
+# destinatario escribió dentro de la ventana de 24 h (no aplica el límite 131049).
+WHATSAPP_TEMPLATE_BODIES = {
+    "recibido": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto, que comenzarás a utilizar a partir del lunes 5 de octubre.\n\nPor favor, respóndenos \"RECIBIDO\" para confirmar que ya lo tienes.\n\n¡Muchas gracias! 🙌",
+    "siabate_producto": "Te saluda el equipo de AZ Marketing Plus.\n\n🐶 ¡Hola, {{encuestada}}!\n\nHoy iniciamos el registro del consumo de concentrado de tu perro {{mascota}}, junto con el producto asignado para esta semana.\n\n📌 ¿Qué debes hacer cada día?\n* Observa una misma comida de tu perro (desayuno, almuerzo o cena).\n* Sírvele el concentrado junto con el producto que te entregamos.\n* Mide el tiempo desde que le sirves hasta que termina de comer o deja de hacerlo.\n* Después, completa la encuesta con lo observado.\n\n⏰ En lo posible, realiza el registro a la misma hora y con la misma comida todos los días.\n\n📹 El próximo lunes 12 de octubre tendremos una breve videollamada con el equipo de investigación, para que nos cuentes cómo vas con el producto y cómo ha sido la experiencia de tu perro.\n\nCenso: {{censo}}\n\n📝 Encuesta diaria:\nhttps://forms.gle/Xp7R9KsSD41Jgygw5\n¡Muchas gracias por tu participación!",
+    "solo_concentrado": "🐶 REGISTRO DIARIO – DÍA 2/7\n\n¡Hola {{encuestada}},! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascota}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t2wwXYkjip2T2vcF8",
+    "sibate_5_de_octubre": "ENCUESTA DIARIA – 7 DÍAS\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos esta dinámica, que tendrá una duración de 7 semanas.\n\nDurante los próximos 7 días, deberás registrar diariamente el tiempo que tu perrito {{mascota}} tarda en consumir el concentrado o alimento que habitualmente le das.\n\n⏱️ ¿Qué debes hacer?\n\nToma el tiempo desde el momento en que le sirves el alimento hasta que termina de comer.\nObserva atentamente su comportamiento al momento de alimentarse.\nRegistra si comienza a comer inmediatamente o si primero olfatea el alimento antes de consumirlo.\n\n🍽️ Realiza esta actividad en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: durante estos 7 días, procura mantener el mismo alimento y el mismo horario de alimentación, para garantizar un seguimiento consistente.\n\n📝 Recuerda diligenciar una encuesta cada día durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/yCQVjX6fHKFqgkE59\n\nGracias",
+    "siabate_6_de_octubre": "REGISTRO DIARIO\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascota}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t2wwXYkjip2T2vcF8\n\nMuchas gracias",
+}
+
+
+def _wa_error_es(code, fallback=None):
+    """Traduce un código de error de Meta al español."""
+    if code is None:
+        return fallback
+    code = str(code)
+    return WHATSAPP_ERROR_ES.get(code, fallback or f"Error de entrega de WhatsApp (código {code}).")
+
+
+def _wa_render_template_body(template_key, param_values):
+    """Devuelve el cuerpo de la plantilla con las variables sustituidas, o None."""
+    body = WHATSAPP_TEMPLATE_BODIES.get(template_key)
+    if not body:
+        return None
+    return re.sub(
+        r"\{\{\s*([a-zA-Z0-9_]+)\s*\}\}",
+        lambda m: str(param_values.get(m.group(1), "") or ""),
+        body,
+    )
+
+
+def _wa_last_inbound(db, phone):
+    """Último mensaje entrante (del cliente) para un número normalizado."""
+    if not phone:
+        return None
+    return (
+        db.query(models.WhatsAppMessage)
+        .filter(
+            models.WhatsAppMessage.phone_number == phone,
+            models.WhatsAppMessage.direction == "in",
+        )
+        .order_by(models.WhatsAppMessage.id.desc())
+        .first()
+    )
+
+
+def _wa_window_open(db, phone):
+    """True si el cliente escribió dentro de la ventana de 24 h (texto libre permitido)."""
+    last = _wa_last_inbound(db, phone)
+    if not last or not last.created_at:
+        return False
+    created = last.created_at
+    now = datetime.now(created.tzinfo) if created.tzinfo else datetime.utcnow()
+    return (now - created) <= timedelta(hours=WHATSAPP_WINDOW_HOURS)
+
+
+def _wa_schedule_retry(rec):
+    """Programa el siguiente reintento con backoff según rec.retry_count."""
+    attempt = int(rec.retry_count or 0)
+    if attempt >= len(WHATSAPP_RETRY_BACKOFF):
+        rec.next_retry_at = None
+        return False
+    delay = WHATSAPP_RETRY_BACKOFF[attempt]
+    rec.next_retry_at = datetime.utcnow() + timedelta(seconds=delay)
+    print(f"[WHATSAPP] Reintento #{attempt + 1} programado para {rec.phone_number} en {delay}s")
+    return True
+
+
 
 def _wa_escalate_stale():
     """Mark incoming messages as escalated when not attended within N minutes.
@@ -1450,6 +1553,71 @@ def _wa_start_escalation_worker():
     t.start()
 
 
+def _wa_process_retries():
+    """Reenvía los mensajes con reintento pendiente (límite de marketing 131049)."""
+    db = database.SessionLocal()
+    try:
+        now = datetime.utcnow()
+        due = (
+            db.query(models.WhatsAppMessage)
+            .filter(
+                models.WhatsAppMessage.next_retry_at.isnot(None),
+                models.WhatsAppMessage.next_retry_at <= now,
+                models.WhatsAppMessage.retry_payload.isnot(None),
+            )
+            .order_by(models.WhatsAppMessage.next_retry_at.asc())
+            .limit(50)
+            .all()
+        )
+        for rec in due:
+            # Limpiar antes de enviar para no reprocesar si algo falla a mitad.
+            rec.next_retry_at = None
+            db.commit()
+            try:
+                payload = json.loads(rec.retry_payload)
+            except Exception:
+                rec.retry_payload = None
+                db.commit()
+                continue
+            print(f"[WHATSAPP] Reintentando envío a {rec.phone_number} (intento #{int(rec.retry_count or 0) + 1})")
+            result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+            rec.retry_count = int(rec.retry_count or 0) + 1
+            if "error" in result:
+                # Error síncrono (poco común): programar el siguiente intento.
+                if not _wa_schedule_retry(rec):
+                    rec.next_retry_at = None
+            else:
+                messages = result.get("messages") or []
+                if messages:
+                    rec.message_id = messages[0].get("id")
+                rec.wa_status = "sent"
+                rec.error_code = None
+                rec.error_message = None
+                rec.next_retry_at = None
+                print(f"[WHATSAPP] Reintento enviado a {rec.phone_number}")
+            db.commit()
+    except Exception as e:
+        print(f"[WHATSAPP] Error en worker de reintentos: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
+def _wa_start_retry_worker():
+    """Background thread que procesa la cola de reintentos cada 60s."""
+    def run():
+        if WHATSAPP_RETRY_BACKOFF:
+            print(f"[WHATSAPP] Worker de reintentos iniciado (backoff {WHATSAPP_RETRY_BACKOFF} s).")
+        while True:
+            try:
+                _wa_process_retries()
+            except Exception as e:
+                print(f"[WHATSAPP] Error en reintentos: {e}")
+            time.sleep(60)
+    t = threading.Thread(target=run, daemon=True)
+    t.start()
+
+
 @app.get("/whatsapp/webhook")
 def whatsapp_webhook_get(
     hub_mode: Optional[str] = None,
@@ -1488,6 +1656,21 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
                             rec.wa_status = status_name
                             if status_name == "read":
                                 rec.read_at = datetime.utcnow()
+                            # Capturar el error de entrega (p. ej. 131049)
+                            errs = status.get("errors") or []
+                            if errs:
+                                err = errs[0] or {}
+                                code = err.get("code")
+                                if code is not None:
+                                    rec.error_code = str(code)
+                                    rec.error_message = _wa_error_es(code, err.get("title") or err.get("message"))
+                            if status_name in ("failed", "undelivered"):
+                                # Reintento con backoff sólo para el límite de marketing
+                                if str(rec.error_code) == "131049" and rec.retry_payload:
+                                    _wa_schedule_retry(rec)
+                            elif status_name in ("delivered", "read") and rec.next_retry_at:
+                                # Se entregó: cancelar reintentos pendientes
+                                rec.next_retry_at = None
 
                 for msg in value.get("messages") or []:
                     msg_id = msg.get("id")
@@ -2046,44 +2229,93 @@ def whatsapp_send_template(
         for p in template_params
     ]
 
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": phone,
-        "type": "template",
-        "template": {
-            "name": template_name,
-            "language": {"code": template_language},
-            "components": [{
-                "type": "body",
-                "parameters": parameters,
-            }],
-        },
-    }
+    # Ventana de 24 h: si el cliente escribió recientemente, enviamos el mismo
+    # contenido como texto libre. Los mensajes de sesión NO están sujetos al
+    # límite de plantillas de marketing (error 131049).
+    window_text = _wa_render_template_body(request.template_key, param_values) if _wa_window_open(db, phone) else None
+    if window_text:
+        cutoff = datetime.utcnow() - timedelta(seconds=30)
+        dup = (
+            db.query(models.WhatsAppMessage)
+            .filter(
+                models.WhatsAppMessage.phone_number == phone,
+                models.WhatsAppMessage.direction == "out",
+                models.WhatsAppMessage.message_type == "text",
+                models.WhatsAppMessage.message_text == window_text,
+                models.WhatsAppMessage.created_at >= cutoff,
+            )
+            .first()
+        )
+        if dup:
+            return {
+                "id": dup.id,
+                "call_id": dup.call_id,
+                "phone_number": dup.phone_number,
+                "direction": dup.direction,
+                "message_text": dup.message_text,
+                "message_type": dup.message_type,
+                "wa_status": dup.wa_status,
+                "created_at": dup.created_at,
+                "template": template_name,
+                "template_key": request.template_key,
+                "sent_as_text": True,
+                "duplicate": True,
+            }
+        print(f"[WHATSAPP] Ventana 24 h abierta para {phone}: se envía texto libre (ventana de sesión).")
+
+    if window_text:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "text",
+            "text": {"body": window_text},
+        }
+        msg_type = "text"
+    else:
+        payload = {
+            "messaging_product": "whatsapp",
+            "to": phone,
+            "type": "template",
+            "template": {
+                "name": template_name,
+                "language": {"code": template_language},
+                "components": [{
+                    "type": "body",
+                    "parameters": parameters,
+                }],
+            },
+        }
+        msg_type = "template"
+
     result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
     if "error" in result:
         raise HTTPException(status_code=502, detail=f"Error enviando plantilla: {result['error']}")
 
     messages = result.get("messages") or []
     meta_id = messages[0].get("id") if messages else None
-    preview = f"[{request.template_key}] {person_name}"
-    if "categoria" in template_params:
-        preview += f" / {agent_name} / {category}"
-    if "hora" in template_params:
-        preview += f" / {hora_texto}"
-    if "dia_y_hora" in template_params:
-        preview += f" / {dia_y_hora}"
-    if "monto" in template_params:
-        preview += f" / ${monto}"
+    if msg_type == "text":
+        preview = window_text
+    else:
+        preview = f"[{request.template_key}] {person_name}"
+        if "categoria" in template_params:
+            preview += f" / {agent_name} / {category}"
+        if "hora" in template_params:
+            preview += f" / {hora_texto}"
+        if "dia_y_hora" in template_params:
+            preview += f" / {dia_y_hora}"
+        if "monto" in template_params:
+            preview += f" / ${monto}"
 
     rec = models.WhatsAppMessage(
         call_id=call.id if call else None,
         phone_number=phone,
         direction="out",
         message_text=preview,
-        message_type="template",
+        message_type=msg_type,
         message_id=meta_id,
         wa_status="sent",
         sender_agent_id=current_user.id,
+        retry_payload=json.dumps(payload) if msg_type == "template" else None,
     )
     db.add(rec)
     db.commit()
@@ -2099,6 +2331,7 @@ def whatsapp_send_template(
         "created_at": rec.created_at,
         "template": template_name,
         "template_key": request.template_key,
+        "sent_as_text": msg_type == "text",
     }
 
 
@@ -2159,6 +2392,7 @@ def whatsapp_send_bulk(
     batches = [valid[i:i + batch_size] for i in range(0, len(valid), batch_size)] or [[]]
 
     sent = 0
+    sent_as_text = 0
     failed = []
     for batch_idx, batch in enumerate(batches, start=1):
         print(f"[WHATSAPP-BULK] Lote {batch_idx}/{len(batches)} ({len(batch)} mensajes) plantilla {template_name!r}")
@@ -2178,43 +2412,62 @@ def whatsapp_send_bulk(
                 {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
                 for p in template_params
             ]
-            payload = {
-                "messaging_product": "whatsapp",
-                "to": phone,
-                "type": "template",
-                "template": {
-                    "name": template_name,
-                    "language": {"code": template_language},
-                    "components": [{"type": "body", "parameters": parameters}],
-                },
-            }
+            # Ventana de 24 h: enviar como texto libre evita el límite 131049.
+            window_text = _wa_render_template_body(request.template_key, param_values) if _wa_window_open(db, phone) else None
+            if window_text:
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "to": phone,
+                    "type": "text",
+                    "text": {"body": window_text},
+                }
+                msg_type = "text"
+            else:
+                payload = {
+                    "messaging_product": "whatsapp",
+                    "to": phone,
+                    "type": "template",
+                    "template": {
+                        "name": template_name,
+                        "language": {"code": template_language},
+                        "components": [{"type": "body", "parameters": parameters}],
+                    },
+                }
+                msg_type = "template"
             result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
             if "error" in result:
                 failed.append({"telefono": phone, "nombre": person_name, "razon": str(result["error"])})
                 continue
             messages = result.get("messages") or []
-            preview = f"[{request.template_key}] {person_name}"
-            if "categoria" in template_params:
-                preview += f" / {agent_name} / {category}"
-            if "hora" in template_params:
-                preview += f" / hoy"
+            if msg_type == "text":
+                preview = window_text
+            else:
+                preview = f"[{request.template_key}] {person_name}"
+                if "categoria" in template_params:
+                    preview += f" / {agent_name} / {category}"
+                if "hora" in template_params:
+                    preview += f" / hoy"
             rec = models.WhatsAppMessage(
                 call_id=None,
                 phone_number=phone,
                 direction="out",
                 message_text=preview,
-                message_type="template",
+                message_type=msg_type,
                 message_id=messages[0].get("id") if messages else None,
                 wa_status="sent",
                 sender_agent_id=current_user.id,
+                retry_payload=json.dumps(payload) if msg_type == "template" else None,
             )
             db.add(rec)
             sent += 1
+            if msg_type == "text":
+                sent_as_text += 1
             time.sleep(1.5)
         db.commit()
 
     return {
         "sent": sent,
+        "sent_as_text": sent_as_text,
         "failed": failed,
         "blocked": blocked,
         "blocked_count": len(blocked),
@@ -2349,6 +2602,10 @@ def whatsapp_history(
             "message_text": m.message_text,
             "message_type": m.message_type,
             "wa_status": m.wa_status,
+            "error_code": m.error_code,
+            "error_message": m.error_message,
+            "next_retry_at": m.next_retry_at,
+            "retry_count": m.retry_count,
             "media_id": m.media_id,
             "mime_type": m.mime_type,
             "filename": m.filename,
@@ -2405,6 +2662,10 @@ def whatsapp_history_phone(
             "message_text": m.message_text,
             "message_type": m.message_type,
             "wa_status": m.wa_status,
+            "error_code": m.error_code,
+            "error_message": m.error_message,
+            "next_retry_at": m.next_retry_at,
+            "retry_count": m.retry_count,
             "media_id": m.media_id,
             "mime_type": m.mime_type,
             "filename": m.filename,
@@ -2881,6 +3142,7 @@ def get_study_contacts_for_bulk(
             all_variants.add(v)
 
     last_messages = {}
+    last_inbound = {}
     if all_variants:
         msgs = (
             db.query(models.WhatsAppMessage)
@@ -2891,6 +3153,8 @@ def get_study_contacts_for_bulk(
         for m in msgs:
             if m.phone_number not in last_messages:
                 last_messages[m.phone_number] = m
+            if m.direction == "in" and m.phone_number not in last_inbound:
+                last_inbound[m.phone_number] = m
 
     result = []
     for call in calls:
@@ -2903,6 +3167,16 @@ def get_study_contacts_for_bulk(
             if v in last_messages:
                 last_msg = last_messages[v]
                 break
+        last_in = None
+        for v in variants:
+            if v in last_inbound:
+                last_in = last_inbound[v]
+                break
+        window_open = False
+        if last_in and last_in.created_at:
+            created = last_in.created_at
+            now = datetime.now(created.tzinfo) if created.tzinfo else datetime.utcnow()
+            window_open = (now - created) <= timedelta(hours=WHATSAPP_WINDOW_HOURS)
         is_blocked = bool(variants & blocked_set)
         result.append({
             "id": call.id,
@@ -2913,11 +3187,13 @@ def get_study_contacts_for_bulk(
             "whatsapp": call.whatsapp,
             "bulk_send_status": call.bulk_send_status,
             "blocked": is_blocked,
+            "window_open": window_open,
             "last_message": {
                 "text": last_msg.message_text if last_msg else None,
                 "direction": last_msg.direction if last_msg else None,
                 "created_at": last_msg.created_at.isoformat() if last_msg and last_msg.created_at else None,
                 "wa_status": last_msg.wa_status if last_msg else None,
+                "error_message": last_msg.error_message if last_msg else None,
             } if last_msg else None,
         })
     return result

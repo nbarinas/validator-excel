@@ -436,6 +436,14 @@ class WhatsAppMessage(Base):
     read_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    # Error de entrega reportado por Meta (p. ej. 131049: límite de marketing)
+    error_code = Column(String(20), nullable=True)
+    error_message = Column(String(500), nullable=True)
+    # Reintento con backoff (solo para mensajes con límite de marketing)
+    retry_payload = Column(Text, nullable=True) # payload JSON original para reenviar
+    retry_count = Column(Integer, default=0, nullable=True)
+    next_retry_at = Column(DateTime, nullable=True, index=True)
+
     # Escalation (forward to superuser after N minutes without attention)
     escalated = Column(Boolean, default=False, index=True)
     escalated_at = Column(DateTime, nullable=True)

@@ -4683,6 +4683,7 @@ function waBuildMessageHtml(m) {
     const time = waTime(m.created_at);
     const escTag = m.escalated ? '<span style="color:#ef4444; font-size:0.7rem;"> ⚑ escalado</span>' : '';
     const statusSpan = isOut ? ` · <span class="wa-status-${m.wa_status || 'sent'}">${waStatusLabel(m.wa_status)}</span>` : '';
+    const errorSpan = (isOut && m.error_message) ? `<div class="wa-msg-error" style="font-size:0.7rem;color:#b91c1c;margin-top:2px;">⚠️ ${waEsc(m.error_message)}</div>` : '';
     const isMedia = ['image', 'audio', 'sticker', 'video', 'document'].includes(m.message_type);
     if (isMedia) {
         const label = { image: 'Imagen', audio: 'Audio', sticker: 'Sticker', video: 'Video', document: 'Documento' }[m.message_type];
@@ -4694,11 +4695,11 @@ function waBuildMessageHtml(m) {
         } else if (m.message_type === 'video') {
             mediaHtml = `<video class="wa-media-preview" controls data-media-message="${m.id}"></video>`;
         }
-        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${mediaHtml}</div>${m.message_text ? `<div>${waEsc(m.message_text)}</div>` : ''}<div class="wa-msg-meta">${time}${statusSpan}${escTag}</div></div>`;
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${mediaHtml}</div>${m.message_text ? `<div>${waEsc(m.message_text)}</div>` : ''}<div class="wa-msg-meta">${time}${statusSpan}${escTag}</div>${errorSpan}</div>`;
     } else if (m.message_type === 'template') {
-        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${statusSpan}${escTag}</div></div>`;
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${statusSpan}${escTag}</div>${errorSpan}</div>`;
     } else {
-        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${statusSpan}${escTag}</div></div>`;
+        return `<div class="wa-msg ${isOut ? 'wa-msg-out' : 'wa-msg-in'}" data-message-id="${m.id}"><div>${waEsc(m.message_text)}</div><div class="wa-msg-meta">${time}${statusSpan}${escTag}</div>${errorSpan}</div>`;
     }
 }
 
@@ -5705,7 +5706,7 @@ function openBulkLinkSendModal() {
     document.getElementById('bulkLinkTemplate').value = 'siabate_producto';
     document.getElementById('bulkLinkDay').value = '1';
     document.getElementById('bulkLinkFecha').value = '';
-    document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
+    document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
     document.getElementById('bulkLinkStatus').style.display = 'none';
     document.getElementById('bulkLinkError').style.display = 'none';
     document.getElementById('bulkLinkSelectAll').checked = false;
@@ -5839,7 +5840,7 @@ async function bulkLinkLoadStudies() {
 async function bulkLinkLoadContacts() {
     const studyId = document.getElementById('bulkLinkStudy').value;
     if (!studyId) {
-        document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="8" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
+        document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
         bulkLinkContacts = [];
         bulkLinkUpdateCount();
         return;
@@ -5864,6 +5865,23 @@ const BULK_LINK_STATUSES = [
     { value: 'call_back', label: '🟠 Llamar después', short: 'Después' },
     { value: 'not_interested', label: '🔴 No interesado', short: 'No' },
 ];
+
+// Traducción de los estados de entrega de WhatsApp al español.
+const WA_STATUS_ES = {
+    sent: 'Enviado',
+    delivered: 'Entregado',
+    read: 'Leído',
+    received: 'Recibido',
+    failed: 'No entregado',
+    undelivered: 'No entregado',
+    pending: 'Pendiente',
+};
+
+function waStatusEs(status) {
+    if (!status) return '';
+    if (WA_STATUS_ES[status]) return WA_STATUS_ES[status];
+    return (typeof waStatusLabel === 'function') ? waStatusLabel(status) : status;
+}
 
 function bulkLinkStatusLabel(status, blocked) {
     if (blocked) return '⛔ Bloqueado';
@@ -5951,6 +5969,14 @@ function bulkLinkRenderTable() {
             const lastDir = c.last_message ? (c.last_message.direction === 'in' ? '📥' : '📤') : '';
             const lastTime = c.last_message && c.last_message.created_at ? bulkLinkTimeAgo(c.last_message.created_at) : '';
             const lastSnippet = lastText ? `${lastDir} ${lastText.substring(0, 60)}${lastText.length > 60 ? '...' : ''}` : '—';
+            const lastError = c.last_message && c.last_message.error_message
+                ? `<div style="font-size: 0.7rem; color: #b91c1c; margin-top: 2px;">⚠️ ${waEsc(c.last_message.error_message)}</div>`
+                : '';
+            const channel = c.blocked
+                ? '<span style="color:#7f1d1d;font-size:0.75rem;">⛔ Bloqueado</span>'
+                : (c.window_open
+                    ? '<span title="El contacto escribió hace menos de 24 h: se envía como texto libre (no aplica el límite de marketing)" style="color:#047857;font-weight:600;font-size:0.75rem;">🟢 Texto (24 h)</span>'
+                    : '<span title="Sin respuesta reciente: se envía como plantilla (sujeta al límite de marketing de Meta)" style="color:#0369a1;font-size:0.75rem;">🔵 Plantilla</span>');
             const blockButton = c.blocked
                 ? '<span style="color:#7f1d1d;font-size:0.85rem;" title="Número bloqueado">🚫</span>'
                 : `<button onclick="bulkLinkBlockOne(${c.id})" title="Bloquear este número" style="padding:4px 8px;border:0;border-radius:4px;background:#ef4444;color:#fff;cursor:pointer;font-size:0.75rem;">🚫</button>`;
@@ -5960,8 +5986,9 @@ function bulkLinkRenderTable() {
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.person_name || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.dog_name || '')}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(c.phone_number || '')}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${channel}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${bulkLinkStatusSelect(c.id, c.bulk_send_status, c.blocked)}</td>
-                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #475569;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(lastSnippet)}${lastTime ? `<div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${lastTime}</div>` : ''}</td>
+                <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; cursor: pointer; color: #475569;" onclick="bulkLinkOpenPreview(${c.id})">${waEsc(lastSnippet)}${lastTime ? `<div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">${lastTime}</div>` : ''}${lastError}</td>
                 <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${blockButton}</td>
             </tr>`;
         }).join('');
@@ -6091,6 +6118,7 @@ async function bulkLinkSendSelected() {
     bulkLinkSetBusy(true);
     bulkLinkHideAlerts();
     let sent = 0;
+    let sentAsText = 0;
     let failed = 0;
     const errors = [];
     try {
@@ -6123,6 +6151,7 @@ async function bulkLinkSendSelected() {
                 const data = await res.json();
                 if (res.ok) {
                     sent++;
+                    if (data.sent_as_text) sentAsText++;
                 } else {
                     failed++;
                     errors.push(`${label}: ${data.detail || 'Error'}`);
@@ -6137,7 +6166,7 @@ async function bulkLinkSendSelected() {
     } finally {
         bulkLinkSending = false;
     }
-    bulkLinkShowStatus(`Enviados: ${sent} · Fallados: ${failed}`);
+    bulkLinkShowStatus(`Enviados: ${sent} · Fallados: ${failed}` + (sentAsText ? ` · en ventana 24 h (texto libre): ${sentAsText}` : ''));
     if (errors.length) {
         bulkLinkShowError(errors.slice(0, 10).join('\n') + (errors.length > 10 ? `\n... y ${errors.length - 10} más` : ''));
     }
@@ -6165,10 +6194,15 @@ async function bulkLinkOpenPreview(callId) {
         body.innerHTML = data.messages.map(m => {
             const isOut = m.direction === 'out';
             const time = m.created_at ? new Date(m.created_at).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' }) : '';
+            const statusLabel = waStatusEs(m.wa_status);
+            const errorLine = m.error_message
+                ? `<div style="font-size:0.7rem;color:#b91c1c;margin-top:4px;">⚠️ ${waEsc(m.error_message)}</div>`
+                : '';
             return `<div style="margin-bottom: 12px; display: flex; justify-content: ${isOut ? 'flex-end' : 'flex-start'};">
                 <div style="max-width: 80%; padding: 10px 14px; border-radius: 12px; background: ${isOut ? '#d1fae5' : '#f1f5f9'}; color: #1e293b;">
                     <div style="font-size: 0.85rem; margin-bottom: 4px;">${waEsc(m.message_text || '')}</div>
-                    <div style="font-size: 0.7rem; color: #64748b; text-align: right;">${time} ${m.wa_status || ''}</div>
+                    <div style="font-size: 0.7rem; color: #64748b; text-align: right;">${time}${statusLabel ? ' · ' + waEsc(statusLabel) : ''}</div>
+                    ${errorLine}
                 </div>
             </div>`;
         }).join('');
