@@ -4195,9 +4195,10 @@ async def upload_calls(
 
             # Dog Food Study
             "dog_name": ["nombre del perro", "dog name", "mascota", "nombre de la mascota", "nombre mascota", "nombre de mascota"],
-            "dog_breed": ["raza", "raza del perro"],
-            "dog_size": ["tamaño", "tamaño del perro", "tamano", "tamano del perro"],
-            "dog_age": ["edad perrito", "edad del perro"],
+            "dog_breed": ["raza", "raza del perro", "dog_breed"],
+            "dog_size": ["tamaño", "tamaño del perro", "tamano", "tamano del perro", "dog_size"],
+            "dog_age": ["edad perrito", "edad del perro", "dog_age"],
+            "dog_user_type": ["dog_user_type", "tipo de mezclador", "tipo mezclador", "mezclador", "tipo de mezcladora"],
             "stool_texture": ["textura del popo", "textura del popó", "la textura del popo de su perro es", "la textura del popó de su perro es", "la textura del popó de su perro es?", "¿la textura del popó de su perro es?", "textura popo", "textura popó"],
             "health_status": ["estado de salud", "salud"],
 
