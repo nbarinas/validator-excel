@@ -1273,7 +1273,8 @@ WHATSAPP_TEMPLATE_MAP = {
     "recordatorio": {"name": "recordatorio", "language": "es", "params": ["encuestado", "nombremascota", "fecha", "censo"]},
     "sigue_interesado": {"name": "sigue_interesado", "language": "es", "params": ["encuestada", "mascota"]},
     "sibate_5_de_octubre": {"name": "sibate5octubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
-    "siabate_6_de_octubre": {"name": "siabate6deoctubre", "language": "es", "params": ["encuestada", "mascota"]},
+    "siabate_6_de_octubre": {"name": "siabate6deoctubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
+    "19_octubre": {"name": "19_octubre", "language": "es", "params": ["encuestado"]},
 }
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
