@@ -1273,8 +1273,27 @@ WHATSAPP_TEMPLATE_MAP = {
     "recordatorio": {"name": "recordatorio", "language": "es", "params": ["encuestado", "nombremascota", "fecha", "censo"]},
     "sigue_interesado": {"name": "sigue_interesado", "language": "es", "params": ["encuestada", "mascota"]},
     "sibate_5_de_octubre": {"name": "sibate5octubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
-    "siabate_6_de_octubre": {"name": "siabate6deoctubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
+    "siabate_6_de_octubre": {"name": "siabate6deoctubre", "language": "es", "params": ["encuestada", "mascota"]},
     "19_octubre": {"name": "19_octubre", "language": "es", "params": ["encuestado"]},
+}
+
+# Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
+WHATSAPP_TEMPLATE_LABELS = {
+    "saludo_corto": "Saludo corto",
+    "manana_3": "Buenas tardes (recordatorio)",
+    "shampo_primer": "Shampoo — primer contacto",
+    "shampo_segundo": "Shampoo — segundo recordatorio",
+    "bono_final": "Bono final",
+    "bono_parcial": "Bono parcial",
+    "siabate_producto": "Registro diario concentrado + producto (fatiga)",
+    "solo_concentrado": "Registro diario solo concentrado",
+    "recibido": "Confirmar recepción del producto",
+    "sibate_2": "Recordatorio diario",
+    "recordatorio": "Recordatorio — encuesta pendiente",
+    "sigue_interesado": "Sigue interesado — reprogramación de inicio",
+    "sibate_5_de_octubre": "Sibate 5 de octubre",
+    "siabate_6_de_octubre": "Sibate 6 de octubre",
+    "19_octubre": "19 de octubre — reprogramación",
 }
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1311,6 +1330,11 @@ WHATSAPP_TEMPLATE_BODIES = {
     "solo_concentrado": "🐶 REGISTRO DIARIO – DÍA 2/7\n\n¡Hola {{encuestada}},! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascota}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t2wwXYkjip2T2vcF8",
     "sibate_5_de_octubre": "ENCUESTA DIARIA – 7 DÍAS\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos esta dinámica, que tendrá una duración de 7 semanas.\n\nDurante los próximos 7 días, deberás registrar diariamente el tiempo que tu perrito {{mascota}} tarda en consumir el concentrado o alimento que habitualmente le das.\n\n⏱️ ¿Qué debes hacer?\n\nToma el tiempo desde el momento en que le sirves el alimento hasta que termina de comer.\nObserva atentamente su comportamiento al momento de alimentarse.\nRegistra si comienza a comer inmediatamente o si primero olfatea el alimento antes de consumirlo.\n\n🍽️ Realiza esta actividad en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: durante estos 7 días, procura mantener el mismo alimento y el mismo horario de alimentación, para garantizar un seguimiento consistente.\n\n📝 Recuerda diligenciar una encuesta cada día durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/yCQVjX6fHKFqgkE59\n\nGracias",
     "siabate_6_de_octubre": "REGISTRO DIARIO\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascota}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: censo\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t2wwXYkjip2T2vcF8\n\nMuchas gracias",
+    "manana_3": "Buenas tardes, señora {{nombre}}, ¿cómo está?\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de {{categoria}} y quería confirmar si en este momento podríamos realizar la videollamada.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "shampo_primer": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de shampoo. Hace 15 días le entregamos el producto y el día de hoy tiene programada una videollamada a las {{hora}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
+    "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día.",
 }
 
 
@@ -1320,6 +1344,47 @@ def _wa_error_es(code, fallback=None):
         return fallback
     code = str(code)
     return WHATSAPP_ERROR_ES.get(code, fallback or f"Error de entrega de WhatsApp (código {code}).")
+
+
+def _wa_error_human(result):
+    """Convierte la respuesta de error de Meta en un mensaje breve y en español.
+
+    Evita exponer el JSON crudo al usuario final.
+    """
+    error = result.get("error") or {}
+    code = error.get("code")
+    # El cuerpo crudo de Meta suele traer {"error":{...,"code":132000,"message":"..."}}
+    message = error.get("message") or ""
+    inner_code = None
+    try:
+        parsed = json.loads(message) if isinstance(message, str) else message
+        if isinstance(parsed, dict):
+            inner = parsed.get("error") or {}
+            inner_code = inner.get("code")
+            message = inner.get("message") or message
+    except Exception:
+        parsed = None
+
+    known = WHATSAPP_ERROR_ES.get(str(inner_code or code))
+    if known:
+        return known
+    if inner_code:
+        return f"No se pudo enviar por WhatsApp (código {inner_code}). Revisa la plantilla o el número e inténtalo de nuevo."
+    if str(code) in ("400", "401", "403"):
+        return "WhatsApp rechazó el mensaje. Revisa los datos e inténtalo de nuevo."
+    return "No se pudo enviar el mensaje por WhatsApp. Inténtalo de nuevo en unos minutos."
+
+
+def _study_template_keys(db, study_id):
+    """Claves de plantilla conectadas a un estudio (lista, puede estar vacía)."""
+    if not study_id:
+        return []
+    rows = (
+        db.query(models.StudyTemplate.template_key)
+        .filter(models.StudyTemplate.study_id == study_id)
+        .all()
+    )
+    return [r[0] for r in rows]
 
 
 def _wa_render_template_body(template_key, param_values):
@@ -2051,7 +2116,7 @@ def whatsapp_new_chat(
     }
     result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
     if "error" in result:
-        raise HTTPException(status_code=502, detail=f"Error enviando plantilla: {result['error']}")
+        raise HTTPException(status_code=502, detail=_wa_error_human(result))
     messages = result.get("messages") or []
     rec = models.WhatsAppMessage(
         phone_number=phone,
@@ -2067,6 +2132,24 @@ def whatsapp_new_chat(
     return {"id": rec.id, "phone_number": phone, "template": template_name, "status": "sent"}
 
 
+@app.get("/whatsapp/templates")
+def whatsapp_templates_catalog(
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Catálogo de plantillas disponibles (key, etiqueta, parámetros y cuerpo).
+
+    Lo usan el selector de envío masivo y las vistas previas.
+    """
+    return [{
+        "key": key,
+        "name": cfg.get("name"),
+        "language": cfg.get("language"),
+        "label": WHATSAPP_TEMPLATE_LABELS.get(key, key),
+        "params": cfg.get("params", []),
+        "body": WHATSAPP_TEMPLATE_BODIES.get(key),
+    } for key, cfg in WHATSAPP_TEMPLATE_MAP.items()]
+
+
 class WhatsAppSendTemplateRequest(BaseModel):
     call_id: Optional[int] = None
     phone_number: Optional[str] = None
@@ -2080,6 +2163,7 @@ class WhatsAppSendTemplateRequest(BaseModel):
     dia: Optional[str] = None
     nombremascota: Optional[str] = None
     fecha: Optional[str] = None
+    bulk_link: bool = False
 
 
 @app.post("/whatsapp/send-template")
@@ -2111,6 +2195,21 @@ def whatsapp_send_template(
             raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
     else:
         raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
+
+    # Envío masivo por estudio: solo se permite si el estudio tiene plantillas
+    # conectadas y la elegida está entre ellas (lo configura el superusuario).
+    if request.bulk_link and call and call.study_id:
+        allowed = _study_template_keys(db, call.study_id)
+        if not allowed:
+            raise HTTPException(
+                status_code=403,
+                detail="Este estudio todavía no tiene plantillas de WhatsApp conectadas. Pídele al administrador que las conecte antes de enviar.",
+            )
+        if request.template_key not in allowed:
+            raise HTTPException(
+                status_code=403,
+                detail="Esa plantilla no está conectada a este estudio. Elige una de las plantillas disponibles.",
+            )
 
     raw_phone = request.phone_number if request.phone_number else None
     if not raw_phone and call:
@@ -2290,7 +2389,7 @@ def whatsapp_send_template(
 
     result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
     if "error" in result:
-        raise HTTPException(status_code=502, detail=f"Error enviando plantilla: {result['error']}")
+        raise HTTPException(status_code=502, detail=_wa_error_human(result))
 
     messages = result.get("messages") or []
     meta_id = messages[0].get("id") if messages else None
@@ -2437,7 +2536,7 @@ def whatsapp_send_bulk(
                 msg_type = "template"
             result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
             if "error" in result:
-                failed.append({"telefono": phone, "nombre": person_name, "razon": str(result["error"])})
+                failed.append({"telefono": phone, "nombre": person_name, "razon": _wa_error_human(result)})
                 continue
             messages = result.get("messages") or []
             if msg_type == "text":
@@ -3058,6 +3157,16 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
         query = query.join(models.study_assignments).filter(models.study_assignments.c.user_id == current_user.id)
         
     studies = query.all()
+    # Plantillas conectadas por estudio (una sola consulta para evitar N+1).
+    templates_by_study = {}
+    if studies:
+        rows = (
+            db.query(models.StudyTemplate.study_id, models.StudyTemplate.template_key)
+            .filter(models.StudyTemplate.study_id.in_([s.id for s in studies]))
+            .all()
+        )
+        for study_id, template_key in rows:
+            templates_by_study.setdefault(study_id, []).append(template_key)
     # Explicitly return dict to ensure is_active is available on frontend
     return [{
         "id": s.id,
@@ -3066,7 +3175,8 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
         "is_active": s.is_active,
         "status": s.status,
         "study_type": s.study_type,
-        "stage": s.stage
+        "stage": s.stage,
+        "template_keys": templates_by_study.get(s.id, []),
     } for s in studies]
 
 class AssistantAssignment(BaseModel):
@@ -3098,6 +3208,43 @@ def get_study_assistants(study_id: int, db: Session = Depends(database.get_db), 
          raise HTTPException(status_code=404, detail="Study not found")
           
     return [{"id": u.id, "username": u.username, "full_name": u.full_name, "role": u.role} for u in study.assistants]
+
+
+class StudyTemplatesUpdate(BaseModel):
+    template_keys: List[str] = []
+
+
+@app.get("/studies/{study_id}/templates")
+def get_study_templates(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """Plantillas de WhatsApp conectadas a un estudio (las usa el envío masivo)."""
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Estudio no encontrado")
+    return {"study_id": study_id, "template_keys": _study_template_keys(db, study_id)}
+
+
+@app.put("/studies/{study_id}/templates")
+def set_study_templates(study_id: int, update: StudyTemplatesUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """Conecta/desconecta plantillas a un estudio. Solo el superusuario puede hacerlo."""
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Solo el superusuario puede conectar plantillas a los estudios")
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Estudio no encontrado")
+
+    keys = []
+    seen = set()
+    for key in (update.template_keys or []):
+        key = (key or "").strip()
+        if key and key in WHATSAPP_TEMPLATE_MAP and key not in seen:
+            seen.add(key)
+            keys.append(key)
+
+    db.query(models.StudyTemplate).filter(models.StudyTemplate.study_id == study_id).delete()
+    for key in keys:
+        db.add(models.StudyTemplate(study_id=study_id, template_key=key))
+    db.commit()
+    return {"study_id": study_id, "template_keys": keys}
 
 
 class CallBulkStatusUpdate(BaseModel):

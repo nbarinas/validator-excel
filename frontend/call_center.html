@@ -1260,6 +1260,25 @@
                 </div>
             </div>
         </div>
+
+        <!-- CONNECT TEMPLATES TO STUDY MODAL (superuser only) -->
+        <div id="studyTemplatesModal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1100; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 2rem; border-radius: 12px; width: 560px; max-width: 92%; max-height: 85vh; overflow-y: auto;">
+                <h2 id="studyTemplatesTitle" style="margin-top: 0; color: #1e293b;">Plantillas de WhatsApp</h2>
+                <p style="margin-bottom: 1rem; color: #475569; font-size: 0.9rem;">
+                    Marca las plantillas que se podrán enviar en el envío masivo de este estudio. Solo las plantillas conectadas aparecerán en el selector.
+                </p>
+                <div id="studyTemplatesBody" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <div id="studyTemplatesError" style="display:none; color:#b91c1c; font-size:.85rem; margin-top: 10px;"></div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <button onclick="closeStudyTemplatesModal()"
+                        style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                    <button id="studyTemplatesSave" onclick="saveStudyTemplates()"
+                        style="background: #0f766e; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">Guardar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- DAILY REPORT MODAL -->
@@ -2885,9 +2904,13 @@
                     <option value="filter">Filtro de participación</option>
                     <option value="form">Enviar formulario</option>
                 </select></label>
-                <label id="waNewChatNameLabel" style="display:none;">Nombre del encuestado<input id="waNewChatName" type="text" placeholder="Ej: María Pérez" style="width:100%;padding:9px;box-sizing:border-box;"></label>
-                <label id="waNewChatSubjectLabel">Estudio o tema<input id="waNewChatSubject" type="text" placeholder="Ej: hábitos de compra" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <label id="waNewChatNameLabel" style="display:none;">Nombre del encuestado<input id="waNewChatName" type="text" placeholder="Ej: María Pérez" oninput="waRenderNewChatPreview()" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <label id="waNewChatSubjectLabel">Estudio o tema<input id="waNewChatSubject" type="text" placeholder="Ej: hábitos de compra" oninput="waRenderNewChatPreview()" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label id="waNewChatLinkLabel" style="display:none;">Enlace del formulario<input id="waNewChatLink" type="url" placeholder="https://..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <div>
+                    <div style="font-size:0.8rem;color:#64748b;font-weight:600;margin-bottom:4px;">VISTA PREVIA DEL MENSAJE</div>
+                    <div id="waNewChatPreview" style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid #25d366;border-radius:6px;padding:10px;font-size:0.82rem;line-height:1.45;white-space:pre-wrap;color:#334155;max-height:180px;overflow-y:auto;"></div>
+                </div>
                 <div id="waNewChatError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
                 <div style="display:flex;justify-content:flex-end;gap:8px;"><button onclick="closeWhatsAppNewChat()" style="padding:9px 14px;border:0;border-radius:6px;background:#94a3b8;color:#fff;cursor:pointer;">Cancelar</button><button id="waNewChatSend" onclick="sendWhatsAppNewChat()" style="padding:9px 14px;border:0;border-radius:6px;background:#25d366;color:#fff;cursor:pointer;">Enviar plantilla</button></div>
 
@@ -3035,21 +3058,21 @@
                 <label style="font-weight:600;font-size:0.9rem;">Selecciona la plantilla</label>
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="manana_3" checked style="margin-top:3px;">
+                        <input type="radio" name="waTemplateKey" value="manana_3" onchange="waUpdateTemplateForm()" checked style="margin-top:3px;">
                         <div>
                             <div style="font-weight:600;">Buenas tardes (recordatorio)</div>
                             <div style="font-size:0.8rem;color:#64748b;">manana_3</div>
                         </div>
                     </label>
                     <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="shampo_primer" style="margin-top:3px;">
+                        <input type="radio" name="waTemplateKey" value="shampo_primer" onchange="waUpdateTemplateForm()" style="margin-top:3px;">
                         <div>
                             <div style="font-weight:600;">Shampoo — primer contacto</div>
                             <div style="font-size:0.8rem;color:#64748b;">shampo_primer</div>
                         </div>
                     </label>
                     <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="shampo_segundo" style="margin-top:3px;">
+                        <input type="radio" name="waTemplateKey" value="shampo_segundo" onchange="waUpdateTemplateForm()" style="margin-top:3px;">
                         <div>
                             <div style="font-weight:600;">Shampoo — segundo recordatorio</div>
                             <div style="font-size:0.8rem;color:#64748b;">shampo_segundo</div>
@@ -3057,11 +3080,15 @@
                     </label>
                 </div>
                 <div id="waTemplateCategoryGroup">
-                    <label>Categoría / Tipo de estudio<input id="waTemplateCategory" type="text" placeholder="Ej: hábitos de compra, shampoo, alimento de perros..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                    <label>Categoría / Tipo de estudio<input id="waTemplateCategory" type="text" oninput="waUpdateTemplateForm()" placeholder="Ej: hábitos de compra, shampoo, alimento de perros..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 </div>
                 <div id="waTemplateHoraGroup" style="display:none;">
                     <label>Hora programada<input id="waTemplateHora" type="text" readonly style="width:100%;padding:9px;box-sizing:border-box;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;"></label>
                     <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Se toma de la hora de recogida del registro. Si no tiene, se enviará "hoy".</div>
+                </div>
+                <div>
+                    <div style="font-size:0.8rem;color:#64748b;font-weight:600;margin-bottom:4px;">VISTA PREVIA DEL MENSAJE</div>
+                    <div id="waTemplateInlinePreview" style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid #075e54;border-radius:6px;padding:10px;font-size:0.85rem;line-height:1.45;white-space:pre-wrap;color:#334155;max-height:200px;overflow-y:auto;"></div>
                 </div>
                 <div id="waTemplateError" style="display:none;color:#b91c1c;font-size:.85rem;"></div>
                 <div style="display:flex;justify-content:flex-end;gap:8px;">

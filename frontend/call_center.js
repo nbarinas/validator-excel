@@ -884,6 +884,113 @@ function closeManageStudies() {
     document.getElementById('manageStudiesModal').style.display = 'none';
 }
 
+// --- ESTUDIO <-> PLANTILLAS DE WHATSAPP (solo superusuario) ---
+let waTemplateCatalog = null;       // Array de {key, label, body, params}
+let waTemplateCatalogMap = {};      // key -> item
+let studyTemplatesCurrentId = null;
+
+async function waLoadTemplateCatalog() {
+    if (waTemplateCatalog) return waTemplateCatalog;
+    try {
+        const res = await fetch('/whatsapp/templates', { headers });
+        if (!res.ok) throw new Error('No se pudo cargar el catálogo de plantillas');
+        waTemplateCatalog = await res.json();
+        waTemplateCatalogMap = {};
+        waTemplateCatalog.forEach(t => { waTemplateCatalogMap[t.key] = t; });
+    } catch (e) {
+        console.error(e);
+        waTemplateCatalog = [];
+        waTemplateCatalogMap = {};
+    }
+    return waTemplateCatalog;
+}
+
+function waTemplateLabel(key) {
+    const item = waTemplateCatalogMap[key];
+    if (item && item.label) return item.label;
+    return key;
+}
+
+function waTemplateBody(key) {
+    const item = waTemplateCatalogMap[key];
+    if (item && item.body) return item.body;
+    return (typeof BULK_TEMPLATE_BODIES !== 'undefined' && BULK_TEMPLATE_BODIES[key]) || '';
+}
+
+async function openStudyTemplatesModal(studyId) {
+    const study = manageStudiesById[studyId];
+    studyTemplatesCurrentId = studyId;
+    document.getElementById('studyTemplatesTitle').textContent =
+        'Plantillas de WhatsApp' + (study ? ' — ' + study.name : '');
+    document.getElementById('studyTemplatesBody').innerHTML = '<div style="padding:1rem;color:#64748b;">Cargando...</div>';
+    document.getElementById('studyTemplatesError').style.display = 'none';
+    document.getElementById('studyTemplatesModal').style.display = 'flex';
+    await waLoadTemplateCatalog();
+    let linked = (study && Array.isArray(study.template_keys)) ? study.template_keys.slice() : [];
+    renderStudyTemplatesList(linked);
+}
+
+function closeStudyTemplatesModal() {
+    document.getElementById('studyTemplatesModal').style.display = 'none';
+    studyTemplatesCurrentId = null;
+}
+
+function renderStudyTemplatesList(linked) {
+    const body = document.getElementById('studyTemplatesBody');
+    const linkedSet = new Set(linked || []);
+    if (!waTemplateCatalog || waTemplateCatalog.length === 0) {
+        body.innerHTML = '<div style="padding:1rem;color:#b91c1c;">No se pudo cargar el catálogo de plantillas.</div>';
+        return;
+    }
+    body.innerHTML = waTemplateCatalog.map(t => {
+        const checked = linkedSet.has(t.key) ? 'checked' : '';
+        const preview = waTemplateBody(t.key);
+        const previewHtml = preview
+            ? `<div style="font-size:0.72rem;color:#475569;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-top:4px;white-space:pre-wrap;max-height:100px;overflow-y:auto;">${waEsc(preview).substring(0, 400)}</div>`
+            : '<div style="font-size:0.72rem;color:#b45309;margin-top:4px;">Sin vista previa (no se enviará como texto en la ventana de 24 h).</div>';
+        return `<label style="display:flex;align-items:flex-start;gap:8px;padding:8px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#fff;">
+            <input type="checkbox" class="study-template-check" value="${t.key}" ${checked} style="margin-top:3px;">
+            <div style="flex:1;">
+                <div style="font-weight:600;color:#1e293b;">${waEsc(waTemplateLabel(t.key))} <span style="font-size:0.72rem;color:#94a3b8;">(${t.key})</span></div>
+                ${previewHtml}
+            </div>
+        </label>`;
+    }).join('');
+}
+
+async function saveStudyTemplates() {
+    if (studyTemplatesCurrentId == null) return;
+    const error = document.getElementById('studyTemplatesError');
+    const btn = document.getElementById('studyTemplatesSave');
+    const keys = Array.from(document.querySelectorAll('.study-template-check:checked')).map(cb => cb.value);
+    error.style.display = 'none';
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Guardando...';
+    try {
+        const res = await fetch(`/studies/${studyTemplatesCurrentId}/templates`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ template_keys: keys })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'No se pudieron guardar las plantillas');
+        if (manageStudiesById[studyTemplatesCurrentId]) {
+            manageStudiesById[studyTemplatesCurrentId].template_keys = data.template_keys || keys;
+        }
+        closeStudyTemplatesModal();
+        alert('Plantillas conectadas correctamente.');
+    } catch (e) {
+        error.textContent = e.message;
+        error.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+let manageStudiesById = {};
+
 async function loadManageStudiesTable() {
     const tbody = document.getElementById('manageStudiesBody');
     tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Cargando...</td></tr>';
@@ -893,6 +1000,8 @@ async function loadManageStudiesTable() {
         const res = await fetch('/studies?include_inactive=true', { headers });
         if (res.ok) {
             const studies = await res.json();
+            manageStudiesById = {};
+            studies.forEach(s => { manageStudiesById[s.id] = s; });
             tbody.innerHTML = '';
 
             if (studies.length === 0) {
@@ -922,6 +1031,9 @@ async function loadManageStudiesTable() {
                          <button onclick="openAssignAux(${s.id}, '${s.name}')" style="cursor:pointer; background: #6366f1; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
                             <i class="fas fa-users-cog"></i> Asignar
                          </button>
+                         ${currentUserRole === 'superuser' ? `<button onclick="openStudyTemplatesModal(${s.id})" style="cursor:pointer; background: #0f766e; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Conectar plantillas de WhatsApp a este estudio">
+                            <i class="fas fa-link"></i> Plantillas
+                         </button>` : ''}
                          <button onclick="deleteStudy(${s.id})" style="cursor:pointer; background: #991b1b; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Eliminar Permanentemente">
                             <i class="fas fa-trash"></i>
                          </button>
@@ -4972,6 +5084,31 @@ function waUpdateTemplateForm() {
             document.getElementById('waTemplateHora').value = getWhatsAppTemplateHora();
         }
     }
+    waRenderInlineTemplatePreview(kind);
+}
+
+function waRenderInlineTemplatePreview(kind) {
+    const box = document.getElementById('waTemplateInlinePreview');
+    if (!box) return;
+    const category = (document.getElementById('waTemplateCategory').value || '').trim();
+    const personName = currentCallData && currentCallData.person_name
+        ? currentCallData.person_name.trim()
+        : 'Cliente';
+    const agentName = currentUserName || 'Encuestador';
+    const hora = getWhatsAppTemplateHora();
+    let body = WA_TEMPLATE_BODIES[kind] || '';
+    if (!body) {
+        box.innerHTML = '<span style="color:#64748b;">(sin texto de vista previa)</span>';
+        return;
+    }
+    body = body.replace(/\{\{nombre\}\}/g, personName)
+        .replace(/\{\{encuestada\}\}/g, personName)
+        .replace(/\{\{encuestado\}\}/g, personName)
+        .replace(/\{\{encuestador\}\}/g, agentName)
+        .replace(/\{\{categoria\}\}/g, category || '[estudio]')
+        .replace(/\{\{hora\}\}/g, hora);
+    box.textContent = body;
+    box.scrollTop = 0;
 }
 
 function openWhatsAppTemplateModal(fieldId) {
@@ -5271,6 +5408,35 @@ function waToggleNewChatLink() {
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
     document.getElementById('waNewChatNameLabel').style.display = needsName ? 'block' : 'none';
     document.getElementById('waNewChatSubjectLabel').style.display = (kind === 'form' || kind === 'filter' || isManana) ? 'block' : 'none';
+    waRenderNewChatPreview();
+}
+
+function waRenderNewChatPreview() {
+    const box = document.getElementById('waNewChatPreview');
+    if (!box) return;
+    const kind = document.getElementById('waNewChatKind').value;
+    const name = (document.getElementById('waNewChatName').value || '').trim();
+    const subject = (document.getElementById('waNewChatSubject').value || '').trim();
+    if (kind === 'filter' || kind === 'form') {
+        box.innerHTML = '<span style="color:#64748b;">Esta opción envía una plantilla fija de ' +
+            (kind === 'filter' ? 'filtro de participación' : 'invitación al formulario') +
+            '. No tiene texto con variables para previsualizar.</span>';
+        box.scrollTop = 0;
+        return;
+    }
+    let body = WA_TEMPLATE_BODIES[kind] || '';
+    if (!body) {
+        box.innerHTML = '<span style="color:#64748b;">(sin texto de vista previa)</span>';
+        return;
+    }
+    body = body.replace(/\{\{nombre\}\}/g, name || '[nombre]')
+        .replace(/\{\{encuestada\}\}/g, name || '[nombre]')
+        .replace(/\{\{encuestado\}\}/g, name || '[nombre]')
+        .replace(/\{\{encuestador\}\}/g, currentUserName || 'Encuestador')
+        .replace(/\{\{categoria\}\}/g, subject || '[estudio]')
+        .replace(/\{\{hora\}\}/g, '[hora de recogida]');
+    box.textContent = body;
+    box.scrollTop = 0;
 }
 
 function waNewChatTemplateParams() {
@@ -5427,8 +5593,14 @@ async function sendWhatsAppBulk() {
                 data.errors.map(e => `• ${e.nombre} — ${e.telefono}: ${e.razon}`).join('\n');
             errorEl.style.display = 'block';
         }
+        if (data.failed && data.failed.length > 0) {
+            errorEl.textContent = (errorEl.style.display === 'block' ? errorEl.textContent + '\n\n' : '') +
+                'No se pudieron enviar algunos mensajes:\n' +
+                data.failed.map(e => `• ${e.nombre} — ${e.telefono}: ${e.razon}`).join('\n');
+            errorEl.style.display = 'block';
+        }
         statusEl.textContent = `✅ Enviados: ${data.sent}` +
-            (data.failed.length ? `\nFallados: ${data.failed.length}` : '') +
+            (data.failed.length ? `\nNo enviados: ${data.failed.length}` : '') +
             (data.blocked_count ? `\nBloqueados: ${data.blocked_count}` : '') +
             (data.invalid_count ? `\nInválidos: ${data.invalid_count}` : '');
         statusEl.style.display = 'block';
@@ -5702,10 +5874,19 @@ setInterval(() => {
 let bulkLinkContacts = [];
 let bulkLinkFilter = 'all'; // all | pending
 let bulkLinkSending = false; // bloquea doble clic / envíos concurrentes
+let bulkLinkStudies = [];
 
-function openBulkLinkSendModal() {
+function bulkLinkSetSendEnabled(enabled) {
+    const btn = document.getElementById('bulkLinkSendBtn');
+    if (!btn) return;
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.55';
+    btn.style.cursor = enabled ? 'pointer' : 'default';
+}
+
+async function openBulkLinkSendModal() {
     document.getElementById('bulkLinkStudy').innerHTML = '<option value="">Selecciona un estudio</option>';
-    document.getElementById('bulkLinkTemplate').value = 'siabate_producto';
+    document.getElementById('bulkLinkTemplate').innerHTML = '<option value="">Selecciona un estudio</option>';
     document.getElementById('bulkLinkDay').value = '1';
     document.getElementById('bulkLinkFecha').value = '';
     document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
@@ -5717,6 +5898,9 @@ function openBulkLinkSendModal() {
     bulkLinkSending = false;
     bulkLinkContacts = [];
     bulkLinkFilter = 'all';
+    const previewBox = document.getElementById('bulkLinkTemplatePreview');
+    if (previewBox) { previewBox.dataset.previewKey = ''; previewBox.innerHTML = ''; }
+    bulkLinkSetSendEnabled(false);
     bulkLinkInitTemplatePreview();
     bulkLinkOnTemplateChange();
     bulkLinkLoadStudies();
@@ -5780,9 +5964,8 @@ function bulkLinkRenderTemplatePreview(key) {
     const box = document.getElementById('bulkLinkTemplatePreview');
     if (!box || !key || box.dataset.previewKey === key) return;
     box.dataset.previewKey = key;
-    const option = document.querySelector('#bulkLinkTemplate option[value="' + key + '"]');
-    const label = option ? option.textContent.trim() : key;
-    const body = BULK_TEMPLATE_BODIES[key];
+    const label = waTemplateLabel(key);
+    const body = waTemplateBody(key);
     const vars = BULK_TEMPLATE_VARS[key] || '';
     const header = '<div style="font-weight:700;color:#0f172a;margin-bottom:4px;">' + waEsc(label) + '</div>';
     if (body) {
@@ -5790,7 +5973,7 @@ function bulkLinkRenderTemplatePreview(key) {
     } else {
         box.innerHTML = header
             + '<div style="color:#64748b;">(sin texto de vista previa)</div>'
-            + '<div style="color:#0f766e;margin-top:4px;">Variables: ' + waEsc(vars) + '</div>';
+            + (vars ? '<div style="color:#0f766e;margin-top:4px;">Variables: ' + waEsc(vars) + '</div>' : '');
     }
     box.scrollTop = 0;
 }
@@ -5823,6 +6006,7 @@ function bulkLinkOnTemplateChange() {
     document.getElementById('bulkLinkDayLabel').style.display = needsDay ? 'block' : 'none';
     document.getElementById('bulkLinkFechaLabel').style.display = needsFecha ? 'block' : 'none';
     bulkLinkRenderTemplatePreview(template);
+    if (bulkLinkContacts.length) bulkLinkRenderTable();
 }
 
 async function bulkLinkLoadStudies() {
@@ -5830,18 +6014,46 @@ async function bulkLinkLoadStudies() {
         const res = await fetch('/studies', { headers });
         if (!res.ok) throw new Error('No se pudieron cargar los estudios');
         const studies = await res.json();
+        bulkLinkStudies = studies.filter(s => s.is_active === true || s.is_active === 1 || s.is_active === 'true');
         const select = document.getElementById('bulkLinkStudy');
         select.innerHTML = '<option value="">Selecciona un estudio</option>' +
-            studies.filter(s => s.is_active === true || s.is_active === 1 || s.is_active === 'true')
-                .map(s => `<option value="${s.id}">${waEsc(s.name)}</option>`)
-                .join('');
+            bulkLinkStudies.map(s => `<option value="${s.id}">${waEsc(s.name)}</option>`).join('');
+        await waLoadTemplateCatalog();
     } catch (e) {
         bulkLinkShowError(e.message);
     }
 }
 
+function bulkLinkPopulateTemplates(studyId) {
+    const select = document.getElementById('bulkLinkTemplate');
+    const previewBox = document.getElementById('bulkLinkTemplatePreview');
+    if (previewBox) { previewBox.dataset.previewKey = ''; previewBox.innerHTML = ''; }
+    const study = bulkLinkStudies.find(s => String(s.id) === String(studyId));
+    const keys = (study && Array.isArray(study.template_keys)) ? study.template_keys : [];
+    if (!studyId) {
+        select.innerHTML = '<option value="">Selecciona un estudio</option>';
+        bulkLinkSetSendEnabled(false);
+        bulkLinkOnTemplateChange();
+        return;
+    }
+    if (keys.length === 0) {
+        select.innerHTML = '<option value="">Sin plantillas conectadas</option>';
+        bulkLinkSetSendEnabled(false);
+        bulkLinkOnTemplateChange();
+        return;
+    }
+    select.innerHTML = keys
+        .filter(k => waTemplateCatalogMap[k])
+        .map(k => `<option value="${k}">${waEsc(waTemplateLabel(k))} — ${k}</option>`)
+        .join('');
+    if (!select.value && select.options.length) select.selectedIndex = 0;
+    bulkLinkSetSendEnabled(!!select.value);
+    bulkLinkOnTemplateChange();
+}
+
 async function bulkLinkLoadContacts() {
     const studyId = document.getElementById('bulkLinkStudy').value;
+    bulkLinkPopulateTemplates(studyId);
     if (!studyId) {
         document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
         bulkLinkContacts = [];
@@ -5975,9 +6187,10 @@ function bulkLinkRenderTable() {
             const lastError = c.last_message && c.last_message.error_message
                 ? `<div style="font-size: 0.7rem; color: #b91c1c; margin-top: 2px;">⚠️ ${waEsc(c.last_message.error_message)}</div>`
                 : '';
+            const canSendText = !!waTemplateBody(document.getElementById('bulkLinkTemplate').value);
             const channel = c.blocked
                 ? '<span style="color:#7f1d1d;font-size:0.75rem;">⛔ Bloqueado</span>'
-                : (c.window_open
+                : (c.window_open && canSendText
                     ? '<span title="El contacto escribió hace menos de 24 h: se envía como texto libre (no aplica el límite de marketing)" style="color:#047857;font-weight:600;font-size:0.75rem;">🟢 Texto (24 h)</span>'
                     : '<span title="Sin respuesta reciente: se envía como plantilla (sujeta al límite de marketing de Meta)" style="color:#0369a1;font-size:0.75rem;">🔵 Plantilla</span>');
             const blockButton = c.blocked
@@ -6109,6 +6322,7 @@ async function bulkLinkSendSelected() {
     const ids = bulkLinkGetSelectedIds();
     if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
     const template = document.getElementById('bulkLinkTemplate').value;
+    if (!template) { alert('Selecciona una plantilla conectada al estudio.'); return; }
     const day = document.getElementById('bulkLinkDay').value.trim();
     const fecha = document.getElementById('bulkLinkFecha').value.trim();
     if (template === 'sibate_2' && (!day || parseInt(day, 10) < 1 || parseInt(day, 10) > 7)) {
@@ -6134,6 +6348,7 @@ async function bulkLinkSendSelected() {
             const payload = {
                 call_id: id,
                 template_key: template,
+                bulk_link: true,
                 person_name: contact.person_name || undefined,
                 nombre_mascota: contact.dog_name || undefined,
                 censo: contact.census || undefined,

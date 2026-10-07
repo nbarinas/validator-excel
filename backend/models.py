@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Float, Index
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, Text, Float, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import datetime
@@ -65,6 +65,23 @@ class Study(Base):
 
     calls = relationship("Call", back_populates="study")
     assistants = relationship("User", secondary=study_assignments, back_populates="assigned_studies")
+    templates = relationship("StudyTemplate", back_populates="study", cascade="all, delete-orphan")
+
+
+class StudyTemplate(Base):
+    """Plantillas de WhatsApp conectadas a un estudio (configurado por superusuario)."""
+    __tablename__ = "study_templates"
+    __table_args__ = (
+        UniqueConstraint('study_id', 'template_key', name='uq_study_template'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    study_id = Column(Integer, ForeignKey("studies.id"), index=True, nullable=False)
+    template_key = Column(String(50), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    study = relationship("Study", back_populates="templates")
+
 
 class Call(Base):
     __tablename__ = "calls"
