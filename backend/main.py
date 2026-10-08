@@ -2764,11 +2764,13 @@ def whatsapp_history_phone(
     current_user: models.User = Depends(auth.get_current_user),
 ):
     """History for a phone number without an associated call (supervisors follow up)."""
-    if not _has_global_whatsapp_inbox(db, current_user):
-        raise HTTPException(status_code=403, detail="No autorizado")
     norm = _normalize_wa_phone(phone)
     if not norm:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
+    if not _has_global_whatsapp_inbox(db, current_user):
+        call = _find_call_by_phone(db, phone)
+        if not call or not _can_view_whatsapp(current_user, call):
+            raise HTTPException(status_code=403, detail="No autorizado")
     query = db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.phone_number == norm)
     msgs, has_more = _paginated_wa_messages(query, limit, before_id, after_id)
 

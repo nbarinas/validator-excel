@@ -4871,6 +4871,10 @@ async function waLoadHistory({ polling = false, loadMore = false } = {}) {
         }
     } catch (e) {
         console.error('Error cargando historial WhatsApp:', e);
+        const body = document.getElementById('waChatBody');
+        if (body && !waHistoryMessages.length) {
+            body.innerHTML = '<div class="wa-msg-system">No se pudo cargar la conversación. Verifica el acceso o la conexión.</div>';
+        }
     } finally {
         waHistoryLoading = false;
     }
