@@ -1210,7 +1210,8 @@ def _find_call_by_phone(db, raw_phone):
         db.query(models.Call)
         .filter(
             (models.Call.phone_number.in_(list(variants))) |
-            (models.Call.whatsapp.in_(list(variants)))
+            (models.Call.whatsapp.in_(list(variants))) |
+            (models.Call.corrected_phone.in_(list(variants)))
         )
         .order_by(models.Call.id.desc())
         .first()
@@ -1220,11 +1221,48 @@ def _find_call_by_phone(db, raw_phone):
 def _wa_phone_variants(call):
     """Normalized E.164 variants for a call's numbers."""
     variants = set()
-    for p in (call.phone_number, call.whatsapp):
+    for p in (call.phone_number, call.whatsapp, call.corrected_phone):
         norm = _normalize_wa_phone(p)
         if norm:
             variants.add(norm)
     return variants
+
+
+def _conversation_phone(db, call_id):
+    """Último número de WhatsApp válido usado en la conversación de una llamada."""
+    if not call_id:
+        return None
+    msg = (
+        db.query(models.WhatsAppMessage)
+        .filter(
+            models.WhatsAppMessage.call_id == call_id,
+            models.WhatsAppMessage.phone_number.isnot(None),
+        )
+        .order_by(models.WhatsAppMessage.id.desc())
+        .first()
+    )
+    return _normalize_wa_phone(msg.phone_number) if msg else None
+
+
+def _resolve_call_wa_phone(db, call, explicit_phone=None):
+    """Resuelve el número de WhatsApp válido a usar para una llamada.
+
+    Prioriza el número explícito (p. ej. el que el usuario eligió o el del chat),
+    luego el de la conversación existente y finalmente los campos de la llamada
+    (corrected_phone, whatsapp, phone_number). Evita que un `phone_number`
+    primario inválido rompa el envío cuando la conversación va por otro número.
+    """
+    candidates = [explicit_phone]
+    if call:
+        candidates.append(_conversation_phone(db, call.id))
+        candidates.append(call.corrected_phone)
+        candidates.append(call.whatsapp)
+        candidates.append(call.phone_number)
+    for candidate in candidates:
+        norm = _normalize_wa_phone(candidate)
+        if norm:
+            return norm
+    return None
 
 
 _DEFAULT_HISTORY_LIMIT = 100
@@ -1833,14 +1871,9 @@ def whatsapp_send(
     else:
         raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
 
-    raw_phone = None
-    if call:
-        raw_phone = call.phone_number or call.whatsapp
-    else:
-        raw_phone = data.phone_number
-    if not raw_phone:
+    if not call and not data.phone_number:
         raise HTTPException(status_code=400, detail="La llamada no tiene número de teléfono")
-    phone = _normalize_wa_phone(raw_phone)
+    phone = _resolve_call_wa_phone(db, call, data.phone_number)
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
     if _is_blocked(db, phone):
@@ -1951,8 +1984,7 @@ def whatsapp_send_media(
     else:
         raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
 
-    raw_phone = (call.phone_number or call.whatsapp) if call else phone_number
-    phone = _normalize_wa_phone(raw_phone)
+    phone = _resolve_call_wa_phone(db, call, phone_number)
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
     if _is_blocked(db, phone):
@@ -2217,12 +2249,7 @@ def whatsapp_send_template(
                 detail="Esa plantilla no está conectada a este estudio. Elige una de las plantillas disponibles.",
             )
 
-    raw_phone = request.phone_number if request.phone_number else None
-    if not raw_phone and call:
-        raw_phone = call.phone_number or call.whatsapp
-    if not raw_phone:
-        raise HTTPException(status_code=400, detail="La llamada no tiene número de teléfono")
-    phone = _normalize_wa_phone(raw_phone)
+    phone = _resolve_call_wa_phone(db, call, request.phone_number)
     if not phone:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
     if _is_blocked(db, phone):

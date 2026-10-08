@@ -5046,7 +5046,7 @@ async function waSendMessage() {
             form.append('file', selectedFile);
             form.append('caption', text);
             if (waChatCallId) form.append('call_id', waChatCallId);
-            else form.append('phone_number', waChatPhone);
+            if (waChatPhone) form.append('phone_number', waChatPhone);
             res = await fetch('/whatsapp/send-media', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
@@ -5054,7 +5054,7 @@ async function waSendMessage() {
             });
         } else {
             const payload = waChatCallId
-                ? { call_id: waChatCallId, message: text }
+                ? { call_id: waChatCallId, phone_number: waChatPhone || undefined, message: text }
                 : { phone_number: waChatPhone, message: text };
             res = await fetch('/whatsapp/send', {
                 method: 'POST',
