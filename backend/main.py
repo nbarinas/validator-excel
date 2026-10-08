@@ -1218,6 +1218,40 @@ def _find_call_by_phone(db, raw_phone):
     )
 
 
+def _find_visible_call_by_phone(db, raw_phone, user):
+    """Primera llamada que coincide con el número y que el usuario puede ver.
+
+    A diferencia de `_find_call_by_phone` (que devuelve solo la más reciente),
+    recorre las coincidencias hasta encontrar una visible para el usuario, para
+    no bloquear a un encuestador cuando otro agente tiene una llamada más nueva
+    con el mismo número.
+    """
+    if not raw_phone:
+        return None
+    digits = re.sub(r"\D", "", str(raw_phone))
+    if not digits:
+        return None
+    variants = {digits}
+    if digits.startswith("57") and len(digits) == 12:
+        variants.add(digits[2:])
+    else:
+        variants.add("57" + digits)
+    calls = (
+        db.query(models.Call)
+        .filter(
+            (models.Call.phone_number.in_(list(variants))) |
+            (models.Call.whatsapp.in_(list(variants))) |
+            (models.Call.corrected_phone.in_(list(variants)))
+        )
+        .order_by(models.Call.id.desc())
+        .all()
+    )
+    for call in calls:
+        if _can_view_whatsapp(user, call):
+            return call
+    return None
+
+
 def _wa_phone_variants(call):
     """Normalized E.164 variants for a call's numbers."""
     variants = set()
@@ -1866,8 +1900,11 @@ def whatsapp_send(
         person_name = call.person_name
     elif data.phone_number:
         if not _has_global_whatsapp_inbox(db, current_user):
-            raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
-        person_name = None
+            linked = _find_visible_call_by_phone(db, data.phone_number, current_user)
+            if not linked:
+                raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+            call = linked
+        person_name = call.person_name if call else None
     else:
         raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
 
@@ -1980,7 +2017,10 @@ def whatsapp_send_media(
             raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
     elif phone_number:
         if not _has_global_whatsapp_inbox(db, current_user):
-            raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+            linked = _find_visible_call_by_phone(db, phone_number, current_user)
+            if not linked:
+                raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+            call = linked
     else:
         raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
 
@@ -2230,7 +2270,10 @@ def whatsapp_send_template(
             raise HTTPException(status_code=403, detail="No tienes acceso a esta llamada")
     elif request.phone_number:
         if not _has_global_whatsapp_inbox(db, current_user):
-            raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+            linked = _find_visible_call_by_phone(db, request.phone_number, current_user)
+            if not linked:
+                raise HTTPException(status_code=403, detail="Solo supervisores pueden escribir a números sin llamada")
+            call = linked
     else:
         raise HTTPException(status_code=400, detail="Debe indicar call_id o phone_number")
 
@@ -2768,8 +2811,8 @@ def whatsapp_history_phone(
     if not norm:
         raise HTTPException(status_code=400, detail="Número de teléfono inválido")
     if not _has_global_whatsapp_inbox(db, current_user):
-        call = _find_call_by_phone(db, phone)
-        if not call or not _can_view_whatsapp(current_user, call):
+        call = _find_visible_call_by_phone(db, phone, current_user)
+        if not call:
             raise HTTPException(status_code=403, detail="No autorizado")
     query = db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.phone_number == norm)
     msgs, has_more = _paginated_wa_messages(query, limit, before_id, after_id)
