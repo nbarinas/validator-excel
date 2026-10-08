@@ -2946,20 +2946,16 @@
                     </label>
                     <label>Plantilla
                         <select id="bulkLinkTemplate" onchange="bulkLinkOnTemplateChange()" style="width: 100%; padding: 9px; box-sizing: border-box;">
-                            <option value="siabate_producto">Registro diario concentrado+producto fatiga</option>
-                            <option value="solo_concentrado">SIBATE — registro diario solo concentrado — solo_concentrado</option>
                             <option value="recibido">ENTREGA — confirmar recepción — recibido</option>
                             <option value="sibate_2">SIBATE — recordatorio diario — sibate_2</option>
                             <option value="recordatorio">RECORDATORIO — encuesta pendiente — recordatorio</option>
-                            <option value="sigue_interesado">SIGUE INTERESADO — reprogramación inicio — sigue_interesado</option>
-                            <option value="sibate_5_de_octubre">Sibate 5 de octubre</option>
-                            <option value="siabate_6_de_octubre">Sibate 6 de octubre</option>
-                            <option value="19_octubre">19 de Octubre</option>
+                            <option value="registro_diario_fatiga_6_semanas">Registro diario fatiga 6 semanas</option>
+                            <option value="sibate_90mas15_dias">Sibate 90 + 15 días</option>
                         </select>
                         <div id="bulkLinkTemplatePreview" style="margin-top:6px;border:1px solid #e2e8f0;border-left:3px solid #0ea5e9;border-radius:6px;background:#f8fafc;padding:8px 10px;font-size:.72rem;color:#334155;max-height:190px;overflow-y:auto;white-space:pre-wrap;line-height:1.45;"></div>
                     </label>
-                    <label id="bulkLinkDayLabel">Día (1-7)
-                        <input id="bulkLinkDay" type="number" min="1" max="7" value="1" style="width: 100%; padding: 9px; box-sizing: border-box;">
+                    <label id="bulkLinkDayLabel">Día (digítalo antes de enviar)
+                        <input id="bulkLinkDay" type="number" min="1" value="1" style="width: 100%; padding: 9px; box-sizing: border-box;">
                     </label>
                     <label id="bulkLinkFechaLabel">Fecha pendiente
                         <input id="bulkLinkFecha" type="text" placeholder="Ej: 27/09/2026" style="width: 100%; padding: 9px; box-sizing: border-box;">

@@ -975,12 +975,22 @@ let waTemplateCatalog = null;       // Array de {key, label, body, params}
 let waTemplateCatalogMap = {};      // key -> item
 let studyTemplatesCurrentId = null;
 
+// Plantillas que NO se muestran en el front (ni para conectar ni para enviar).
+const HIDDEN_TEMPLATE_KEYS = [
+    'siabate_producto',
+    'solo_concentrado',
+    'sigue_interesado',
+    'sibate_5_de_octubre',
+    'siabate_6_de_octubre',
+    '19_octubre'
+];
+
 async function waLoadTemplateCatalog() {
     if (waTemplateCatalog) return waTemplateCatalog;
     try {
         const res = await fetch('/whatsapp/templates', { headers });
         if (!res.ok) throw new Error('No se pudo cargar el catálogo de plantillas');
-        waTemplateCatalog = await res.json();
+        waTemplateCatalog = (await res.json()).filter(t => !HIDDEN_TEMPLATE_KEYS.includes(t.key));
         waTemplateCatalogMap = {};
         waTemplateCatalog.forEach(t => { waTemplateCatalogMap[t.key] = t; });
     } catch (e) {
@@ -6036,15 +6046,22 @@ const BULK_TEMPLATE_BODIES = {
     'solo_concentrado': '🐶 REGISTRO DIARIO – DÍA 2/7\n\n¡Hola {{encuestada}},! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascota}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t2wwXYkjip2T2vcF8',
     'sibate_5_de_octubre': 'ENCUESTA DIARIA – 7 DÍAS\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos esta dinámica, que tendrá una duración de 7 semanas.\n\nDurante los próximos 7 días, deberás registrar diariamente el tiempo que tu perrito {{mascota}} tarda en consumir el concentrado o alimento que habitualmente le das.\n\n⏱️ ¿Qué debes hacer?\n\nToma el tiempo desde el momento en que le sirves el alimento hasta que termina de comer.\nObserva atentamente su comportamiento al momento de alimentarse.\nRegistra si comienza a comer inmediatamente o si primero olfatea el alimento antes de consumirlo.\n\n🍽️ Realiza esta actividad en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: durante estos 7 días, procura mantener el mismo alimento y el mismo horario de alimentación, para garantizar un seguimiento consistente.\n\n📝 Recuerda diligenciar una encuesta cada día durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/yCQVjX6fHKFqgkE59\n\nGracias',
     'siabate_6_de_octubre': 'REGISTRO DIARIO\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascota}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: censo\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t2wwXYkjip2T2vcF8\n\nMuchas gracias',
-    '19_octubre': 'Hola, ¿{{encuestado}} cómo estás? 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nDías anteriores nos comunicamos contigo para invitarte a participar en un estudio de mascotas. Queremos contarte que el inicio del estudio se reprogramó y comenzaremos el lunes 19 de octubre.\n\nLamentamos mucho el retraso y agradecemos tu comprensión. 🐶🐱\n\nQueríamos confirmar contigo si sigues interesada en participar y continuar con el estudio.\n\nQuedamos atentos a tu respuesta.\n\n¡Muchas gracias y que tengas un excelente día!\nEquipo AZ Marketing Plus'
+    '19_octubre': 'Hola, ¿{{encuestado}} cómo estás? 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nDías anteriores nos comunicamos contigo para invitarte a participar en un estudio de mascotas. Queremos contarte que el inicio del estudio se reprogramó y comenzaremos el lunes 19 de octubre.\n\nLamentamos mucho el retraso y agradecemos tu comprensión. 🐶🐱\n\nQueríamos confirmar contigo si sigues interesada en participar y continuar con el estudio.\n\nQuedamos atentos a tu respuesta.\n\n¡Muchas gracias y que tengas un excelente día!\nEquipo AZ Marketing Plus',
+    'registro_diario_fatiga_6_semanas': '🐶 ¡Hola, {{encuestado}}! 👋\n\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Recuerda realizar hoy, es el dia {{dia}}, en el que vamos, el registro del consumo de tu perro {{perro}}, utilizando su alimento habitual junto con el producto que te enviamos.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo horario y tipo de comida durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Es muy importante realizar el registro todos los días durante el estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/Zwj9RbSh9pn2nQLU8\n\n¡Muchas gracias por tu compromiso y participación! 🐾',
+    'sibate_90mas15_dias': 'REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestado}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Hoy corresponde realizar el registro del consumo de tu perro {{perro}}.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Recuerda realizar el registro todos los días durante los 7 días del estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/3qsgqgVaCEepHrA89\n\n¡Muchas gracias por tu compromiso y participación!'
 };
 
 const BULK_TEMPLATE_VARS = {
     'pepe_1': '{{encuestado}} · {{nombre_mascota}} · {{censo}}',
     'sibate_2': '{{encuestado}} · {{nombre_mascota}} · {{censo}} · {{dia}}',
     'recordatorio': '{{encuestado}} · {{nombremascota}} · {{fecha}} · {{censo}}',
-    'sigue_interesado': '{{encuestada}} · {{mascota}}'
+    'sigue_interesado': '{{encuestada}} · {{mascota}}',
+    'registro_diario_fatiga_6_semanas': '{{encuestado}} · {{dia}} · {{perro}} · {{censo}}',
+    'sibate_90mas15_dias': '{{dia}} · {{encuestado}} · {{perro}} · {{censo}}'
 };
+
+// Plantillas que requieren que el usuario digite el día antes de enviar.
+const BULK_DAY_TEMPLATES = ['sibate_2', 'registro_diario_fatiga_6_semanas', 'sibate_90mas15_dias'];
 
 function bulkLinkRenderTemplatePreview(key) {
     const box = document.getElementById('bulkLinkTemplatePreview');
@@ -6087,7 +6104,7 @@ function bulkLinkInitTemplatePreview() {
 
 function bulkLinkOnTemplateChange() {
     const template = document.getElementById('bulkLinkTemplate').value;
-    const needsDay = template === 'sibate_2';
+    const needsDay = BULK_DAY_TEMPLATES.includes(template);
     const needsFecha = template === 'recordatorio';
     document.getElementById('bulkLinkDayLabel').style.display = needsDay ? 'block' : 'none';
     document.getElementById('bulkLinkFechaLabel').style.display = needsFecha ? 'block' : 'none';
@@ -6414,6 +6431,9 @@ async function bulkLinkSendSelected() {
     if (template === 'sibate_2' && (!day || parseInt(day, 10) < 1 || parseInt(day, 10) > 7)) {
         alert('Indica un día entre 1 y 7.'); return;
     }
+    if (BULK_DAY_TEMPLATES.includes(template) && template !== 'sibate_2' && !day) {
+        alert('Indica el día del registro antes de enviar.'); return;
+    }
     if (template === 'recordatorio' && !fecha) {
         alert('Indica la fecha pendiente.'); return;
     }
@@ -6439,7 +6459,7 @@ async function bulkLinkSendSelected() {
                 nombre_mascota: contact.dog_name || undefined,
                 censo: contact.census || undefined,
             };
-            if (template === 'sibate_2') {
+            if (BULK_DAY_TEMPLATES.includes(template)) {
                 payload.dia = day;
             }
             if (template === 'recordatorio') {

@@ -1275,6 +1275,8 @@ WHATSAPP_TEMPLATE_MAP = {
     "sibate_5_de_octubre": {"name": "sibate5octubre", "language": "es", "params": ["encuestada", "mascota", "censo"]},
     "siabate_6_de_octubre": {"name": "siabate6deoctubre", "language": "es", "params": ["encuestada", "mascota"]},
     "19_octubre": {"name": "19_octubre", "language": "es", "params": ["encuestado"]},
+    "registro_diario_fatiga_6_semanas": {"name": "registro_diario_fatiga_6_semanas", "language": "es", "params": ["encuestado", "dia", "perro", "censo"]},
+    "sibate_90mas15_dias": {"name": "sibate_90mas15_dias", "language": "es", "params": ["dia", "encuestado", "perro", "censo"]},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1294,6 +1296,8 @@ WHATSAPP_TEMPLATE_LABELS = {
     "sibate_5_de_octubre": "Sibate 5 de octubre",
     "siabate_6_de_octubre": "Sibate 6 de octubre",
     "19_octubre": "19 de octubre — reprogramación",
+    "registro_diario_fatiga_6_semanas": "Registro diario fatiga 6 semanas",
+    "sibate_90mas15_dias": "Sibate 90 + 15 días",
 }
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1335,6 +1339,8 @@ WHATSAPP_TEMPLATE_BODIES = {
     "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día.",
+    "registro_diario_fatiga_6_semanas": "🐶 ¡Hola, {{encuestado}}! 👋\n\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Recuerda realizar hoy, es el dia {{dia}}, en el que vamos, el registro del consumo de tu perro {{perro}}, utilizando su alimento habitual junto con el producto que te enviamos.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo horario y tipo de comida durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Es muy importante realizar el registro todos los días durante el estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/Zwj9RbSh9pn2nQLU8\n\n¡Muchas gracias por tu compromiso y participación! 🐾",
+    "sibate_90mas15_dias": "REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestado}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Hoy corresponde realizar el registro del consumo de tu perro {{perro}}.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Recuerda realizar el registro todos los días durante los 7 días del estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/3qsgqgVaCEepHrA89\n\n¡Muchas gracias por tu compromiso y participación!",
 }
 
 
@@ -2304,6 +2310,8 @@ def whatsapp_send_template(
         censo = (call.census or "").strip()
     dia = (request.dia or "").strip()
     fecha = (request.fecha or "").strip()
+    if "dia" in template_params and not dia:
+        raise HTTPException(status_code=400, detail="Indica el día del registro antes de enviar")
 
     print(f"[WHATSAPP] Enviando plantilla {template_name!r} ({template_language!r}) a {phone} (categoria={category!r})")
 
@@ -2320,6 +2328,7 @@ def whatsapp_send_template(
         "nombre_mascota": nombre_mascota,
         "mascota": nombre_mascota,
         "nombremascota": nombremascota,
+        "perro": nombre_mascota,
         "censo": censo,
         "dia": dia,
         "fecha": fecha,
