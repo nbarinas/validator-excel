@@ -305,6 +305,8 @@ async function updateTempInfo(callId, field, value) {
 let parsedUploadData = [];
 let uploadHeaders = [];
 let columnMappings = [];
+let uploadRowIssues = [];      // avisos por fila detectados al pegar
+let autoIgnoredHeaders = [];   // columnas omitidas automaticamente (sin columna en BD)
 let uploadMode = 'new'; // 'new' | 'existing'
 
 const STANDARD_FIELDS = [
@@ -396,6 +398,8 @@ async function showUploadModal(existing = false) {
     parsedUploadData = [];
     uploadHeaders = [];
     columnMappings = [];
+    uploadRowIssues = [];
+    autoIgnoredHeaders = [];
     updateUploadHints();
     await setUploadMode(existing ? 'existing' : 'new');
 }
@@ -474,6 +478,8 @@ async function loadStudiesIntoUploadSelect() {
 
 function handlePasteData() {
     const text = document.getElementById('pasteArea').value;
+    uploadRowIssues = [];
+    autoIgnoredHeaders = [];
     if (!text.trim()) {
         document.getElementById('previewContainer').style.display = 'none';
         document.getElementById('btnFinalUpload').disabled = true;
@@ -482,26 +488,55 @@ function handlePasteData() {
         return;
     }
 
-    // Parse TSV gracefully handling quotes if copied from advanced Excel logic, but standard JS split usually works for simple pasting.
-    const rows = text.split('\n').map(row => row.split('\t'));
+    // Parse TSV. NOTA: un salto de linea dentro de una celda de Excel se pega como
+    // salto real y rompe el split en filas -> se detecta abajo y se avisa.
+    const rawLines = text.split('\n');
+    if (rawLines.length < 2) return; // Need at least header and 1 row of data
 
-    // First row is headers
-    if (rows.length < 2) return; // Need at least header and 1 row of data
-
-    uploadHeaders = rows[0].map(h => h.trim());
+    uploadHeaders = rawLines[0].split('\t').map(h => h.trim());
     parsedUploadData = [];
 
-    for (let i = 1; i < rows.length; i++) {
-        if (rows[i].length === 1 && rows[i][0].trim() === '') continue; // skip empty rows
+    for (let i = 1; i < rawLines.length; i++) {
+        const rawCells = rawLines[i].split('\t');
+        if (rawCells.length === 1 && rawCells[0].trim() === '') continue; // skip empty rows
+
+        const dataRowNumber = parsedUploadData.length + 1;
+        const rowMsgs = [];
+
+        if (rawCells.length !== uploadHeaders.length) {
+            rowMsgs.push(`tiene ${rawCells.length} columnas y se esperaban ${uploadHeaders.length} (posible salto de línea o tabulador de más)`);
+        }
+
+        const spaceCols = [];
         let rowObj = {};
         for (let j = 0; j < uploadHeaders.length; j++) {
-            rowObj[uploadHeaders[j]] = (rows[i][j] || "").trim();
+            const raw = rawCells[j] === undefined ? '' : rawCells[j];
+            if (raw !== raw.trim() || raw.includes('\r') || raw.includes('\n')) {
+                const shown = uploadHeaders[j] || `columna ${j + 1}`;
+                if (spaceCols.length < 5) spaceCols.push(shown);
+            }
+            rowObj[uploadHeaders[j]] = raw.trim();
+        }
+        if (spaceCols.length > 0) {
+            rowMsgs.push(`tiene espacios extra al inicio/fin en: ${spaceCols.join(', ')}`);
+        }
+
+        if (rowMsgs.length > 0) {
+            uploadRowIssues.push({ row: dataRowNumber, msg: rowMsgs.join('; ') });
         }
         parsedUploadData.push(rowObj);
     }
 
     // Initialize mapping
     columnMappings = uploadHeaders.map(h => {
+        // Preguntas Si/No sin columna en la BD -> se omiten (con aviso)
+        if (isUnsupportedQuestion(h)) {
+            autoIgnoredHeaders.push(h);
+            return 'ignorar';
+        }
+        // Cabeceras tipo pregunta -> campo canonico que el backend si reconoce
+        const canonical = resolveCanonicalField(h);
+        if (canonical) return canonical;
         if (isRecognizedColumn(h)) return h; // Keep original if it's already recognized
         return ""; // Unrecognized
     });
@@ -523,7 +558,7 @@ const KNOWN_BACKEND_COLUMNS = [
     "hora de llamada", "hora", "cita", "marca de producto", "marca", "otro numero", "otro telefono", "telefono 2",
     "cedula", "cédula", "cc", "identificacion", "nombre", "cliente", "usuario", "nombre y apellido", "nombre completo",
     "nse", "estrato", "nivel socioeconomico", "edad", "age", "rango edad", "rango de edad", "edad rango",
-    "edad hijos", "hijos", "edades hijos", "whatsapp", "wa", "celular wa",
+    "edad hijos", "hijos", "edades hijos", "whatsapp", "whassapp", "wa", "celular wa",
     "barrio", "neighborhood", "sector", "direccion", "dirección", "address", "dir", "ubicacion", "dirrecion",
     "descripcion vivienda", "descripción vivienda", "tipo vivienda", "vivienda",
     "encuestado", "respondent", "persona entrevistada", "supervisor", "sup",
@@ -554,6 +589,42 @@ function isRecognizedColumn(header) {
             return true;
         }
     }
+    return false;
+}
+
+// Normaliza una cabecera para comparar: minusculas, sin acentos, espacios colapsados.
+function normalizeHeaderKey(header) {
+    return String(header || '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+// Cabeceras que en Excel vienen como pregunta -> campo canonico que el backend SI reconoce.
+const QUESTION_HEADER_MAP = [
+    { field: 'tipo de cabello',  tests: ['tipo de cabello'] },
+    { field: 'forma de cabello', tests: ['forma de cabello'] },
+    { field: 'largo de cabello', tests: ['largo de cabello'] },
+];
+
+function resolveCanonicalField(header) {
+    const k = normalizeHeaderKey(header);
+    if (!k) return null;
+    for (const m of QUESTION_HEADER_MAP) {
+        if (m.tests.some(t => k.includes(normalizeHeaderKey(t)))) return m.field;
+    }
+    return null;
+}
+
+// Preguntas Si/No que no tienen columna en la BD -> se omiten y se avisa.
+function isUnsupportedQuestion(header) {
+    const k = normalizeHeaderKey(header);
+    if (!k) return false;
+    if (k.includes('tintura')) return true;
+    if (k.includes('queratina')) return true;
+    if (k.includes('alisado')) return true;
+    if (k.includes('otro tipo de tratamiento')) return true;
     return false;
 }
 
@@ -721,6 +792,21 @@ function validateParsedData() {
     if (forbiddenFound.length > 0) {
         msgs.push(`<b style="color:#dc2626">Cuidado:</b> Tu categoría es <b>${cat}</b> pero incluiste columnas de: <i>${forbiddenFound.join(', ')}</i>.`);
         alertBox.style.background = '#fef2f2'; // Reddish danger
+        alertBox.style.borderColor = '#fecaca';
+    }
+
+    // Columnas omitidas automaticamente (preguntas Si/No que no existen en la BD)
+    if (autoIgnoredHeaders.length > 0) {
+        msgs.push(`<span style="color:#64748b;">Se omiten ${autoIgnoredHeaders.length} columna(s) que no tienen campo en la base de datos: <i>${autoIgnoredHeaders.join(', ')}</i>.</span>`);
+    }
+
+    // Avisos detectados al pegar (espacios extra / saltos de linea / columnas de mas)
+    if (uploadRowIssues.length > 0) {
+        const maxShow = 25;
+        const issueLines = uploadRowIssues.slice(0, maxShow).map(it => `• <b>Fila ${it.row}</b>: ${it.msg}`);
+        if (uploadRowIssues.length > maxShow) issueLines.push(`… y ${uploadRowIssues.length - maxShow} fila(s) más.`);
+        msgs.push(`<b style="color:#dc2626">Revisa el pegado — ${uploadRowIssues.length} aviso(s):</b><br>${issueLines.join('<br>')}<br><span style="color:#b45309;">Corrige estas filas en el Excel y vuelve a pegar.</span>`);
+        alertBox.style.background = '#fef2f2';
         alertBox.style.borderColor = '#fecaca';
     }
 

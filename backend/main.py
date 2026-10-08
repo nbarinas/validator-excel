@@ -4384,7 +4384,13 @@ async def upload_calls(
                     for rk in row.keys():
                         if str(rk).strip().lower() == target_key.lower():
                             val = row[rk]
-                            return str(val).strip() if pd.notna(val) else None
+                            if not pd.notna(val):
+                                return None
+                            txt = str(val).strip()
+                            # Normaliza números leídos como float por pandas: 3006591224.0 -> 3006591224
+                            if re.fullmatch(r'-?\d+\.0', txt):
+                                txt = txt[:-2]
+                            return txt
                     return None
 
                 # Standard Logic with CI check for aliases
