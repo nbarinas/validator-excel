@@ -15,6 +15,10 @@ let currentUserName = null; // Store full name of current agent
 let currentUserId = null; // Store current user id (for superuser chat alerts)
 let currentUserWhatsAppInboxEnabled = false;
 let currentUserBulkLinkEnabled = false;
+// Notification ping preference (persisted). Default: enabled.
+window.waSoundEnabled = (() => {
+    try { return localStorage.getItem('waSoundEnabled') !== '0'; } catch (e) { return true; }
+})();
 let isClosedView = false; // Track if we are in Closed Studies mode
 let studySelectTS = null; // TomSelect instance for main study dropdown
 
@@ -75,6 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Bulk link send checkbox listener
     bulkLinkAttachCheckboxListeners();
+
+    // Reflect the persisted notification-sound preference on the toggle button
+    waUpdateSoundToggleUI();
 
     // Load User Info
     try {
@@ -5889,11 +5896,86 @@ function waRefreshGridUnreadForCall(callId) {
     }
 }
 
+// --- WhatsApp notification ping (soft messenger-style "plip") ---
+// Generated with the Web Audio API: no asset to load and very low volume.
+let waAudioCtx = null;
+let waLastUnreadTotal = null;
+
+function waEnsureAudioCtx() {
+    try {
+        if (window.waSoundEnabled === false) return null;
+        if (!waAudioCtx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return null;
+            waAudioCtx = new Ctx();
+        }
+        if (waAudioCtx.state === 'suspended') waAudioCtx.resume().catch(() => {});
+        return waAudioCtx;
+    } catch (e) { return null; }
+}
+
+function waPlayPing() {
+    const ctx = waEnsureAudioCtx();
+    if (!ctx) return;
+    try {
+        const now = ctx.currentTime;
+        const master = ctx.createGain();
+        master.gain.value = 0.16; // keeps it gentle / not annoying
+        master.connect(ctx.destination);
+        // Two quick soft tones, like a short messenger ping.
+        const notes = [
+            { f: 987.77, t: 0, d: 0.11 },   // B5
+            { f: 1318.51, t: 0.10, d: 0.16 } // E6
+        ];
+        notes.forEach(n => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = n.f;
+            const start = now + n.t;
+            const end = start + n.d;
+            gain.gain.setValueAtTime(0, start);
+            gain.gain.linearRampToValueAtTime(1, start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0008, end);
+            osc.connect(gain);
+            gain.connect(master);
+            osc.start(start);
+            osc.stop(end + 0.02);
+        });
+    } catch (e) { /* silencioso */ }
+}
+
+// Unlock/suspend the audio context on the first user gesture (browser autoplay policy).
+['pointerdown', 'keydown'].forEach(ev => {
+    window.addEventListener(ev, () => { waEnsureAudioCtx(); }, { once: true });
+});
+
+function waUpdateSoundToggleUI() {
+    const btn = document.getElementById('waSoundToggle');
+    if (!btn) return;
+    const on = window.waSoundEnabled !== false;
+    btn.textContent = on ? '🔔' : '🔕';
+    btn.title = on ? 'Sonido de notificación activado' : 'Sonido de notificación silenciado';
+}
+
+function waToggleSound() {
+    window.waSoundEnabled = !(window.waSoundEnabled !== false);
+    try { localStorage.setItem('waSoundEnabled', window.waSoundEnabled ? '1' : '0'); } catch (e) {}
+    waUpdateSoundToggleUI();
+    if (window.waSoundEnabled) waPlayPing();
+}
+
 async function waPollUnreadBadge() {
     try {
         const res = await fetch('/whatsapp/unread', { headers });
         if (!res.ok) return;
         const data = await res.json();
+        // Soft ping only when NEW unread messages arrive (total increased).
+        const total = Number(data.total) || 0;
+        if (waLastUnreadTotal !== null && total > waLastUnreadTotal) {
+            waPlayPing();
+        }
+        waLastUnreadTotal = total;
         const badge = document.getElementById('btnWhatsAppInboxBadge');
         if (badge) {
             if (data.total > 0) {
