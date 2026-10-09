@@ -1627,15 +1627,24 @@ def _wa_escalate_stale():
                 m.escalated = True
                 m.escalated_at = now
                 m.esc_reason = reason
-            db.commit()
 
+            # Extraer valores planos antes de commitear: tras el commit los objetos
+            # quedan expirados y accederlos reabriría la conexión durante los HTTP.
             last = msgs[-1]
-            _wa_escalate_notify_all(db, last, call, reason, agent)
+            thread_phone = last.phone_number or phone
+            person_name = (call.person_name if call else None) or last.profile_name
+            agent_name = (agent.full_name or agent.username or "") if agent else ""
+            agent_phone = agent.phone_number if agent else None
+            call_user_id = call.user_id if call else None
+            db.commit()
         finally:
             db.close()
 
+        # Enviar alertas SIN conexión de BD retenida.
+        _wa_escalate_notify_all(thread_phone, person_name, agent_name, agent_phone, call_user_id)
 
-def _wa_send_alert_to(phone, msg, call, reason, agent):
+
+def _wa_send_alert_to(phone, person_name, agent_name, thread_phone):
     """Send an alert copy to a target WhatsApp number using the configured template.
 
     Uses the template mensaje_whapsap_pendiente (or the env override) with the
@@ -1645,19 +1654,12 @@ def _wa_send_alert_to(phone, msg, call, reason, agent):
     if not target:
         print(f"[WHATSAPP] Número de destino inválido: {phone!r}; se omite.")
         return False
-    person = None
-    if call:
-        person = call.person_name
-    if not person:
-        person = msg.profile_name
-    if not person:
-        person = "Cliente"
-    agent_name = (agent.full_name or agent.username or "AZ Marketing").strip() if agent else "AZ Marketing"
+    person = person_name or "Cliente"
 
     parameters = [
-        {"type": "text", "text": agent_name, "parameter_name": "encuestador"},
+        {"type": "text", "text": agent_name or "AZ Marketing", "parameter_name": "encuestador"},
         {"type": "text", "text": person, "parameter_name": "encuestada"},
-        {"type": "text", "text": msg.phone_number or "", "parameter_name": "phone_numbre"},
+        {"type": "text", "text": thread_phone or "", "parameter_name": "phone_numbre"},
     ]
 
     payload = {
@@ -1675,41 +1677,47 @@ def _wa_send_alert_to(phone, msg, call, reason, agent):
     if "error" in result:
         print(f"[WHATSAPP] Alerta NO enviada a {target}: {result['error']}")
         return False
-    print(f"[WHATSAPP] Alerta enviada a {target} (hilo {msg.phone_number})")
+    print(f"[WHATSAPP] Alerta enviada a {target} (hilo {thread_phone})")
     return True
 
 
-def _wa_escalate_notify_all(db, msg, call, reason, agent):
+def _wa_escalate_notify_all(thread_phone, person_name, agent_name, agent_phone, call_user_id):
     """Notify all escalation targets about an unattended thread.
 
     Sends the same template alert (one per included target):
       - superuser (WHATSAPP_SUPERUSER_NUMBER)
       - extra copy numbers (WHATSAPP_COPY_NUMBERS), e.g. 3234968972
       - the encuestador (agente) assigned to the call, via users.phone_number
-    Deduplicates identical numbers so nobody gets the alert twice.
+    Deduplicates identical numbers so nobody gets the alert twice. Only uses a DB
+    session for the final "notified" flag, never during the HTTP sends.
     """
     targets = {WHATSAPP_SUPERUSER_NUMBER}
     targets.update(WHATSAPP_COPY_NUMBERS)
-    if call and call.user_id and agent and agent.phone_number:
-        targets.add(agent.phone_number)
+    if call_user_id and agent_phone:
+        targets.add(agent_phone)
 
-    sent_any = False
     for t in targets:
         normalized = _normalize_wa_phone(t)
         if not normalized:
             print(f"[WHATSAPP] Destino no normalizable, omitido: {t!r}")
             continue
-        if _wa_send_alert_to(normalized, msg, call, reason, agent):
-            sent_any = True
+        _wa_send_alert_to(normalized, person_name, agent_name, thread_phone)
 
-    # Mark notified (attempted) so we don't retry every cycle
-    for m in db.query(models.WhatsAppMessage).filter(
-        models.WhatsAppMessage.phone_number == msg.phone_number,
-        models.WhatsAppMessage.escalated == True,
-        models.WhatsAppMessage.esc_notified == False,
-    ):
-        m.esc_notified = True
-    db.commit()
+    # Mark notified (attempted) so we don't retry every cycle, in a short session.
+    db = database.SessionLocal()
+    try:
+        for m in db.query(models.WhatsAppMessage).filter(
+            models.WhatsAppMessage.phone_number == thread_phone,
+            models.WhatsAppMessage.escalated == True,
+            models.WhatsAppMessage.esc_notified == False,
+        ):
+            m.esc_notified = True
+        db.commit()
+    except Exception as e:
+        print(f"[WHATSAPP] Error marcando escalamiento notificado: {e}")
+        db.rollback()
+    finally:
+        db.close()
 
 
 def _wa_start_escalation_worker():
@@ -1727,12 +1735,18 @@ def _wa_start_escalation_worker():
 
 
 def _wa_process_retries():
-    """Reenvía los mensajes con reintento pendiente (límite de marketing 131049)."""
+    """Reenvía los mensajes con reintento pendiente (límite de marketing 131049).
+
+    Usa sesiones cortas: la conexión de BD se libera antes de cada llamada HTTP a
+    WhatsApp (timeout 30s) para no retener una conexión del pool durante minutos.
+    """
+    # 1. Leer IDs pendientes y despejar next_retry_at en una sesión corta.
     db = database.SessionLocal()
     try:
         now = datetime.utcnow()
-        due = (
-            db.query(models.WhatsAppMessage)
+        due_ids = [
+            row[0]
+            for row in db.query(models.WhatsAppMessage.id)
             .filter(
                 models.WhatsAppMessage.next_retry_at.isnot(None),
                 models.WhatsAppMessage.next_retry_at <= now,
@@ -1741,20 +1755,49 @@ def _wa_process_retries():
             .order_by(models.WhatsAppMessage.next_retry_at.asc())
             .limit(50)
             .all()
-        )
-        for rec in due:
-            # Limpiar antes de enviar para no reprocesar si algo falla a mitad.
-            rec.next_retry_at = None
-            db.commit()
+        ]
+    except Exception as e:
+        print(f"[WHATSAPP] Error en worker de reintentos: {e}")
+        return
+    finally:
+        db.close()
+
+    for rec_id in due_ids:
+        # 2. Leer payload y marcar como en curso; liberar la conexión antes del HTTP.
+        db = database.SessionLocal()
+        try:
+            rec = db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.id == rec_id).first()
+            if not rec or not rec.retry_payload or rec.next_retry_at is None:
+                continue
             try:
                 payload = json.loads(rec.retry_payload)
             except Exception:
                 rec.retry_payload = None
                 db.commit()
                 continue
-            print(f"[WHATSAPP] Reintentando envío a {rec.phone_number} (intento #{int(rec.retry_count or 0) + 1})")
-            result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
-            rec.retry_count = int(rec.retry_count or 0) + 1
+            phone_number = rec.phone_number
+            retry_count = int(rec.retry_count or 0) + 1
+            # Limpiar antes de enviar para no reprocesar si algo falla a mitad.
+            rec.next_retry_at = None
+            db.commit()
+        except Exception as e:
+            print(f"[WHATSAPP] Error preparando reintento {rec_id}: {e}")
+            db.rollback()
+            continue
+        finally:
+            db.close()
+
+        # 3. Enviar SIN conexión de BD retenida.
+        print(f"[WHATSAPP] Reintentando envío a {phone_number} (intento #{retry_count})")
+        result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+
+        # 4. Persistir el resultado en otra sesión corta.
+        db = database.SessionLocal()
+        try:
+            rec = db.query(models.WhatsAppMessage).filter(models.WhatsAppMessage.id == rec_id).first()
+            if not rec:
+                continue
+            rec.retry_count = retry_count
             if "error" in result:
                 # Error síncrono (poco común): programar el siguiente intento.
                 if not _wa_schedule_retry(rec):
@@ -1767,13 +1810,13 @@ def _wa_process_retries():
                 rec.error_code = None
                 rec.error_message = None
                 rec.next_retry_at = None
-                print(f"[WHATSAPP] Reintento enviado a {rec.phone_number}")
+                print(f"[WHATSAPP] Reintento enviado a {phone_number}")
             db.commit()
-    except Exception as e:
-        print(f"[WHATSAPP] Error en worker de reintentos: {e}")
-        db.rollback()
-    finally:
-        db.close()
+        except Exception as e:
+            print(f"[WHATSAPP] Error guardando reintento {rec_id}: {e}")
+            db.rollback()
+        finally:
+            db.close()
 
 
 def _wa_start_retry_worker():
@@ -1874,6 +1917,9 @@ def whatsapp_webhook_post(data: dict, db: Session = Depends(database.get_db)):
                         mime_type = media.get("mime_type")
                         filename = media.get("filename")
                         text = media.get("caption") or media.get("filename") or f"[{msg_type}]"
+                        # Bajar el media (2 HTTP + WebDAV, hasta ~90s) SIN retener
+                        # la conexión de BD: se libera antes de la descarga.
+                        db.commit()
                         media_path = _download_whatsapp_media(media_id, msg_type, mime_type, filename)
                     elif msg_type == "button":
                         text = (msg.get("button") or {}).get("text") or "[botón]"
@@ -1995,6 +2041,11 @@ def whatsapp_send(
         text_preview = msg
         msg_type = "text"
 
+    # Soltar la conexión de BD antes del HTTP a WhatsApp (hasta 30s).
+    resolved_call_id = call.id if call else None
+    sender_user_id = current_user.id
+    db.commit()
+
     result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
     if "error" in result:
         raise HTTPException(status_code=502, detail=f"Error de WhatsApp: {result['error']}")
@@ -2003,14 +2054,14 @@ def whatsapp_send(
     meta_id = messages[0].get("id") if messages else None
 
     rec = models.WhatsAppMessage(
-        call_id=call.id if call else None,
+        call_id=resolved_call_id,
         phone_number=phone,
         direction="out",
         message_text=text_preview,
         message_type=msg_type,
         message_id=meta_id,
         wa_status="sent",
-        sender_agent_id=current_user.id,
+        sender_agent_id=sender_user_id,
     )
     db.add(rec)
     db.commit()
@@ -2059,6 +2110,12 @@ def whatsapp_send_media(
     if _is_blocked(db, phone):
         raise HTTPException(status_code=403, detail="Este número está bloqueado y no se puede contactar")
 
+    # Valores planos antes de soltar la conexión: subir/descargar media puede
+    # tardar hasta 60s y no debe retener una conexión del pool.
+    resolved_call_id = call.id if call else None
+    sender_user_id = current_user.id
+    db.commit()
+
     mime_type = (file.content_type or "application/octet-stream").lower()
     filename = os.path.basename(file.filename or "archivo")
     if mime_type == "image/webp" or filename.lower().endswith(".webp"):
@@ -2096,7 +2153,7 @@ def whatsapp_send_media(
     message_id = response_messages[0].get("id") if response_messages else None
     label = {"image": "Imagen", "audio": "Audio", "sticker": "Sticker", "video": "Video", "document": "Documento"}[media_type]
     rec = models.WhatsAppMessage(
-        call_id=call.id if call else None,
+        call_id=resolved_call_id,
         phone_number=phone,
         direction="out",
         message_text=caption or f"[{label}] {filename}",
@@ -2107,7 +2164,7 @@ def whatsapp_send_media(
         mime_type=mime_type,
         filename=filename,
         wa_status="sent",
-        sender_agent_id=current_user.id,
+        sender_agent_id=sender_user_id,
     )
     db.add(rec)
     db.commit()
@@ -2221,6 +2278,9 @@ def whatsapp_new_chat(
             "components": [{"type": "body", "parameters": parameters}],
         },
     }
+    # Soltar la conexión de BD antes del HTTP a WhatsApp (hasta 30s).
+    sender_user_id = current_user.id
+    db.commit()
     result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
     if "error" in result:
         raise HTTPException(status_code=502, detail=_wa_error_human(result))
@@ -2232,7 +2292,7 @@ def whatsapp_new_chat(
         message_type="template",
         message_id=messages[0].get("id") if messages else None,
         wa_status="sent",
-        sender_agent_id=current_user.id,
+        sender_agent_id=sender_user_id,
     )
     db.add(rec)
     db.commit()
@@ -2495,6 +2555,11 @@ def whatsapp_send_template(
         }
         msg_type = "template"
 
+    # Soltar la conexión de BD antes del HTTP a WhatsApp (hasta 30s).
+    resolved_call_id = call.id if call else None
+    sender_user_id = current_user.id
+    db.commit()
+
     result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
     if "error" in result:
         raise HTTPException(status_code=502, detail=_wa_error_human(result))
@@ -2515,14 +2580,14 @@ def whatsapp_send_template(
             preview += f" / ${monto}"
 
     rec = models.WhatsAppMessage(
-        call_id=call.id if call else None,
+        call_id=resolved_call_id,
         phone_number=phone,
         direction="out",
         message_text=preview,
         message_type=msg_type,
         message_id=meta_id,
         wa_status="sent",
-        sender_agent_id=current_user.id,
+        sender_agent_id=sender_user_id,
         retry_payload=json.dumps(payload) if msg_type == "template" else None,
     )
     db.add(rec)
@@ -2580,6 +2645,7 @@ def whatsapp_send_bulk(
         raise HTTPException(status_code=400, detail="Indica la categoría o tipo de estudio")
 
     agent_name = (current_user.full_name or current_user.username or "").strip() or "Encuestador"
+    sender_user_id = current_user.id
 
     valid = []
     errors = []
@@ -2622,6 +2688,9 @@ def whatsapp_send_bulk(
             ]
             # Ventana de 24 h: enviar como texto libre evita el límite 131049.
             window_text = _wa_render_template_body(request.template_key, param_values) if _wa_window_open(db, phone) else None
+            # Persistir lo pendiente y liberar la conexión de BD ANTES del HTTP y
+            # del sleep, para no retener una conexión del pool durante segundos.
+            db.commit()
             if window_text:
                 payload = {
                     "messaging_product": "whatsapp",
@@ -2663,7 +2732,7 @@ def whatsapp_send_bulk(
                 message_type=msg_type,
                 message_id=messages[0].get("id") if messages else None,
                 wa_status="sent",
-                sender_agent_id=current_user.id,
+                sender_agent_id=sender_user_id,
                 retry_payload=json.dumps(payload) if msg_type == "template" else None,
             )
             db.add(rec)
@@ -2906,15 +2975,21 @@ def whatsapp_media(
     elif not _has_global_whatsapp_inbox(db, current_user):
         raise HTTPException(status_code=403, detail="No autorizado")
 
-    stored = _webdav_request("GET", message.media_path)
+    media_path = message.media_path
+    filename = message.filename
+    mime_type = message.mime_type or "application/octet-stream"
+    # Soltar la conexión de BD antes de bajar el archivo (WebDAV, hasta 30s).
+    db.rollback()
+
+    stored = _webdav_request("GET", media_path)
     if not stored:
         raise HTTPException(status_code=404, detail="Archivo no disponible")
     headers = {}
-    if message.filename:
-        headers["Content-Disposition"] = f'inline; filename="{os.path.basename(message.filename)}"'
+    if filename:
+        headers["Content-Disposition"] = f'inline; filename="{os.path.basename(filename)}"'
     return StreamingResponse(
         io.BytesIO(stored.content),
-        media_type=message.mime_type or "application/octet-stream",
+        media_type=mime_type,
         headers=headers,
     )
 

@@ -40,6 +40,8 @@ if "sqlite" in SQLALCHEMY_DATABASE_URL:
 else:
     # MySQL specific connection timeout (10 seconds) to avoid hanging
     engine_kwargs["connect_args"] = {"connect_timeout": 10}
+    # Reutiliza la conexión más reciente (menos reciclado, menos picos de reconexión).
+    engine_kwargs["pool_use_lifo"] = True
 
 try:
     engine = create_engine(
