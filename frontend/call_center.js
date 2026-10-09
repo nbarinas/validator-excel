@@ -1852,6 +1852,13 @@ function showGridView() {
 
 function closeDetailView() {
     showGridView();
+    // If the WhatsApp unread poll detected changes while the survey was open,
+    // refresh the grid now that the user is back on it.
+    if (window.waPendingGridReload) {
+        window.waPendingGridReload = false;
+        const sel = document.getElementById('studySelect');
+        loadStudyData(sel ? (sel.value || null) : null);
+    }
 }
 
 function showDetailView() {
@@ -5951,15 +5958,28 @@ function waIsUserBusy() {
 
 function waIsGridActive() {
     const el = document.getElementById('crmInterface');
-    if (!el) return false;
-    return el.style.display !== 'none';
+    if (!el || el.style.display === 'none') return false;
+    // Do NOT treat the grid as active while the survey (call detail) is open:
+    // reloading the grid would call showGridView() and kick the user out of the survey.
+    const detail = document.getElementById('callDetailView');
+    if (detail && detail.style.display !== 'none') return false;
+    return true;
 }
 
 function waScheduleGridReload() {
+    // If the survey is open, defer the reload until the user returns to the grid.
+    if (!waIsGridActive()) {
+        window.waPendingGridReload = true;
+        return;
+    }
     if (waGridReloadTimer) return;
     waGridReloadTimer = setTimeout(() => {
         waGridReloadTimer = null;
         if (waIsUserBusy()) return;
+        if (!waIsGridActive()) {
+            window.waPendingGridReload = true;
+            return;
+        }
         const sel = document.getElementById('studySelect');
         if (sel) loadStudyData(sel.value || null);
     }, 800);
