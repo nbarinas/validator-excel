@@ -120,9 +120,38 @@ def debug_gc():
         "timestamp": datetime.now().isoformat()
     }
 
+def _configure_threadpool_limit():
+    """Cap concurrent sync endpoints so the SQLAlchemy pool is never oversubscribed.
+
+    Starlette runs `def` (sync) endpoints in AnyIO's default worker threadpool.
+    Its default (40) is larger than the DB pool (pool_size + max_overflow = 30 by
+    default), so more requests can compete for connections than the pool can
+    serve, producing QueuePool timeouts under load. Keeping the threadpool at or
+    below the pool size removes that mismatch. Override with THREADPOOL_SIZE.
+    """
+    try:
+        from anyio import to_thread
+        limit = max(1, int(os.getenv("THREADPOOL_SIZE", "20")))
+        to_thread.current_default_thread_limiter().total_tokens = limit
+        print(f"INFO: Threadpool de endpoints sincronos limitado a {limit} hilos.")
+    except Exception as e:
+        print(f"WARNING: No se pudo ajustar el threadpool: {e}")
+
+    try:
+        pool = database.engine.pool
+        print(
+            f"INFO: DB pool -> pool_size={pool.size()} "
+            f"max_overflow={getattr(pool, '_max_overflow', '?')} "
+            f"timeout={getattr(pool, '_timeout', '?')}"
+        )
+    except Exception:
+        pass
+
+
 # Startup: Create Tables & Seed Users
 @app.on_event("startup")
 def on_startup():
+    _configure_threadpool_limit()
     try:
         models.Base.metadata.create_all(bind=database.engine)
         print("INFO: Database tables verified/created.")

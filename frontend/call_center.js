@@ -4726,7 +4726,7 @@ async function openWhatsAppChatModal(callId, phone) {
     // History endpoint marks incoming messages as read; reflect that immediately in the grid
     if (waChatCallId) waRefreshGridUnreadForCall(waChatCallId);
     clearInterval(waPollTimer);
-    waPollTimer = setInterval(() => waLoadHistory({ polling: true }), 5000);
+    waPollTimer = setInterval(() => waLoadHistory({ polling: true }), 15000);
 }
 
 function waHandleFileSelection() {

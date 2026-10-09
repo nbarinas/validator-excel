@@ -8,7 +8,8 @@
 
     var TOKEN_KEY = 'token';
     var ACTIVE_WINDOW_MIN = 20; // Match online panel logic (< 20 min = active)
-    var POLL_MS = 5000;         // Poll every 5 seconds
+    var IDLE_POLL_MS = 15000;   // Poll unread badge every 15s when widget is closed
+    var OPEN_POLL_MS = 5000;    // Poll conversation every 5s while a chat is open
 
     var state = {
         open: false,
@@ -398,9 +399,8 @@
 
     // ---------- Polling ----------
     async function poll() {
-        if (!token()) return;
+        if (!token() || !state.open) return;
         try { await refreshUnread(); } catch (e) { return; }
-        if (!state.open) return;
         try {
             if (state.otherId) {
                 var conv = await apiGet('/chat/conversation/' + state.otherId);
@@ -421,7 +421,8 @@
     function init() {
         buildDom();
         refreshUnread();
-        setInterval(poll, POLL_MS);
+        setInterval(refreshUnread, IDLE_POLL_MS);
+        setInterval(poll, OPEN_POLL_MS);
     }
 
     if (document.readyState === 'loading') {
