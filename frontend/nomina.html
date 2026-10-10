@@ -487,6 +487,44 @@
                     </div>
                 </div>
 
+                <!-- CAPTURA RAPIDA -->
+                <div id="captureSection"
+                    style="margin-bottom: 1.5rem; border: 1px solid #334155; border-radius: 8px; padding: 1rem; background: rgba(15, 23, 42, 0.5);">
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 0.75rem;">
+                        <h4 style="margin: 0;"><i class="fas fa-keyboard"></i> Captura rápida</h4>
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <label style="font-size: 0.85rem; color: #94a3b8;">Fecha:</label>
+                            <input type="date" id="captureDate" class="form-input" style="padding: 6px;">
+                            <div style="position: relative;">
+                                <input type="text" id="captureUserInput" class="form-input" autocomplete="off"
+                                    placeholder="Digite el colaborador (Ej: Ar...)"
+                                    style="min-width: 280px; padding: 6px;">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead id="captureThead"></thead>
+                            <tbody id="captureBody"></tbody>
+                            <tfoot id="captureFoot" style="background: rgba(15, 23, 42, 0.8); font-weight: bold;">
+                            </tfoot>
+                        </table>
+                    </div>
+                    <div
+                        style="display: flex; justify-content: space-between; align-items: center; margin-top: 0.75rem; flex-wrap: wrap; gap: 10px;">
+                        <span id="captureStatus" style="font-size: 0.85rem; color: #94a3b8;"></span>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="clearCapture()"
+                                style="background: transparent; color: #cbd5e1; border: 1px solid #475569; padding: 8px 14px; border-radius: 6px; cursor: pointer;">Limpiar</button>
+                            <button id="captureSaveBtn" onclick="saveCapture()"
+                                style="background: #22c55e; color: white; border: none; padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                                <i class="fas fa-save"></i> Guardar planilla
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="table-responsive">
                     <table class="data-table">
                         <thead>
@@ -797,10 +835,298 @@
 
         let currentUser = null;
         let pRates = { census: 5000, effective: 10000 };
+        let currentPeriodConcepts = [];
         let currentLiquidacionId = null;
         let currentPeriodUserIds = new Set();
         let globalRecordsCache = [];
         let globalSelectedUser = null;
+
+        // --- CAPTURA RAPIDA (planilla editable) ---
+        let currentPeriodRecords = [];
+        let captureRows = [];      // [{ user_id, name, username, qty: {conceptId: number} }]
+        let captureConcepts = [];  // conceptos pagables (sin caido/cita/pendiente)
+
+        function escapeHtml(s) {
+            return (s == null ? '' : String(s))
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function todayLocalISO() {
+            const d = new Date();
+            const off = d.getTimezoneOffset() * 60000;
+            return new Date(d.getTime() - off).toISOString().slice(0, 10);
+        }
+
+        function getCaptureConcepts() {
+            const excluded = ['caido', 'caida', 'caída', 'caído', 'cita', 'pendiente'];
+            return (currentPeriodConcepts || []).filter(c => {
+                const n = (c.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                return !excluded.some(k => n.includes(k));
+            }).sort((a, b) => a.name.localeCompare(b.name));
+        }
+
+        // Extrae cantidades por concepto de un registro (con la misma heurística de loadRecords).
+        function recordConceptQty(rec, concepts) {
+            const result = {};
+            let details = [];
+            try { details = JSON.parse(rec.details_json); } catch (e) { }
+            if (!Array.isArray(details)) details = [];
+
+            if (details.length === 0 && rec.total_amount > 0 && concepts.length === 1) {
+                const c = concepts[0];
+                result[c.id] = (result[c.id] || 0) + (c.rate > 0 ? Math.floor(rec.total_amount / c.rate) : 1);
+                return result;
+            }
+
+            details.forEach(d => {
+                const match = findMatchingConcept(d, concepts);
+                if (match) result[match.id] = (result[match.id] || 0) + (d.qty || 0);
+            });
+            return result;
+        }
+
+        function initCapture() {
+            const dateEl = document.getElementById('captureDate');
+            if (dateEl && !dateEl.value) dateEl.value = todayLocalISO();
+            captureConcepts = getCaptureConcepts();
+            captureRows = [];
+            renderCaptureHeaders();
+            renderCaptureRows();
+            bindCaptureUserAutocomplete();
+        }
+
+        function renderCaptureHeaders() {
+            const thead = document.getElementById('captureThead');
+            if (!thead) return;
+            let html = '<tr><th>Colaborador</th>';
+            captureConcepts.forEach(c => {
+                html += `<th style="text-align:center;">${escapeHtml(c.name)} <br><small style="color:#94a3b8; font-weight:normal;">$${(c.rate || 0).toLocaleString()}</small></th>`;
+            });
+            html += '<th style="text-align:right;">Total</th><th></th></tr>';
+            thead.innerHTML = html;
+        }
+
+        function renderCaptureRows() {
+            const tbody = document.getElementById('captureBody');
+            const tfoot = document.getElementById('captureFoot');
+            if (!tbody) return;
+
+            if (captureRows.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${captureConcepts.length + 3}" style="text-align:center; padding:16px; color:#64748b;">Escriba un colaborador arriba para agregarlo a la planilla.</td></tr>`;
+                if (tfoot) tfoot.innerHTML = '';
+                updateCaptureStatus();
+                return;
+            }
+
+            let grand = 0;
+            const sums = {};
+            captureConcepts.forEach(c => sums[c.id] = 0);
+
+            tbody.innerHTML = captureRows.map((row, idx) => {
+                let rowTotal = 0;
+                const cells = captureConcepts.map(c => {
+                    const qty = row.qty[c.id] || 0;
+                    const amount = qty * (c.rate || 0);
+                    rowTotal += amount;
+                    sums[c.id] += amount;
+                    return `<td style="text-align:center;">
+                        <input type="number" min="0" step="1" value="${qty || ''}"
+                            oninput="onCaptureQty(${idx}, ${c.id}, this.value)"
+                            style="width:72px; text-align:center; padding:4px;">
+                    </td>`;
+                }).join('');
+                grand += rowTotal;
+                return `<tr>
+                    <td>
+                        <div style="font-weight:bold;">${escapeHtml(row.name)}</div>
+                        <div style="font-size:0.75rem; color:#94a3b8;">CC: ${escapeHtml(row.username)}</div>
+                    </td>
+                    ${cells}
+                    <td style="text-align:right; color:#4ade80; font-weight:bold;" id="captureRowTotal-${idx}">$${rowTotal.toLocaleString()}</td>
+                    <td style="text-align:center;">
+                        <button onclick="removeCaptureRow(${idx})" title="Quitar" style="color:#ef4444; background:none; border:none; cursor:pointer;"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            if (tfoot) {
+                const footCells = captureConcepts.map(c =>
+                    `<td style="text-align:center;" id="captureFoot-${c.id}">$${sums[c.id].toLocaleString()}</td>`
+                ).join('');
+                tfoot.innerHTML = `<tr><td style="text-align:right;">TOTALES:</td>${footCells}<td style="text-align:right; color:#4ade80;" id="captureFootGrand">$${grand.toLocaleString()}</td><td></td></tr>`;
+            }
+            updateCaptureStatus();
+        }
+
+        function recalcCaptureTotals() {
+            let grand = 0;
+            const sums = {};
+            captureConcepts.forEach(c => sums[c.id] = 0);
+            captureRows.forEach((row, idx) => {
+                let rowTotal = 0;
+                captureConcepts.forEach(c => {
+                    const q = row.qty[c.id] || 0;
+                    const amt = q * (c.rate || 0);
+                    rowTotal += amt;
+                    sums[c.id] += amt;
+                });
+                grand += rowTotal;
+                const cell = document.getElementById('captureRowTotal-' + idx);
+                if (cell) cell.textContent = '$' + rowTotal.toLocaleString();
+            });
+            captureConcepts.forEach(c => {
+                const el = document.getElementById('captureFoot-' + c.id);
+                if (el) el.textContent = '$' + sums[c.id].toLocaleString();
+            });
+            const g = document.getElementById('captureFootGrand');
+            if (g) g.textContent = '$' + grand.toLocaleString();
+        }
+
+        function onCaptureQty(idx, conceptId, value) {
+            const row = captureRows[idx];
+            if (!row) return;
+            const n = parseInt(value, 10);
+            row.qty[conceptId] = (isNaN(n) || n < 0) ? 0 : n;
+            recalcCaptureTotals();
+            updateCaptureStatus();
+        }
+
+        function removeCaptureRow(idx) {
+            captureRows.splice(idx, 1);
+            renderCaptureRows();
+        }
+
+        function clearCapture() {
+            captureRows = [];
+            const dateEl = document.getElementById('captureDate');
+            if (dateEl) dateEl.value = todayLocalISO();
+            renderCaptureRows();
+        }
+
+        function updateCaptureStatus() {
+            const status = document.getElementById('captureStatus');
+            if (!status) return;
+            const withQty = captureRows.filter(r => captureConcepts.some(c => (r.qty[c.id] || 0) !== 0)).length;
+            status.textContent = captureRows.length
+                ? `${captureRows.length} colaborador(es) en la planilla · ${withQty} con cantidades.`
+                : '';
+        }
+
+        function addCaptureRow(user) {
+            if (!user) return;
+            if (captureRows.some(r => r.user_id === user.id)) {
+                alert('Ese colaborador ya está en la planilla.');
+                return;
+            }
+            const qty = {};
+            captureConcepts.forEach(c => qty[c.id] = 0);
+            const rec = currentPeriodRecords.find(r => r.user_id === user.id);
+            if (rec) {
+                const existing = recordConceptQty(rec, captureConcepts);
+                Object.keys(existing).forEach(k => { qty[k] = existing[k]; });
+            }
+            captureRows.push({
+                user_id: user.id,
+                name: user.full_name || user.username,
+                username: user.username,
+                qty
+            });
+            renderCaptureRows();
+        }
+
+        function closeCaptureUserList() {
+            const l = document.getElementById('captureUserList');
+            if (l) l.remove();
+        }
+
+        function bindCaptureUserAutocomplete() {
+            const inp = document.getElementById('captureUserInput');
+            if (!inp || inp.dataset.bound) return;
+            inp.dataset.bound = '1';
+
+            inp.addEventListener('input', function () {
+                const val = this.value.trim();
+                closeCaptureUserList();
+                if (!val) return;
+                const norm = s => (s || '').toString().toLowerCase();
+                const users = Object.values(window.allUsersMap || {})
+                    .filter(u => ((u.role || '').toLowerCase().trim() !== 'auxiliar'))
+                    .filter(u => !captureRows.some(r => r.user_id === u.id))
+                    .filter(u => norm(u.full_name).includes(norm(val)) || norm(u.username).includes(norm(val)))
+                    .slice(0, 8);
+                if (!users.length) return;
+
+                const list = document.createElement('div');
+                list.className = 'autocomplete-items';
+                list.id = 'captureUserList';
+                users.forEach(u => {
+                    const item = document.createElement('div');
+                    item.innerHTML = `<strong>${escapeHtml(u.full_name || u.username)}</strong><span style="float:right; color:#94a3b8; font-size:0.8em;">${escapeHtml(u.username || '')}</span>`;
+                    item.addEventListener('click', () => {
+                        addCaptureRow(u);
+                        inp.value = '';
+                        closeCaptureUserList();
+                    });
+                    list.appendChild(item);
+                });
+                this.parentNode.appendChild(list);
+            });
+
+            inp.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') closeCaptureUserList();
+            });
+
+            document.addEventListener('click', function (e) {
+                if (e.target !== inp) closeCaptureUserList();
+            });
+        }
+
+        async function saveCapture() {
+            if (!currentLiquidacionId) return;
+            const dateEl = document.getElementById('captureDate');
+            const date = dateEl ? dateEl.value : '';
+            if (!date) return alert('Seleccione la fecha de la planilla.');
+
+            const rows = captureRows.filter(r => captureConcepts.some(c => (r.qty[c.id] || 0) !== 0));
+            if (!rows.length) return alert('Digite al menos una cantidad antes de guardar.');
+
+            const btn = document.getElementById('captureSaveBtn');
+            if (btn) btn.disabled = true;
+
+            const results = await Promise.all(rows.map(async (r) => {
+                const items = captureConcepts
+                    .filter(c => (r.qty[c.id] || 0) !== 0)
+                    .map(c => ({ concept_id: c.id, quantity: r.qty[c.id], date }));
+                try {
+                    const res = await fetch(`/payroll/records/manual?period_id=${currentLiquidacionId}&user_id=${r.user_id}`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ total_effective: 0, total_censuses: 0, items })
+                    });
+                    return { ok: res.ok, name: r.name };
+                } catch (e) {
+                    return { ok: false, name: r.name };
+                }
+            }));
+
+            if (btn) btn.disabled = false;
+
+            const failed = results.filter(x => !x.ok);
+            if (failed.length) {
+                alert('No se pudieron guardar: ' + failed.map(f => f.name).join(', '));
+                return;
+            }
+            alert(`Planilla guardada (${rows.length} colaborador${rows.length === 1 ? '' : 'es'}).`);
+            clearCapture();
+            loadRecords(currentLiquidacionId);
+        }
 
         function findMatchingConcept(d, concepts) {
             let cid = d.concept_id;
@@ -2530,7 +2856,11 @@
             const records = await res.json();
             tbody.innerHTML = '';
 
+            currentPeriodRecords = records;
             records.forEach(r => currentPeriodUserIds.add(r.user_id));
+
+            // Inicializa la planilla de captura rápida con los registros actuales
+            initCapture();
 
             if (records.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="${colSpan}" style="text-align:center; padding:20px; color:#aaa;">No hay personas agregadas a esta nómina.</td></tr>`;
@@ -2831,8 +3161,10 @@
         async function openManualModal() {
             if (!currentLiquidacionId) return;
 
-            // Refresh user list from server to ensure new users appear
-            await loadUsersForDropdown();
+            // Reutiliza la lista de usuarios ya cargada (evita pedir /users en cada apertura)
+            if (!window.allUsersMap || Object.keys(window.allUsersMap).length === 0) {
+                await loadUsersForDropdown();
+            }
 
             // Populate/Filter users for this period
             rebuildUserDropdown(currentPeriodUserIds);
