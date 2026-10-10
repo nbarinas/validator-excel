@@ -1378,6 +1378,9 @@ WHATSAPP_TEMPLATE_MAP = {
     "19_octubre": {"name": "19_octubre", "language": "es", "params": ["encuestado"]},
     "registro_diario_fatiga_6_semanas": {"name": "registro_diario_fatiga_6_semanas", "language": "es", "params": ["encuestado", "dia", "perro", "censo"]},
     "sibate_90mas15_dias": {"name": "sibate_90mas15_dias", "language": "es", "params": ["dia", "encuestado", "perro", "censo"]},
+    "producto_310_90_dias": {"name": "producto_310_90_dias", "language": "es", "params": ["encuestada"]},
+    "producto_203_90_dias": {"name": "producto_203_90_dias", "language": "es", "params": ["encuestada"]},
+    "producto_402_90_dias": {"name": "producto_402_90_dias", "language": "es", "params": ["encuestada"]},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1399,6 +1402,9 @@ WHATSAPP_TEMPLATE_LABELS = {
     "19_octubre": "19 de octubre — reprogramación",
     "registro_diario_fatiga_6_semanas": "Registro diario fatiga 6 semanas",
     "sibate_90mas15_dias": "Sibate 90 + 15 días",
+    "producto_310_90_dias": "Producto 310 — 90 días",
+    "producto_203_90_dias": "Producto 203 — 90 días",
+    "producto_402_90_dias": "Producto 402 — 90 días",
 }
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1442,6 +1448,9 @@ WHATSAPP_TEMPLATE_BODIES = {
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día.",
     "registro_diario_fatiga_6_semanas": "🐶 ¡Hola, {{encuestado}}! 👋\n\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Recuerda realizar hoy, es el dia {{dia}}, en el que vamos, el registro del consumo de tu perro {{perro}}, utilizando su alimento habitual junto con el producto que te enviamos.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo horario y tipo de comida durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Es muy importante realizar el registro todos los días durante el estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/Zwj9RbSh9pn2nQLU8\n\n¡Muchas gracias por tu compromiso y participación! 🐾",
     "sibate_90mas15_dias": "REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestado}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Hoy corresponde realizar el registro del consumo de tu perro {{perro}}.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Recuerda realizar el registro todos los días durante los 7 días del estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/3qsgqgVaCEepHrA89\n\n¡Muchas gracias por tu compromiso y participación!",
+    "producto_310_90_dias": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 310, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
+    "producto_203_90_dias": "Hola, {{encuestada}},  😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 203, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
+    "producto_402_90_dias": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 402, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
 }
 
 
