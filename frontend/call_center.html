@@ -2377,7 +2377,11 @@
                                 <option value="18:30">06:30 PM</option>
                                 <option value="19:00">07:00 PM</option>
                             </optgroup>
+                            <optgroup label="Hora personalizada">
+                                <option value="__otra__">Otra hora (escribir)</option>
+                            </optgroup>
                         </select>
+                        <input type="time" id="scheduleTimeCustom" class="form-control" style="flex: 1; display: none;">
                     </div>
                 </div>
                 <button class="btn-submit" onclick="scheduleAlert()" style="background: #ff9800;">Programar

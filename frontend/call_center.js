@@ -80,6 +80,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Bulk link send checkbox listener
     bulkLinkAttachCheckboxListeners();
 
+    // Mostrar el campo de hora manual al elegir "Otra hora (escribir)"
+    const scheduleTimeSel = document.getElementById('scheduleTimeSelect');
+    if (scheduleTimeSel) {
+        scheduleTimeSel.addEventListener('change', () => {
+            const custom = document.getElementById('scheduleTimeCustom');
+            if (!custom) return;
+            const isCustom = scheduleTimeSel.value === '__otra__';
+            custom.style.display = isCustom ? 'block' : 'none';
+            if (isCustom) custom.focus();
+        });
+    }
+
     // Reflect the persisted notification-sound preference on the toggle button
     waUpdateSoundToggleUI();
 
@@ -2266,18 +2278,27 @@ function openCallDetail(call) {
     // Appointment Time - Parsing for the new split fields
     const scheduleDateEl = document.getElementById('scheduleDate');
     const scheduleTimeSelectEl = document.getElementById('scheduleTimeSelect');
+    const scheduleTimeCustomEl = document.getElementById('scheduleTimeCustom');
     if (call.appointment_time) {
         // appointment_time is ISO like "2026-03-03T06:39:00"
         const parts = call.appointment_time.split('T');
         if (parts.length === 2) {
             scheduleDateEl.value = parts[0];
             // Format time to HH:mm for simpler matching with select values
-            const timePart = parts[1].substring(0, 5); 
-            scheduleTimeSelectEl.value = timePart;
+            const timePart = parts[1].substring(0, 5);
+            const matchesOption = Array.from(scheduleTimeSelectEl.options).some(o => o.value === timePart);
+            if (matchesOption) {
+                scheduleTimeSelectEl.value = timePart;
+                if (scheduleTimeCustomEl) { scheduleTimeCustomEl.value = ''; scheduleTimeCustomEl.style.display = 'none'; }
+            } else {
+                scheduleTimeSelectEl.value = '__otra__';
+                if (scheduleTimeCustomEl) { scheduleTimeCustomEl.value = timePart; scheduleTimeCustomEl.style.display = 'block'; }
+            }
         }
     } else {
         scheduleDateEl.value = '';
         scheduleTimeSelectEl.value = '';
+        if (scheduleTimeCustomEl) { scheduleTimeCustomEl.value = ''; scheduleTimeCustomEl.style.display = 'none'; }
     }
     document.getElementById('extraPhone').value = cleanFloatStr(call.extra_phone);
 
@@ -3024,7 +3045,13 @@ async function scheduleAlert() {
 
     let finalTime = timeVal;
     // Mapping for text-based options
-    if (timeVal === "En la mañana" || timeVal === "Durante el día" || timeVal === "Escribir antes") {
+    if (timeVal === "__otra__") {
+        finalTime = (document.getElementById('scheduleTimeCustom').value || '').trim();
+        if (!finalTime) {
+            alert("Debe indicar la hora para programar la alerta.");
+            return;
+        }
+    } else if (timeVal === "En la mañana" || timeVal === "Durante el día" || timeVal === "Escribir antes") {
         finalTime = "10:00";
     } else if (timeVal === "En la tarde") {
         finalTime = "14:00";
