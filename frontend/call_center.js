@@ -1466,8 +1466,46 @@ function toggleSort(column) {
         currentSort.column = column;
         currentSort.direction = 'asc';
     }
+    updateSortIcons();
     // Re-render (sorting happens in render or before render? Better to sort the filtered list)
     applyColumnFilters();
+}
+
+// Refleja la dirección del orden con flechas (arriba/abajo) en la columna activa.
+function updateSortIcons() {
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        const icon = btn.querySelector('.sort-icon');
+        if (!icon) return;
+        const isActive = btn.dataset.sortCol === currentSort.column;
+        icon.classList.remove('fa-sort', 'fa-sort-up', 'fa-sort-down');
+        if (isActive) {
+            icon.classList.add(currentSort.direction === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+        } else {
+            icon.classList.add('fa-sort');
+        }
+    });
+}
+
+// Convierte un texto de hora ("9:00", "09:00", "9:00 AM", "2:00 PM", "14:00")
+// en minutos desde medianoche para poder ordenar cronológicamente. Devuelve
+// null si no se puede interpretar.
+function parseTimeToMinutes(value) {
+    if (value === null || value === undefined) return null;
+    const raw = value.toString().trim();
+    if (!raw) return null;
+    const m = raw.match(/(\d{1,2})[:.](\d{2})/);
+    if (!m) return null;
+    let hours = parseInt(m[1], 10);
+    const minutes = parseInt(m[2], 10);
+    if (isNaN(hours) || isNaN(minutes) || minutes > 59) return null;
+    const meridian = raw.match(/(am|pm|a\.?\s?m\.?|p\.?\s?m\.?)/i);
+    if (meridian) {
+        const isPm = /^p/i.test(meridian[1]);
+        if (hours === 12) hours = isPm ? 12 : 0;
+        else if (isPm) hours += 12;
+    }
+    if (hours > 23) return null;
+    return hours * 60 + minutes;
 }
 
 
@@ -1651,6 +1689,19 @@ function applyColumnFilters() {
     // 2. Sort Logic
     if (currentSort.column) {
         filteredCalls.sort((a, b) => {
+            // Hora Original: orden cronológico por la hora mostrada
+            // (collection_time y, si está vacío, initial_observation)
+            if (currentSort.column === 'collection_time') {
+                const tA = parseTimeToMinutes(a.collection_time || a.initial_observation);
+                const tB = parseTimeToMinutes(b.collection_time || b.initial_observation);
+                if (tA === null && tB !== null) return 1;   // sin hora al final
+                if (tA !== null && tB === null) return -1;
+                if (tA === null && tB === null) return 0;
+                if (tA < tB) return currentSort.direction === 'asc' ? -1 : 1;
+                if (tA > tB) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            }
+
             let valA = a[currentSort.column];
             let valB = b[currentSort.column];
 
@@ -1715,6 +1766,11 @@ function createMultiSelect(containerId, options, onChangeCallback) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
+    // Conservar las selecciones actuales para que recargar la grilla no desactive los filtros.
+    const previouslyChecked = new Set(
+        Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value)
+    );
+
     container.innerHTML = ''; // Clear
 
     // 1. Button
@@ -1762,6 +1818,8 @@ function createMultiSelect(containerId, options, onChangeCallback) {
         const chk = document.createElement('input');
         chk.type = 'checkbox';
         chk.value = val;
+        // Restaurar selección previa (si el valor sigue existiendo)
+        if (previouslyChecked.has(val)) chk.checked = true;
         // chk.checked = true; // Default all checked? Or none? 
         // Usually filters start with "All" (none checked effectively or special logic)
 
@@ -1788,6 +1846,9 @@ function createMultiSelect(containerId, options, onChangeCallback) {
             }
         }
     }
+
+    // Reflejar en el botón las selecciones restauradas
+    updateButtonText();
 }
 
 // Global listener for closing multi-selects

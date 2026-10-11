@@ -1890,9 +1890,9 @@
             </th>
             <th>
                 Agenda/Alerta
-                <button onclick="toggleSort('appointment_time')"
+                <button class="sort-btn" data-sort-col="appointment_time" onclick="toggleSort('appointment_time')"
                     style="background:none; border:none; cursor:pointer; color:#64748b;" title="Ordenar por Hora">
-                    <i class="fas fa-sort"></i>
+                    <i class="fas fa-sort sort-icon"></i>
                 </button>
             </th>
             <th>WhatsApp</th>
@@ -1913,15 +1913,21 @@
 
 
             <!-- Removed NSE, Edad, Barrio -->
-            <th>Hora Original</th>
+            <th>
+                Hora Original
+                <button class="sort-btn" data-sort-col="collection_time" onclick="toggleSort('collection_time')"
+                    style="background:none; border:none; cursor:pointer; color:#64748b;" title="Ordenar por Hora Original">
+                    <i class="fas fa-sort sort-icon"></i>
+                </button>
+            </th>
 
             <!-- New Requested Columns -->
             <th>
                 Cantidad Shampoo
                 <div style="display: flex; align-items: center; justify-content: space-between;">
-                    <button onclick="toggleSort('shampoo_quantity')"
+                    <button class="sort-btn" data-sort-col="shampoo_quantity" onclick="toggleSort('shampoo_quantity')"
                         style="background:none; border:none; cursor:pointer; color:#64748b;" title="Ordenar">
-                        <i class="fas fa-sort"></i>
+                        <i class="fas fa-sort sort-icon"></i>
                     </button>
                 </div>
                 <div id="colFilterShampooContainer" class="multiselect-container" style="margin-top: 2px;">
