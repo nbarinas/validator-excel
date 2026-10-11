@@ -6003,10 +6003,13 @@ async function waPollUnreadBadge() {
             waPlayPing();
         }
         waLastUnreadTotal = total;
+        // El badge muestra la cantidad de CONVERSACIONES con mensajes sin leer
+        // (igual que la pestaña "Sin leer"), no la suma de mensajes.
+        const convCount = (data.unread || []).length;
         const badge = document.getElementById('btnWhatsAppInboxBadge');
         if (badge) {
-            if (data.total > 0) {
-                badge.textContent = data.total;
+            if (convCount > 0) {
+                badge.textContent = convCount;
                 badge.style.display = 'inline-block';
             } else {
                 badge.style.display = 'none';
@@ -6014,8 +6017,8 @@ async function waPollUnreadBadge() {
         }
         const grantedBadge = document.getElementById('btnWhatsAppInboxGrantedBadge');
         if (grantedBadge) {
-            grantedBadge.textContent = data.total > 0 ? data.total : '';
-            grantedBadge.style.display = data.total > 0 ? 'inline-block' : 'none';
+            grantedBadge.textContent = convCount > 0 ? convCount : '';
+            grantedBadge.style.display = convCount > 0 ? 'inline-block' : 'none';
         }
 
         // Update grid icons in real time
