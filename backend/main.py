@@ -1381,6 +1381,9 @@ WHATSAPP_TEMPLATE_MAP = {
     "producto_310_90_dias": {"name": "producto_310_90_dias", "language": "es", "params": ["encuestada"]},
     "producto_203_90_dias": {"name": "producto_203_90_dias", "language": "es", "params": ["encuestada"]},
     "producto_402_90_dias": {"name": "producto_402_90_dias", "language": "es", "params": ["encuestada"]},
+    "concentrado__producto_sibate_3_402": {"name": "concentrado__producto_sibate_3_402", "language": "es", "params": ["encuestada", "nombre_mascota", "censo"]},
+    "concentrado__producto_sibate_2_203": {"name": "concentrado__producto_sibate_2_203", "language": "es", "params": ["encuestada", "nombre_mascota", "censo"]},
+    "conce_prodcuto_sibate_1_310": {"name": "conce_prodcuto_sibate_1_310", "language": "es", "params": ["encuestada", "nombre_mascota", "censo"]},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1405,6 +1408,9 @@ WHATSAPP_TEMPLATE_LABELS = {
     "producto_310_90_dias": "Producto 310 — 90 días",
     "producto_203_90_dias": "Producto 203 — 90 días",
     "producto_402_90_dias": "Producto 402 — 90 días",
+    "concentrado__producto_sibate_3_402": "Concentrado producto Sibate 3 — 402",
+    "concentrado__producto_sibate_2_203": "Concentrado producto Sibate 2 — 203",
+    "conce_prodcuto_sibate_1_310": "Concentrado producto Sibate 1 — 310",
 }
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1451,6 +1457,9 @@ WHATSAPP_TEMPLATE_BODIES = {
     "producto_310_90_dias": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 310, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
     "producto_203_90_dias": "Hola, {{encuestada}},  😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 203, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
     "producto_402_90_dias": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 402, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
+    "concentrado__producto_sibate_3_402": "🐶 ¡INICIO DE LA SEGUNDA FASE!\n\n¡Hola, {{encuestada}}! Te saluda AZ Marketing Plus. 🐾 Hoy comenzamos la segunda fase del estudio con {{nombre_mascota}}. ¡Gracias por continuar participando!\n\n📅 Durante los próximos 7 días, mide cuánto tarda tu perrito en comer su concentrado o purina habitual mezclado con el suplemento enviado.\n\n📌 Recuerda:\n⏱️ Mide desde que sirves el alimento hasta que termine de comer.\n🐕 Observa si comienza a comer de inmediato o si primero lo olfatea.\n🍽️ Realiza la actividad una vez al día, manteniendo el mismo horario durante los 7 días.\n\n📝 Al finalizar cada día, diligencia la encuesta:\n🔗 https://forms.gle/HrCQGTJVYKKK8HwK9\n\n🔢 Código del producto: 402\n🔐 Código de registro: {{censo}}\n\n🎁 Al completar los 7 días, te contactaremos por WhatsApp para realizar la última encuesta y explicarte cómo redimir tu bono de $30.000.\n¡Gracias por tu compromiso! Si tienes dudas, escríbenos.",
+    "concentrado__producto_sibate_2_203": "🐶 ¡INICIO DE LA SEGUNDA FASE!\n\n¡Hola, {{encuestada}}! Te saluda AZ Marketing Plus. 🐾 Hoy comenzamos la segunda fase del estudio con {{nombre_mascota}}. ¡Gracias por continuar participando!\n\n📅 Durante los próximos 7 días, mide cuánto tarda tu perrito en comer su concentrado o purina habitual mezclado con el suplemento enviado.\n\n📌 Recuerda:\n⏱️ Mide desde que sirves el alimento hasta que termine de comer.\n🐕 Observa si comienza a comer de inmediato o si primero lo olfatea.\n🍽️ Realiza la actividad una vez al día, manteniendo el mismo horario durante los 7 días.\n\n📝 Al finalizar cada día, diligencia la encuesta:\n🔗 https://forms.gle/HrCQGTJVYKKK8HwK9\n\n🔢 Código del producto: 203\n🔐 Código de registro: {{censo}}\n\n🎁 Al completar los 7 días, te contactaremos por WhatsApp para realizar la última encuesta y explicarte cómo redimir tu bono de $30.000.\n¡Gracias por tu compromiso! Si tienes dudas, escríbenos.",
+    "conce_prodcuto_sibate_1_310": "🐶 ¡INICIO DE LA SEGUNDA FASE!\n\n¡Hola, {{encuestada}}! Te saluda AZ Marketing Plus. 🐾 Hoy comenzamos la segunda fase del estudio con {{nombre_mascota}}. ¡Gracias por continuar participando!\n\n📅 Durante los próximos 7 días, mide cuánto tarda tu perrito en comer su concentrado o purina habitual mezclado con el suplemento enviado.\n\n📌 Recuerda:\n⏱️ Mide desde que sirves el alimento hasta que termine de comer.\n🐕 Observa si comienza a comer de inmediato o si primero lo olfatea.\n🍽️ Realiza la actividad una vez al día, manteniendo el mismo horario durante los 7 días.\n\n📝 Al finalizar cada día, diligencia la encuesta:\n🔗 https://forms.gle/HrCQGTJVYKKK8HwK9\n\n🔢 Código del producto: 310\n🔐 Código de registro: {{censo}}\n\n🎁 Al completar los 7 días, te contactaremos por WhatsApp para realizar la última encuesta y explicarte cómo redimir tu bono de $30.000.\n\n¡Gracias por tu compromiso! ❤️ Si tienes dudas, escríbenos.",
 }
 
 
