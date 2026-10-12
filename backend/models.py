@@ -483,6 +483,25 @@ class WhatsAppInboxPermission(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
 
+class WhatsAppAuthCode(Base):
+    """Código de 4 dígitos para autorizar envíos de WhatsApp fuera de horario.
+
+    El código se envía al número autorizador (Armando Zarate) y, al validarse,
+    habilita un pase temporal (pass_expires_at) para el usuario solicitante.
+    """
+    __tablename__ = "whatsapp_auth_codes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    code = Column(String(4), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    expires_at = Column(DateTime, nullable=False)          # vigencia del código
+    consumed = Column(Boolean, default=False, nullable=False)  # ya usado
+    attempts = Column(Integer, default=0, nullable=False) # intentos fallidos
+    pass_expires_at = Column(DateTime, nullable=True)      # pase tras validar
+    validated_at = Column(DateTime, nullable=True)
+
+
 class WhatsAppBlocked(Base):
     __tablename__ = "whatsapp_blocked"
 

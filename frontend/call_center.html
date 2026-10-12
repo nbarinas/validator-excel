@@ -653,6 +653,117 @@
             line-height: 1;
         }
 
+        .wa-hours-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 4100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .wa-hours-box {
+            background: white;
+            color: #1e293b;
+            border-radius: 12px;
+            width: 440px;
+            max-width: 95vw;
+            overflow: hidden;
+        }
+
+        .wa-hours-header {
+            background: #b45309;
+            color: white;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .wa-hours-header h3 {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .wa-hours-body {
+            padding: 16px;
+            font-size: 0.9rem;
+            line-height: 1.45;
+        }
+
+        .wa-hours-warning {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .wa-hours-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 14px;
+        }
+
+        .wa-hours-actions button {
+            border: none;
+            border-radius: 8px;
+            padding: 9px 14px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .wa-hours-cancel {
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .wa-hours-primary {
+            background: #075e54;
+            color: white;
+        }
+
+        .wa-hours-cancel:hover {
+            background: #cbd5e1;
+        }
+
+        .wa-hours-primary:hover {
+            background: #0a7a6c;
+        }
+
+        #waHoursCodeInput {
+            width: 100%;
+            box-sizing: border-box;
+            font-size: 1.6rem;
+            letter-spacing: 0.6rem;
+            text-align: center;
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .wa-hours-hint {
+            color: #64748b;
+            font-size: 0.8rem;
+            margin-top: 6px;
+        }
+
+        .wa-hours-error {
+            color: #b91c1c;
+            font-size: 0.82rem;
+            margin-top: 8px;
+            min-height: 1em;
+        }
+
         .bulk-status-badge {
             display: inline-flex;
             align-items: center;
@@ -3209,6 +3320,35 @@
     <div id="waMediaViewer" onclick="if(event.target===this)closeWaMediaViewer()">
         <button id="waMediaViewerClose" onclick="closeWaMediaViewer()" aria-label="Cerrar">&times;</button>
         <img id="waMediaViewerImage" alt="Imagen ampliada">
+    </div>
+
+    <div id="waHoursModal" class="wa-hours-modal" onclick="if(event.target===this)waHoursCancel()">
+        <div class="wa-hours-box">
+            <div class="wa-hours-header">
+                <i class="fas fa-clock"></i>
+                <h3>Fuera de horario de envío</h3>
+            </div>
+            <div class="wa-hours-body">
+                <div id="waHoursStep1">
+                    <div class="wa-hours-warning" id="waHoursWarning">Cargando hora...</div>
+                    <div>No es una hora adecuada para enviar mensajes de WhatsApp. Si deseas continuar, se enviará un código de 4 dígitos a <strong>Armando Zárate</strong> para autorizarlo.</div>
+                    <div class="wa-hours-actions">
+                        <button class="wa-hours-cancel" onclick="waHoursCancel()">Cancelar</button>
+                        <button class="wa-hours-primary" id="waHoursRequestBtn" onclick="waHoursRequestCode()">Solicitar código</button>
+                    </div>
+                </div>
+                <div id="waHoursStep2" style="display:none;">
+                    <div>Se envió un código de 4 dígitos a <strong>Armando Zárate</strong>. Pídeselo e ingrésalo aquí para continuar (válido por pocos minutos).</div>
+                    <input id="waHoursCodeInput" type="text" maxlength="4" inputmode="numeric" autocomplete="one-time-code" placeholder="••••">
+                    <div class="wa-hours-error" id="waHoursCodeError"></div>
+                    <div class="wa-hours-hint" id="waHoursPassHint"></div>
+                    <div class="wa-hours-actions">
+                        <button class="wa-hours-cancel" onclick="waHoursCancel()">Cancelar</button>
+                        <button class="wa-hours-primary" id="waHoursValidateBtn" onclick="waHoursValidateCode()">Validar y continuar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 

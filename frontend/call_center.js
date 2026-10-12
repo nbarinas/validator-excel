@@ -5124,8 +5124,121 @@ function closeWaMediaViewer() {
     if (image) image.removeAttribute('src');
 }
 
+// ===== Ventana horaria de envío de WhatsApp (7:30 - 20:00 hora Colombia) =====
+let waAuthPassUntil = 0;
+try {
+    waAuthPassUntil = parseInt(localStorage.getItem('waAuthPassUntil') || '0', 10) || 0;
+} catch (e) { waAuthPassUntil = 0; }
+
+let _waHoursResolve = null;
+
+function waHoursShow(step) {
+    const modal = document.getElementById('waHoursModal');
+    if (!modal) return;
+    const step1 = document.getElementById('waHoursStep1');
+    const step2 = document.getElementById('waHoursStep2');
+    if (step1) step1.style.display = step === 1 ? 'block' : 'none';
+    if (step2) step2.style.display = step === 2 ? 'block' : 'none';
+    modal.style.display = 'flex';
+}
+
+function waHoursCancel() {
+    const modal = document.getElementById('waHoursModal');
+    if (modal) modal.style.display = 'none';
+    const resolve = _waHoursResolve;
+    _waHoursResolve = null;
+    if (resolve) resolve(false);
+}
+
+async function waHoursRequestCode() {
+    const btn = document.getElementById('waHoursRequestBtn');
+    const warn = document.getElementById('waHoursWarning');
+    if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+    try {
+        const res = await fetch('/whatsapp/request-code', { method: 'POST', headers });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = data.detail;
+            if (warn) warn.textContent = (typeof detail === 'string' ? detail : 'No se pudo solicitar el código. Inténtalo de nuevo.');
+            return;
+        }
+        waHoursShow(2);
+        const input = document.getElementById('waHoursCodeInput');
+        if (input) { input.value = ''; input.focus(); }
+    } catch (e) {
+        console.error(e);
+        if (warn) warn.textContent = 'Error de conexión al solicitar el código.';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Solicitar código'; }
+    }
+}
+
+async function waHoursValidateCode() {
+    const input = document.getElementById('waHoursCodeInput');
+    const err = document.getElementById('waHoursCodeError');
+    const btn = document.getElementById('waHoursValidateBtn');
+    const code = ((input && input.value) || '').replace(/\D/g, '');
+    if (code.length !== 4) {
+        if (err) err.textContent = 'Ingresa los 4 dígitos del código.';
+        return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'Validando...'; }
+    if (err) err.textContent = '';
+    try {
+        const res = await fetch('/whatsapp/validate-code', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ code })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = data.detail;
+            if (err) err.textContent = (typeof detail === 'string' ? detail : 'Código inválido o vencido.');
+            return;
+        }
+        const minutes = data.minutes || 15;
+        waAuthPassUntil = Date.now() + minutes * 60 * 1000;
+        try { localStorage.setItem('waAuthPassUntil', String(waAuthPassUntil)); } catch (e) {}
+        const modal = document.getElementById('waHoursModal');
+        if (modal) modal.style.display = 'none';
+        if (input) input.value = '';
+        const resolve = _waHoursResolve;
+        _waHoursResolve = null;
+        if (resolve) resolve(true);
+    } catch (e) {
+        console.error(e);
+        if (err) err.textContent = 'Error de conexión al validar el código.';
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Validar y continuar'; }
+    }
+}
+
+// Devuelve true si se puede enviar (dentro de horario o con pase vigente).
+// Si está fuera de horario, muestra el banner y resuelve true solo si valida el código.
+async function waEnsureSendWindow() {
+    if (waAuthPassUntil && Date.now() < waAuthPassUntil) return true;
+    try {
+        const res = await fetch('/whatsapp/send-window', { headers });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.allowed) return true;
+            const warn = document.getElementById('waHoursWarning');
+            if (warn) {
+                warn.textContent = `Hora actual en Colombia: ${data.hora}. Horario permitido: ${data.window_start} a ${data.window_end}.`;
+            }
+        }
+    } catch (e) {
+        console.error(e);
+    }
+    const err = document.getElementById('waHoursCodeError');
+    if (err) err.textContent = '';
+    waHoursShow(1);
+    return new Promise(resolve => { _waHoursResolve = resolve; });
+}
+
 async function waSendMessage() {
     if (!waChatCallId && !waChatPhone) return;
+    if (!(await waEnsureSendWindow())) return;
     if (waChatBlocked) {
         alert("Este contacto está bloqueado. No se pueden enviar mensajes.");
         return;
@@ -5428,6 +5541,8 @@ async function confirmSendWhatsAppTemplate() {
     const error = document.getElementById('waPreviewError');
     const button = document.getElementById('waPreviewConfirm');
 
+    if (!(await waEnsureSendWindow())) return;
+
     error.style.display = 'none';
     if (!waPendingTemplatePayload) {
         error.textContent = 'No hay plantilla pendiente de envío.';
@@ -5532,6 +5647,7 @@ function updateWhatsAppBonoPreview() {
 }
 
 async function sendWhatsAppBono() {
+    if (!(await waEnsureSendWindow())) return;
     const error = document.getElementById('waBonoError');
     const button = document.getElementById('waBonoSend');
     const templateKey = document.getElementById('waBonoTemplateKey').value;
@@ -5655,6 +5771,7 @@ function waNewChatTemplateParams() {
 }
 
 async function sendWhatsAppNewChat() {
+    if (!(await waEnsureSendWindow())) return;
     const error = document.getElementById('waNewChatError');
     const button = document.getElementById('waNewChatSend');
     const kind = document.getElementById('waNewChatKind').value;
@@ -5748,6 +5865,7 @@ function waUpdateBulkButton() {
 }
 
 async function sendWhatsAppBulk() {
+    if (!(await waEnsureSendWindow())) return;
     const listEl = document.getElementById('waBulkList');
     const statusEl = document.getElementById('waBulkStatus');
     const errorEl = document.getElementById('waBulkError');
@@ -6625,6 +6743,7 @@ async function bulkLinkBlockOne(callId) {
 
 async function bulkLinkSendSelected() {
     if (bulkLinkSending) return;
+    if (!(await waEnsureSendWindow())) return;
     const ids = bulkLinkGetSelectedIds();
     if (ids.length === 0) { alert('Selecciona al menos un contacto.'); return; }
     const template = document.getElementById('bulkLinkTemplate').value;
@@ -6744,6 +6863,7 @@ async function bulkLinkSendFromPreview() {
     const input = document.getElementById('bulkLinkPreviewInput');
     const text = input.value.trim();
     if (!text) return;
+    if (!(await waEnsureSendWindow())) return;
     input.value = '';
     input.disabled = true;
     try {

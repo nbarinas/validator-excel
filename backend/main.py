@@ -14,7 +14,7 @@ import pandas as pd
 import io
 import os
 from typing import List, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel
 import re
 import psutil
@@ -22,6 +22,7 @@ import gc
 import openpyxl
 import requests
 import uuid
+import secrets
 from urllib.parse import quote
 from openpyxl.styles import Border, Side
 
@@ -1055,6 +1056,13 @@ WHATSAPP_ALERT_LANGUAGE = os.getenv("WHATSAPP_ALERT_LANGUAGE", "es")
 WHATSAPP_SUPERUSER_NUMBER = os.getenv("WHATSAPP_SUPERUSER_NUMBER", "573136623816")
 WHATSAPP_COPY_NUMBERS = [n.strip() for n in os.getenv("WHATSAPP_COPY_NUMBERS", "573234968972").split(",") if n.strip()]
 WHATSAPP_ESCALATE_MINUTES = int(os.getenv("WHATSAPP_ESCALATE_MINUTES", "15"))
+# Ventana horaria permitida para enviar WhatsApp (hora de Colombia). Fuera de
+# este rango los usuarios deben pedir un código de autorización a Armando Zarate.
+WA_SEND_WINDOW_START = os.getenv("WA_SEND_WINDOW_START", "07:30")
+WA_SEND_WINDOW_END = os.getenv("WA_SEND_WINDOW_END", "20:00")
+WA_AUTH_CODE_TTL_MIN = int(os.getenv("WA_AUTH_CODE_TTL_MIN", "5"))
+WA_AUTH_PASS_MIN = int(os.getenv("WA_AUTH_PASS_MIN", "15"))
+WA_AUTH_TARGET_NUMBER = os.getenv("WA_AUTH_TARGET_NUMBER", "3234968972")  # Armando Zárate
 CRM_LINK_BASE = os.getenv("CRM_LINK_BASE", "https://validator-excel.onrender.com/call-center-page")
 META_GRAPH_URL = "https://graph.facebook.com/v21.0"
 MEDIA_WEBDAV_URL = os.getenv("WHATSAPP_MEDIA_WEBDAV_URL", "https://az-marketing.com.co:2078").rstrip("/")
@@ -1549,6 +1557,92 @@ def _wa_window_open(db, phone):
     return (now - created) <= timedelta(hours=WHATSAPP_WINDOW_HOURS)
 
 
+# Zona horaria de Colombia para la ventana de envío (el servidor corre en UTC).
+try:
+    from zoneinfo import ZoneInfo
+    _WA_TZ = ZoneInfo("America/Bogota")
+except Exception:
+    _WA_TZ = None
+
+
+def _bogota_now():
+    """Hora actual en Colombia (America/Bogota)."""
+    now_utc = datetime.utcnow()
+    if _WA_TZ is not None:
+        return now_utc.replace(tzinfo=timezone.utc).astimezone(_WA_TZ)
+    return now_utc
+
+
+def _wa_parse_hhmm(value, default):
+    """Convierte 'HH:MM' en (hora, minuto); usa `default` si es inválido."""
+    try:
+        hh, mm = str(value).strip().split(":")
+        return int(hh), int(mm)
+    except Exception:
+        return default
+
+
+def _wa_within_send_window(now=None):
+    """True si la hora local (Colombia) está dentro de la ventana permitida."""
+    now = now or _bogota_now()
+    start_h, start_m = _wa_parse_hhmm(WA_SEND_WINDOW_START, (7, 30))
+    end_h, end_m = _wa_parse_hhmm(WA_SEND_WINDOW_END, (20, 0))
+    minutes = now.hour * 60 + now.minute
+    return (start_h * 60 + start_m) <= minutes < (end_h * 60 + end_m)
+
+
+def _wa_hora_str(now=None):
+    now = now or _bogota_now()
+    return now.strftime("%H:%M")
+
+
+def _wa_active_pass(db, user_id):
+    """True si el usuario tiene un pase de autorización vigente."""
+    if not user_id:
+        return False
+    row = (
+        db.query(models.WhatsAppAuthCode)
+        .filter(
+            models.WhatsAppAuthCode.user_id == user_id,
+            models.WhatsAppAuthCode.pass_expires_at != None,  # noqa: E711
+        )
+        .order_by(models.WhatsAppAuthCode.id.desc())
+        .first()
+    )
+    if not row or not row.pass_expires_at:
+        return False
+    return row.pass_expires_at > datetime.utcnow()
+
+
+def _wa_send_guard(db, user):
+    """Devuelve (permitido, hora_str). Permite dentro de horario o con pase vigente."""
+    now = _bogota_now()
+    if _wa_within_send_window(now) or _wa_active_pass(db, getattr(user, "id", None)):
+        return True, _wa_hora_str(now)
+    return False, _wa_hora_str(now)
+
+
+def _wa_require_send_window(db, user):
+    """Lanza 403 (código wa_out_of_hours) si el usuario no puede enviar ahora."""
+    allowed, hora = _wa_send_guard(db, user)
+    if allowed:
+        return
+    raise HTTPException(
+        status_code=403,
+        detail={
+            "code": "wa_out_of_hours",
+            "hora": hora,
+            "window_start": WA_SEND_WINDOW_START,
+            "window_end": WA_SEND_WINDOW_END,
+            "message": (
+                f"No es un horario adecuado para enviar mensajes "
+                f"({WA_SEND_WINDOW_START} a {WA_SEND_WINDOW_END}). "
+                f"Hora actual en Colombia: {hora}."
+            ),
+        },
+    )
+
+
 def _wa_schedule_retry(rec):
     """Programa el siguiente reintento con backoff según rec.retry_count."""
     attempt = int(rec.retry_count or 0)
@@ -1982,6 +2076,7 @@ def whatsapp_send(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    _wa_require_send_window(db, current_user)
     call = None
     person_name = None
     if data.call_id is not None:
@@ -2106,6 +2201,7 @@ def whatsapp_send_media(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    _wa_require_send_window(db, current_user)
     call = None
     if call_id is not None:
         call = db.query(models.Call).filter(models.Call.id == call_id).first()
@@ -2259,6 +2355,7 @@ def whatsapp_new_chat(
     db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
+    _wa_require_send_window(db, current_user)
     if not _has_global_whatsapp_inbox(db, current_user):
         raise HTTPException(status_code=403, detail="No tienes permiso para crear chats nuevos")
     phone = _normalize_wa_phone(request.phone_number)
@@ -2363,6 +2460,7 @@ def whatsapp_send_template(
     'hoy'. person_name can be provided explicitly (e.g. from the inbox modal).
     Bonus templates (bono_parcial) accept dia_y_hora and monto.
     """
+    _wa_require_send_window(db, current_user)
     template_config = WHATSAPP_TEMPLATE_MAP.get(request.template_key)
     if not template_config:
         raise HTTPException(status_code=400, detail="Plantilla no válida")
@@ -2626,6 +2724,158 @@ def whatsapp_send_template(
     }
 
 
+class WhatsAppValidateCodeRequest(BaseModel):
+    code: str = ""
+
+
+@app.post("/whatsapp/request-code")
+def whatsapp_request_code(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Genera un código de 4 dígitos y lo envía a Armando Zárate por WhatsApp.
+
+    Solo tiene sentido fuera de la ventana horaria; el código queda válido por
+    WA_AUTH_CODE_TTL_MIN minutos.
+    """
+    now = _bogota_now()
+    if _wa_within_send_window(now):
+        return {"already_allowed": True, "hora": _wa_hora_str(now)}
+
+    # Cooldown: evita que se envíen múltiples códigos seguidos a Armando.
+    latest = (
+        db.query(models.WhatsAppAuthCode)
+        .filter(
+            models.WhatsAppAuthCode.user_id == current_user.id,
+            models.WhatsAppAuthCode.consumed == False,  # noqa: E712
+        )
+        .order_by(models.WhatsAppAuthCode.id.desc())
+        .first()
+    )
+    if latest and latest.expires_at:
+        created = latest.expires_at - timedelta(minutes=WA_AUTH_CODE_TTL_MIN)
+        if (datetime.utcnow() - created) < timedelta(seconds=60):
+            raise HTTPException(
+                status_code=429,
+                detail="Ya se envió un código hace un momento. Espera unos segundos para solicitar otro.",
+            )
+
+    # Invalida códigos previos sin usar de este usuario.
+    db.query(models.WhatsAppAuthCode).filter(
+        models.WhatsAppAuthCode.user_id == current_user.id,
+        models.WhatsAppAuthCode.consumed == False,  # noqa: E712
+    ).update({"consumed": True})
+
+    code = f"{secrets.randbelow(10000):04d}"
+    rec = models.WhatsAppAuthCode(
+        user_id=current_user.id,
+        code=code,
+        expires_at=datetime.utcnow() + timedelta(minutes=WA_AUTH_CODE_TTL_MIN),
+    )
+    db.add(rec)
+    db.commit()
+    db.refresh(rec)
+
+    target = _normalize_wa_phone(WA_AUTH_TARGET_NUMBER)
+    if not target:
+        raise HTTPException(status_code=500, detail="Número autorizador no configurado")
+
+    agent = (current_user.full_name or current_user.username or "").strip() or "Usuario"
+    body = (
+        f"Código de autorización AZ: {code}\n\n"
+        f"Solicitado por {agent} ({current_user.role}) a las {_wa_hora_str(now)}.\n"
+        f"Válido por {WA_AUTH_CODE_TTL_MIN} minutos."
+    )
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": target,
+        "type": "text",
+        "text": {"body": body},
+    }
+    result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
+    if "error" in result:
+        rec.consumed = True
+        db.commit()
+        raise HTTPException(
+            status_code=502,
+            detail="No se pudo enviar el código a Armando Zárate. Contáctalo directamente.",
+        )
+
+    meta_id = (result.get("messages") or [{}])[0].get("id")
+    db.add(models.WhatsAppMessage(
+        call_id=None,
+        phone_number=target,
+        direction="out",
+        message_text=f"[Código de autorización enviado] solicitado por {agent}",
+        message_type="text",
+        message_id=meta_id,
+        wa_status="sent",
+        sender_agent_id=current_user.id,
+    ))
+    db.commit()
+    return {"sent": True, "hora": _wa_hora_str(now), "target": "******" + target[-4:]}
+
+
+@app.post("/whatsapp/validate-code")
+def whatsapp_validate_code(
+    data: WhatsAppValidateCodeRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Valida el código de 4 dígitos y habilita el pase temporal de envío."""
+    code = re.sub(r"\D", "", data.code or "")
+    if len(code) != 4:
+        raise HTTPException(status_code=400, detail="El código debe tener 4 dígitos")
+
+    # Código pendiente más reciente del usuario (para contar intentos).
+    pending = (
+        db.query(models.WhatsAppAuthCode)
+        .filter(
+            models.WhatsAppAuthCode.user_id == current_user.id,
+            models.WhatsAppAuthCode.consumed == False,  # noqa: E712
+        )
+        .order_by(models.WhatsAppAuthCode.id.desc())
+        .first()
+    )
+
+    rec = None
+    if pending and pending.code == code and pending.expires_at and pending.expires_at >= datetime.utcnow():
+        rec = pending
+    else:
+        if pending:
+            pending.attempts = (pending.attempts or 0) + 1
+            if pending.attempts >= 5:
+                pending.consumed = True
+            db.commit()
+        raise HTTPException(status_code=400, detail="Código inválido o vencido")
+
+    rec.consumed = True
+    rec.validated_at = datetime.utcnow()
+    rec.pass_expires_at = datetime.utcnow() + timedelta(minutes=WA_AUTH_PASS_MIN)
+    db.commit()
+    return {
+        "ok": True,
+        "minutes": WA_AUTH_PASS_MIN,
+        "pass_expires_at": rec.pass_expires_at.isoformat(),
+    }
+
+
+@app.get("/whatsapp/send-window")
+def whatsapp_send_window(
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Estado de la ventana horaria para que el frontend decida si pedir código."""
+    now = _bogota_now()
+    allowed, hora = _wa_send_guard(db, current_user)
+    return {
+        "allowed": allowed,
+        "hora": hora,
+        "window_start": WA_SEND_WINDOW_START,
+        "window_end": WA_SEND_WINDOW_END,
+    }
+
+
 class WhatsAppBulkContact(BaseModel):
     nombre: str = ""
     telefono: str = ""
@@ -2648,6 +2898,7 @@ def whatsapp_send_bulk(
     Solo supervisores con inbox global. Normaliza números a E.164 (Colombia)
     y guarda un registro WhatsAppMessage por cada envío.
     """
+    _wa_require_send_window(db, current_user)
     if not _has_global_whatsapp_inbox(db, current_user):
         raise HTTPException(status_code=403, detail="No tienes permiso para envíos masivos")
 
