@@ -1001,7 +1001,10 @@ const HIDDEN_TEMPLATE_KEYS = [
     'sigue_interesado',
     'sibate_5_de_octubre',
     'siabate_6_de_octubre',
-    '19_octubre'
+    '19_octubre',
+    'producto_310_90_dias',
+    'producto_203_90_dias',
+    'producto_402_90_dias'
 ];
 
 async function waLoadTemplateCatalog() {
