@@ -143,7 +143,13 @@ class Call(Base):
     wash_frequency = Column(String(100), nullable=True) # Frecuencia Lavado
     hair_type = Column(String(50), nullable=True) # Tipo Cabello
     hair_shape = Column(String(50), nullable=True) # Forma Cabello
-    hair_length = Column(String(50), nullable=True) # Largo Cabello
+    hair_length = Column(String(50), nullable=True)
+
+    # Hair study questions (Excel 12-15)
+    hair_dye = Column(String(100), nullable=True)
+    hair_keratin = Column(String(100), nullable=True)
+    hair_straightening = Column(String(100), nullable=True)
+    hair_other_treatment = Column(String(100), nullable=True) # Largo Cabello
     
     # New Requested Fields
     realization_date = Column(DateTime(timezone=True), nullable=True) # Fecha de Realización (Auto on action)

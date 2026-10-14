@@ -185,6 +185,20 @@ def on_startup():
             db.execute(text("ALTER TABLE calls ADD COLUMN bulk_send_status VARCHAR(50)"))
             print("Migration: Added bulk_send_status to calls")
 
+        # Preguntas 12-15 del estudio de cabello (las lee el cargador de /upload-calls).
+        # OJO: la lista new_call_cols_2 de mas abajo esta dentro de una funcion con un `return`
+        # incondicional antes, o sea que nunca corre; la migracion real vive aca.
+        hair_new_cols = {
+            'hair_dye': 'VARCHAR(100)',
+            'hair_keratin': 'VARCHAR(100)',
+            'hair_straightening': 'VARCHAR(100)',
+            'hair_other_treatment': 'VARCHAR(100)',
+        }
+        for col, dtype in hair_new_cols.items():
+            if col not in call_cols:
+                db.execute(text(f"ALTER TABLE calls ADD COLUMN {col} {dtype}"))
+                print(f"Migration: Added {col} to calls")
+
         # Users (bulk link permission)
         user_cols = [c['name'] for c in inspector.get_columns('users')]
         if 'bulk_link_enabled' not in user_cols:
@@ -791,6 +805,10 @@ def update_bulk_link_permission(
             ("hair_type", "VARCHAR(50)"),
             ("hair_shape", "VARCHAR(50)"),
             ("hair_length", "VARCHAR(50)"),
+            ("hair_dye", "VARCHAR(100)"),
+            ("hair_keratin", "VARCHAR(100)"),
+            ("hair_straightening", "VARCHAR(100)"),
+            ("hair_other_treatment", "VARCHAR(100)"),
             ("purchase_frequency", "VARCHAR(100)"),
             ("implantation_pollster", "VARCHAR(100)"),
             ("dog_breed", "VARCHAR(100)"),
@@ -4274,6 +4292,10 @@ def get_calls(background_tasks: BackgroundTasks, study_id: Optional[int] = None,
         c_dict['hair_type'] = c.hair_type
         c_dict['hair_shape'] = c.hair_shape
         c_dict['hair_length'] = c.hair_length
+        c_dict['hair_dye'] = c.hair_dye
+        c_dict['hair_keratin'] = c.hair_keratin
+        c_dict['hair_straightening'] = c.hair_straightening
+        c_dict['hair_other_treatment'] = c.hair_other_treatment
         c_dict['code'] = c.code # Ensure Code is sent
         # We explicitly DO NOT send 'segundo_codigo' to the frontend 
         # to prevent agents from seeing it as per user request.
@@ -4768,7 +4790,7 @@ async def upload_calls(
         cols_mapping = {
             "phone_number": ["telefono", "teléfono", "celular", "numero", "movil"],
             "city": ["ciudad", "city"],
-            "code": ["codigo", "código", "cod", "id"], # Explicit mapping for Code
+            "code": ["codigo", "código", "cod", "id", "code"], # Explicit mapping for Code
             "initial_observation": ["observaciones", "observacion", "observación", "obs"],
             "appointment_time": ["hora de llamada", "hora", "cita"],
             "product_brand": ["marca de producto", "marca"],
@@ -4790,27 +4812,27 @@ async def upload_calls(
             "collection_date": ["fecha recoleccion", "fecha recolección", "fecha recogida", "fecha de recogida", "fecha rec"], # Added 'fecha de recogida'
             "collection_time": ["hora recoleccion", "hora recolección", "hora recogida", "hora de recogida", "hora rec"], # Added 'hora de recogida'
             "census": ["censo", "id", "identifier"],
-            "code": ["codigo", "código", "cod", "id"], # Explicit mapping for Code
+            "code": ["codigo", "código", "cod", "id", "code"], # Explicit mapping for Code
             "segundo_codigo": ["segundo codigo", "segundo código", "codigo 2", "código 2", "segundo_codigo"], # Added for Validation studies
             "implantation_pollster": ["encuestador", "pollster", "nombre encuestador", "implantation_pollster"],
 
             # Dog Food Study
-            "dog_name": ["nombre del perro", "dog name", "mascota", "nombre de la mascota", "nombre mascota", "nombre de mascota"],
+            "dog_name": ["dog_name", "nombre del perro", "dog name", "mascota", "nombre de la mascota", "nombre mascota", "nombre de mascota"],
             "dog_breed": ["raza", "raza del perro", "dog_breed"],
             "dog_size": ["tamaño", "tamaño del perro", "tamano", "tamano del perro", "dog_size"],
             "dog_age": ["edad perrito", "edad del perro", "dog_age"],
             "dog_user_type": ["dog_user_type", "tipo de mezclador", "tipo mezclador", "mezclador", "tipo de mezcladora"],
-            "stool_texture": ["textura del popo", "textura del popó", "la textura del popo de su perro es", "la textura del popó de su perro es", "la textura del popó de su perro es?", "¿la textura del popó de su perro es?", "textura popo", "textura popó"],
-            "health_status": ["estado de salud", "salud"],
+            "stool_texture": ["stool_texture", "textura del popo", "textura del popó", "la textura del popo de su perro es", "la textura del popó de su perro es", "la textura del popó de su perro es?", "¿la textura del popó de su perro es?", "textura popo", "textura popó"],
+            "health_status": ["health_status", "estado de salud", "salud"],
 
             # Hair Study
-            "shampoo_brand": ["marca de shampoo", "marca shampoo"],
+            "shampoo_brand": ["marca de shampoo", "marca shampoo", "marca y variedad shampoo"],
             "shampoo_variety": ["variedad shampoo", "variedad"], 
             
             "treatment_brand": ["marca tratamiento"],
-            "treatment_variety": ["variedad tratamiento"], 
+            "treatment_variety": ["variedad tratamiento", "tratamiento variedad"], 
 
-            "conditioner_brand": ["marca acondicionador"],
+            "conditioner_brand": ["marca acondicionador", "marca y variedad acondicionador"],
             "conditioner_variety": ["variedad acondicionador", "variedad tratamiento.1"], # Prioritize correct name
 
             "wash_frequency": ["frecuencia de lavado"],
@@ -4818,6 +4840,17 @@ async def upload_calls(
             "hair_type": ["tipo de cabello"],
             "hair_shape": ["forma de cabello"],
             "hair_length": ["largo de cabello", "plargo de cabello", "largo"], # Matches typo in Excel
+
+            # Preguntas 12-15 del estudio de cabello (columnas nuevas en calls)
+            "hair_dye": ["hair_dye", "tintura", "12. ¿tiene tintura en el cabello?", "¿tiene tintura en el cabello?", "tiene tintura en el cabello"],
+            "hair_keratin": ["hair_keratin", "queratina", "13. ¿tiene queratina en el cabello?", "¿tiene queratina en el cabello?", "tiene queratina en el cabello"],
+            "hair_straightening": ["hair_straightening", "alisados", "14. ¿tiene alisados químicos, permanentes en el cabello?", "¿tiene alisados químicos, permanentes en el cabello?"],
+            "hair_other_treatment": ["hair_other_treatment", "otro tipo de tratamiento", "15. ¿tiene otro tipo de tratamiento en el cabello?", "¿tiene otro tipo de tratamiento en el cabello?"],
+
+            # Estas tres claves faltaban: el constructor ya las leia, asi que su valor era siempre NULL
+            "shampoo_quantity": ["cantidad shampoo", "presentacion", "presentación", "tratamient presentacion", "tratamiento presentacion"],
+            "second_collection_date": ["fecha 2 recogida", "fecha segunda recogida", "segunda recogida", "fecha 2 recoleccion", "fecha recogida 2"],
+            "second_collection_time": ["hora 2 recogida", "hora segunda recogida", "hora 2 recoleccion", "hora recogida 2"],
             
             # Legacy/Unused removed
         }
@@ -4953,6 +4986,10 @@ async def upload_calls(
                 hair_type=get_val("hair_type")[:50] if get_val("hair_type") else None,
                 hair_shape=get_val("hair_shape")[:50] if get_val("hair_shape") else None,
                 hair_length=get_val("hair_length")[:50] if get_val("hair_length") else None,
+                hair_dye=get_val("hair_dye")[:100] if get_val("hair_dye") else None,
+                hair_keratin=get_val("hair_keratin")[:100] if get_val("hair_keratin") else None,
+                hair_straightening=get_val("hair_straightening")[:100] if get_val("hair_straightening") else None,
+                hair_other_treatment=get_val("hair_other_treatment")[:100] if get_val("hair_other_treatment") else None,
                 purchase_frequency=get_val("purchase_frequency")[:100] if get_val("purchase_frequency") else None,
                 
                 code=get_val("code")[:50] if get_val("code") else None,
@@ -4962,12 +4999,18 @@ async def upload_calls(
             )
             calls_to_add.append(call_obj)
         
+        # Columnas del Excel que no tienen destino en `calls`: se devuelven para no perderlas en silencio
+        alias_normalizados = {str(a).strip().lower() for lista in cols_mapping.values() for a in lista}
+        ignoradas = [str(c).strip() for c in df.columns if str(c).strip().lower() not in alias_normalizados]
+        if ignoradas:
+            print(f"DEBUG: Columnas ignoradas (sin destino en calls): {ignoradas}")
+
         print(f"DEBUG: Found {len(calls_to_add)} calls to add.")
         if calls_to_add:
             db.add_all(calls_to_add)
             db.commit()
             
-        return {"status": "ok", "count": len(calls_to_add), "study_id": sid, "study_name": db_study.name}
+        return {"status": "ok", "count": len(calls_to_add), "study_id": sid, "study_name": db_study.name, "ignoradas": ignoradas}
 
     except HTTPException as he:
         # Re-raise HTTP exceptions as-is

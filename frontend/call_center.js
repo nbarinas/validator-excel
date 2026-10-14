@@ -372,6 +372,13 @@ const STANDARD_FIELDS = [
     { id: 'tipo de cabello', label: 'Tipo de Cabello' },
     { id: 'forma de cabello', label: 'Forma de Cabello' },
     { id: 'largo de cabello', label: 'Largo de Cabello' },
+    { id: 'cantidad shampoo', label: 'Cantidad / Presentación Shampoo' },
+    { id: 'fecha 2 recogida', label: 'Fecha 2ª Recogida' },
+    { id: 'hora 2 recogida', label: 'Hora 2ª Recogida' },
+    { id: 'hair_dye', label: 'Tintura (cabello)' },
+    { id: 'hair_keratin', label: 'Queratina (cabello)' },
+    { id: 'hair_straightening', label: 'Alisados Químicos (cabello)' },
+    { id: 'hair_other_treatment', label: 'Otro Tratamiento (cabello)' },
     { id: 'frecuencia de compra', label: 'Frecuencia de Compra' }
 ];
 
@@ -548,12 +555,8 @@ function handlePasteData() {
 
     // Initialize mapping
     columnMappings = uploadHeaders.map(h => {
-        // Preguntas Si/No sin columna en la BD -> se omiten (con aviso)
-        if (isUnsupportedQuestion(h)) {
-            autoIgnoredHeaders.push(h);
-            return 'ignorar';
-        }
         // Cabeceras tipo pregunta -> campo canonico que el backend si reconoce
+        // (incluidas tintura / queratina / alisados / otro tratamiento, que ya tienen columna)
         const canonical = resolveCanonicalField(h);
         if (canonical) return canonical;
         if (isRecognizedColumn(h)) return h; // Keep original if it's already recognized
@@ -597,7 +600,12 @@ const KNOWN_BACKEND_COLUMNS = [
     "marca tratamiento", "variedad tratamiento",
     "marca acondicionador", "variedad acondicionador", "variedad tratamiento.1",
     "frecuencia de lavado", "tipo de cabello", "forma de cabello",
-    "largo de cabello", "largo", "frecuencia de compra", "frecuencia compra", "con que frecuencia compra shampoo"
+    "largo de cabello", "largo", "frecuencia de compra", "frecuencia compra", "con que frecuencia compra shampoo",
+    // Alineados con cols_mapping del backend: antes no coincidian y se perdian sin aviso
+    "tratamiento variedad", "marca y variedad shampoo", "marca y variedad acondicionador",
+    "cantidad shampoo", "tratamient presentacion", "tratamiento presentacion",
+    "fecha 2 recogida", "hora 2 recogida", "segunda recogida",
+    "hair_dye", "hair_keratin", "hair_straightening", "hair_other_treatment"
 ];
 
 function isRecognizedColumn(header) {
@@ -625,6 +633,11 @@ const QUESTION_HEADER_MAP = [
     { field: 'tipo de cabello',  tests: ['tipo de cabello'] },
     { field: 'forma de cabello', tests: ['forma de cabello'] },
     { field: 'largo de cabello', tests: ['largo de cabello'] },
+    // Preguntas 12-15: desde esta version tienen columna propia en calls
+    { field: 'hair_dye',             tests: ['tintura'] },
+    { field: 'hair_keratin',         tests: ['queratina'] },
+    { field: 'hair_straightening',   tests: ['alisado'] },
+    { field: 'hair_other_treatment', tests: ['otro tipo de tratamiento'] },
 ];
 
 function resolveCanonicalField(header) {
@@ -637,15 +650,9 @@ function resolveCanonicalField(header) {
 }
 
 // Preguntas Si/No que no tienen columna en la BD -> se omiten y se avisa.
-function isUnsupportedQuestion(header) {
-    const k = normalizeHeaderKey(header);
-    if (!k) return false;
-    if (k.includes('tintura')) return true;
-    if (k.includes('queratina')) return true;
-    if (k.includes('alisado')) return true;
-    if (k.includes('otro tipo de tratamiento')) return true;
-    return false;
-}
+// Nota: tintura / queratina / alisados / otro tipo de tratamiento ya NO entran aca:
+// tienen columna propia (hair_dye, hair_keratin, hair_straightening, hair_other_treatment)
+// y se resuelven en QUESTION_HEADER_MAP.
 
 function renderPreviewTable() {
     const thead = document.getElementById('previewThead');
@@ -963,7 +970,11 @@ async function uploadParsedData() {
         if (res.ok) {
             const data = await res.json();
             const actionWord = (uploadMode === 'existing') ? 'anexados' : 'creados';
-            alert(`Carga exitosa: ${data.count} registros ${actionWord} en el estudio '${data.study_name}'.`);
+            let mensajeCarga = `Carga exitosa: ${data.count} registros ${actionWord} en el estudio '${data.study_name}'.`;
+            if (data.ignoradas && data.ignoradas.length > 0) {
+                mensajeCarga += `\n\nATENCION: ${data.ignoradas.length} columna(s) del Excel NO se guardaron porque no tienen campo en la base de datos:\n- ` + data.ignoradas.join('\n- ');
+            }
+            alert(mensajeCarga);
             closeUploadModal();
             enterCRM();
         } else {
@@ -2400,6 +2411,10 @@ function openCallDetail(call) {
     setTxt('hairType', call.hair_type);
     setTxt('hairShape', call.hair_shape);
     setTxt('hairLength', call.hair_length);
+    setTxt('hairDye', call.hair_dye);
+    setTxt('hairKeratin', call.hair_keratin);
+    setTxt('hairStraightening', call.hair_straightening);
+    setTxt('hairOtherTreatment', call.hair_other_treatment);
 
     // POPULATE IMPLANTATION DATA
     const setVal = (id, val) => {
@@ -3179,6 +3194,10 @@ function exportToExcel() {
         "Hora 2 Recogida": row.second_collection_time || '',
         "Encuestador": row.implantation_pollster || '',
         "Shampoo": row.shampoo_quantity || '',
+        "Tintura": row.hair_dye || '',
+        "Queratina": row.hair_keratin || '',
+        "Alisados Químicos": row.hair_straightening || '',
+        "Otro Tratamiento": row.hair_other_treatment || '',
         "Observaciones Iniciales": row.initial_observation || '',
         "Observaciones": row.concatenated_observations || 'no tiene'
     }));
