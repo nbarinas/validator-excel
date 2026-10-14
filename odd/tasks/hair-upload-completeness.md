@@ -93,4 +93,4 @@ sobre una copia de `az_marketing.db` y arreglado agregando las 4 columnas al `AL
 `metadata.create_all` (base nueva); por eso se agrego `check_calls_migration.py`, que usa una copia
 de la base real.
 
-**L7** (commit): d2efe37 en la rama feat/hair-upload-completeness (work unit unico de este cambio).
+**L7** (commit): b01d8f4 en main (work unit unico de este cambio).
