@@ -1056,7 +1056,7 @@ async function openStudyTemplatesModal(studyId) {
     document.getElementById('studyTemplatesModal').style.display = 'flex';
     await waLoadTemplateCatalog();
     let linked = (study && Array.isArray(study.template_keys)) ? study.template_keys.slice() : [];
-    renderStudyTemplatesList(linked);
+    renderStudyTemplatesList(linked, 'studyTemplatesBody', false);
 }
 
 function closeStudyTemplatesModal() {
@@ -1064,14 +1064,19 @@ function closeStudyTemplatesModal() {
     studyTemplatesCurrentId = null;
 }
 
-function renderStudyTemplatesList(linked) {
-    const body = document.getElementById('studyTemplatesBody');
+function renderStudyTemplatesList(linked, containerId, onlySingle) {
+    const body = document.getElementById(containerId || 'studyTemplatesBody');
     const linkedSet = new Set(linked || []);
     if (!waTemplateCatalog || waTemplateCatalog.length === 0) {
         body.innerHTML = '<div style="padding:1rem;color:#b91c1c;">No se pudo cargar el catálogo de plantillas.</div>';
         return;
     }
-    body.innerHTML = waTemplateCatalog.map(t => {
+    const catalog = waTemplateCatalog.filter(t => !onlySingle || t.single_eligible);
+    if (catalog.length === 0) {
+        body.innerHTML = '<div style="padding:1rem;color:#64748b;">No hay plantillas habilitadas para envío una por una.</div>';
+        return;
+    }
+    body.innerHTML = catalog.map(t => {
         const checked = linkedSet.has(t.key) ? 'checked' : '';
         const preview = waTemplateBody(t.key);
         const previewHtml = preview
@@ -1091,7 +1096,7 @@ async function saveStudyTemplates() {
     if (studyTemplatesCurrentId == null) return;
     const error = document.getElementById('studyTemplatesError');
     const btn = document.getElementById('studyTemplatesSave');
-    const keys = Array.from(document.querySelectorAll('.study-template-check:checked')).map(cb => cb.value);
+    const keys = Array.from(document.getElementById('studyTemplatesBody').querySelectorAll('.study-template-check:checked')).map(cb => cb.value);
     error.style.display = 'none';
     btn.disabled = true;
     const original = btn.textContent;
@@ -1109,6 +1114,58 @@ async function saveStudyTemplates() {
         }
         closeStudyTemplatesModal();
         alert('Plantillas conectadas correctamente.');
+    } catch (e) {
+        error.textContent = e.message;
+        error.style.display = 'block';
+    } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+    }
+}
+
+// --- ESTUDIO <-> PLANTILLAS "UNA POR UNA" (envío por registro, solo superusuario) ---
+let studySingleTemplatesCurrentId = null;
+
+async function openStudySingleTemplatesModal(studyId) {
+    const study = manageStudiesById[studyId];
+    studySingleTemplatesCurrentId = studyId;
+    document.getElementById('studySingleTemplatesTitle').textContent =
+        'Plantillas una por una' + (study ? ' — ' + study.name : '');
+    document.getElementById('studySingleTemplatesBody').innerHTML = '<div style="padding:1rem;color:#64748b;">Cargando...</div>';
+    document.getElementById('studySingleTemplatesError').style.display = 'none';
+    document.getElementById('studySingleTemplatesModal').style.display = 'flex';
+    await waLoadTemplateCatalog();
+    let linked = (study && Array.isArray(study.single_template_keys)) ? study.single_template_keys.slice() : [];
+    renderStudyTemplatesList(linked, 'studySingleTemplatesBody', true);
+}
+
+function closeStudySingleTemplatesModal() {
+    document.getElementById('studySingleTemplatesModal').style.display = 'none';
+    studySingleTemplatesCurrentId = null;
+}
+
+async function saveStudySingleTemplates() {
+    if (studySingleTemplatesCurrentId == null) return;
+    const error = document.getElementById('studySingleTemplatesError');
+    const btn = document.getElementById('studySingleTemplatesSave');
+    const keys = Array.from(document.getElementById('studySingleTemplatesBody').querySelectorAll('.study-template-check:checked')).map(cb => cb.value);
+    error.style.display = 'none';
+    btn.disabled = true;
+    const original = btn.textContent;
+    btn.textContent = 'Guardando...';
+    try {
+        const res = await fetch(`/studies/${studySingleTemplatesCurrentId}/single-templates`, {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({ template_keys: keys })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'No se pudieron guardar las plantillas');
+        if (manageStudiesById[studySingleTemplatesCurrentId]) {
+            manageStudiesById[studySingleTemplatesCurrentId].single_template_keys = data.single_template_keys || keys;
+        }
+        closeStudySingleTemplatesModal();
+        alert('Plantillas una por una conectadas correctamente.');
     } catch (e) {
         error.textContent = e.message;
         error.style.display = 'block';
@@ -1160,8 +1217,11 @@ async function loadManageStudiesTable() {
                          <button onclick="openAssignAux(${s.id}, '${s.name}')" style="cursor:pointer; background: #6366f1; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
                             <i class="fas fa-users-cog"></i> Asignar
                          </button>
-                         ${currentUserRole === 'superuser' ? `<button onclick="openStudyTemplatesModal(${s.id})" style="cursor:pointer; background: #0f766e; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Conectar plantillas de WhatsApp a este estudio">
+                         ${currentUserRole === 'superuser' ? `<button onclick="openStudyTemplatesModal(${s.id})" style="cursor:pointer; background: #0f766e; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Conectar plantillas de WhatsApp a este estudio (envío masivo)">
                             <i class="fas fa-link"></i> Plantillas
+                         </button>` : ''}
+                         ${currentUserRole === 'superuser' ? `<button onclick="openStudySingleTemplatesModal(${s.id})" style="cursor:pointer; background: #7c3aed; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Conectar plantillas de WhatsApp una por una (envío por registro) a este estudio">
+                            <i class="fas fa-link"></i> Plantillas 1×1
                          </button>` : ''}
                          <button onclick="deleteStudy(${s.id})" style="cursor:pointer; background: #991b1b; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;" title="Eliminar Permanentemente">
                             <i class="fas fa-trash"></i>
@@ -5397,6 +5457,7 @@ const WA_TEMPLATE_BODIES = {
     "manana_3": "Buenas tardes, señora {{nombre}}, ¿cómo está?\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de {{categoria}} y quería confirmar si en este momento podríamos realizar la videollamada.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "shampo_primer": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de shampoo. Hace 10 días le entregamos el producto 729  y el día de hoy tiene programada una videollamada a las {{hora}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "in_home_beta_385": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de tratamiento para el cabello de los que se compran listos. Hace 15 días le entregamos el producto 358  y el día de hoy tiene programada una videollamada a las {{hora_asignada}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día."
 };
@@ -5410,9 +5471,11 @@ function getWhatsAppTemplateHora() {
 
 function waUpdateTemplateForm() {
     const selected = document.querySelector('input[name="waTemplateKey"]:checked');
-    const kind = selected ? selected.value : 'manana_3';
-    const needsCategory = kind === 'manana_3';
-    const needsHora = kind === 'shampo_primer';
+    const kind = selected ? selected.value : null;
+    const item = kind ? waTemplateCatalogMap[kind] : null;
+    const params = (item && Array.isArray(item.params)) ? item.params : [];
+    const needsCategory = params.includes('categoria');
+    const needsHora = params.includes('hora') || params.includes('hora_asignada');
     document.getElementById('waTemplateCategoryGroup').style.display = needsCategory ? 'block' : 'none';
     const horaGroup = document.getElementById('waTemplateHoraGroup');
     if (horaGroup) {
@@ -5433,7 +5496,7 @@ function waRenderInlineTemplatePreview(kind) {
         : 'Cliente';
     const agentName = currentUserName || 'Encuestador';
     const hora = getWhatsAppTemplateHora();
-    let body = WA_TEMPLATE_BODIES[kind] || '';
+    let body = waTemplateBody(kind) || WA_TEMPLATE_BODIES[kind] || '';
     if (!body) {
         box.innerHTML = '<span style="color:#64748b;">(sin texto de vista previa)</span>';
         return;
@@ -5443,27 +5506,73 @@ function waRenderInlineTemplatePreview(kind) {
         .replace(/\{\{encuestado\}\}/g, personName)
         .replace(/\{\{encuestador\}\}/g, agentName)
         .replace(/\{\{categoria\}\}/g, category || '[estudio]')
+        .replace(/\{\{hora_asignada\}\}/g, hora)
         .replace(/\{\{hora\}\}/g, hora);
     box.textContent = body;
     box.scrollTop = 0;
 }
 
-function openWhatsAppTemplateModal(fieldId) {
-    waTemplateSourceField = fieldId || null;
-    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_3'));
-    document.getElementById('waTemplateCategory').value = '';
-    document.getElementById('waTemplateError').style.display = 'none';
-    waUpdateTemplateForm();
-    document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
+// Plantillas "una por una" del estudio de un envio (resuelve call/telefono/estudio).
+async function waLoadSingleKeys({ callId, phoneNumber, studyId } = {}) {
+    const params = new URLSearchParams();
+    if (callId) params.set('call_id', callId);
+    if (phoneNumber) params.set('phone_number', phoneNumber);
+    if (studyId) params.set('study_id', studyId);
+    try {
+        const res = await fetch('/whatsapp/single-templates?' + params.toString(), { headers });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        return Array.isArray(data.single_template_keys) ? data.single_template_keys : [];
+    } catch (e) {
+        console.error(e);
+        return [];
+    }
 }
 
-function openWhatsAppTemplateModalFromChat() {
-    waTemplateSourceField = 'chat';
-    document.querySelectorAll('input[name="waTemplateKey"]').forEach(r => r.checked = (r.value === 'manana_3'));
+function waRenderTemplateOptions(keys) {
+    const list = document.getElementById('waTemplateOptionsList');
+    if (!list) return;
+    const available = (keys || []).filter(k => waTemplateCatalogMap[k]);
+    if (available.length === 0) {
+        list.innerHTML = '<div style="padding:10px;color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;font-size:0.85rem;">Este estudio no tiene plantillas "una por una" conectadas. Pidele al superusuario que las conecte para este estudio.</div>';
+        return;
+    }
+    list.innerHTML = available.map((k, idx) => {
+        const t = waTemplateCatalogMap[k];
+        return `<label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
+            <input type="radio" name="waTemplateKey" value="${waEsc(k)}" onchange="waUpdateTemplateForm()" ${idx === 0 ? 'checked' : ''} style="margin-top:3px;">
+            <div>
+                <div style="font-weight:600;">${waEsc(t.label || k)}</div>
+                <div style="font-size:0.8rem;color:#64748b;">${waEsc(k)}</div>
+            </div>
+        </label>`;
+    }).join('');
+}
+
+async function openWhatsAppTemplateModal(fieldId) {
+    waTemplateSourceField = fieldId || null;
     document.getElementById('waTemplateCategory').value = '';
     document.getElementById('waTemplateError').style.display = 'none';
-    waUpdateTemplateForm();
+    document.getElementById('waTemplateOptionsList').innerHTML = '<div style="padding:10px;color:#64748b;font-size:0.85rem;">Cargando plantillas...</div>';
     document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
+    await waLoadTemplateCatalog();
+    const field = fieldId ? document.getElementById(fieldId) : null;
+    const phone = field ? String(field.value || '').replace(/\D/g, '') : '';
+    const keys = await waLoadSingleKeys({ callId: currentCallId || null, phoneNumber: phone || null });
+    waRenderTemplateOptions(keys);
+    waUpdateTemplateForm();
+}
+
+async function openWhatsAppTemplateModalFromChat() {
+    waTemplateSourceField = 'chat';
+    document.getElementById('waTemplateCategory').value = '';
+    document.getElementById('waTemplateError').style.display = 'none';
+    document.getElementById('waTemplateOptionsList').innerHTML = '<div style="padding:10px;color:#64748b;font-size:0.85rem;">Cargando plantillas...</div>';
+    document.getElementById('whatsappSendTemplateModal').style.display = 'flex';
+    await waLoadTemplateCatalog();
+    const keys = await waLoadSingleKeys({ callId: waChatCallId || null, phoneNumber: waChatPhone || null });
+    waRenderTemplateOptions(keys);
+    waUpdateTemplateForm();
 }
 
 function closeWhatsAppSendTemplateModal() {
@@ -5487,7 +5596,9 @@ function showWhatsAppTemplatePreview() {
         return;
     }
     const kind = selected.value;
-    const needsCategory = kind === 'manana_3';
+    const item = waTemplateCatalogMap[kind];
+    const params = (item && Array.isArray(item.params)) ? item.params : [];
+    const needsCategory = params.includes('categoria');
     if (needsCategory && !category) {
         error.textContent = 'Indica la categoría o tipo de estudio.';
         error.style.display = 'block';
@@ -5530,20 +5641,16 @@ function showWhatsAppTemplatePreview() {
         : 'Cliente';
     const agentName = currentUserName || 'Encuestador';
     const hora = getWhatsAppTemplateHora();
-    let body = WA_TEMPLATE_BODIES[kind] || '';
+    let body = waTemplateBody(kind) || WA_TEMPLATE_BODIES[kind] || '';
     body = body.replace(/\{\{nombre\}\}/g, personName);
     body = body.replace(/\{\{encuestada\}\}/g, personName);
     body = body.replace(/\{\{encuestado\}\}/g, personName);
     body = body.replace(/\{\{encuestador\}\}/g, agentName);
     body = body.replace(/\{\{categoria\}\}/g, category || '-');
+    body = body.replace(/\{\{hora_asignada\}\}/g, hora);
     body = body.replace(/\{\{hora\}\}/g, hora);
 
-    const names = {
-        'manana_3': 'Buenas tardes (recordatorio) — manana_3',
-        'shampo_primer': 'Shampoo — primer contacto — shampo_primer',
-        'shampo_segundo': 'Shampoo — segundo recordatorio — shampo_segundo'
-    };
-    document.getElementById('waPreviewTemplateName').textContent = names[kind] || kind;
+    document.getElementById('waPreviewTemplateName').textContent = waTemplateLabel(kind) + ' — ' + kind;
     document.getElementById('waPreviewBody').textContent = body;
     document.getElementById('waPreviewError').style.display = 'none';
 
@@ -5718,7 +5825,7 @@ async function sendWhatsAppBono() {
     }
 }
 
-function openWhatsAppNewChat() {
+async function openWhatsAppNewChat() {
     document.getElementById('waNewChatPhone').value = '';
     document.getElementById('waNewChatName').value = '';
     document.getElementById('waNewChatSubject').value = '';
@@ -5731,23 +5838,72 @@ function openWhatsAppNewChat() {
     const bulkBtn = document.getElementById('waBulkSend');
     bulkBtn.disabled = false;
     bulkBtn.textContent = 'Enviar masivo (20 de 20)';
-    waResetBulkKind();
-    waToggleNewChatLink();
+    document.getElementById('waNewChatStudy').innerHTML = '<option value="">Cargando estudios...</option>';
+    document.getElementById('waNewChatSingleGroup').innerHTML = '<option value="" disabled>(selecciona un estudio)</option>';
     document.getElementById('whatsappNewChatModal').style.display = 'flex';
+    await waLoadTemplateCatalog();
+    await waLoadNewChatStudies();
+    document.getElementById('waNewChatStudy').value = '';
+    waPopulateNewChatTemplates([]);
+    waResetBulkKind();
 }
 
 function closeWhatsAppNewChat() {
     document.getElementById('whatsappNewChatModal').style.display = 'none';
 }
 
+let waNewChatStudies = [];
+
+async function waLoadNewChatStudies() {
+    try {
+        const res = await fetch('/studies', { headers });
+        if (!res.ok) throw new Error('No se pudieron cargar los estudios');
+        const studies = await res.json();
+        waNewChatStudies = studies.filter(s => s.is_active === true || s.is_active === 1 || s.is_active === 'true');
+    } catch (e) {
+        console.error(e);
+        waNewChatStudies = [];
+    }
+    const select = document.getElementById('waNewChatStudy');
+    select.innerHTML = '<option value="">Selecciona un estudio</option>' +
+        waNewChatStudies.map(s => `<option value="${s.id}">${waEsc(s.name)}</option>`).join('');
+}
+
+async function waOnNewChatStudyChange() {
+    const studyId = document.getElementById('waNewChatStudy').value;
+    const keys = studyId ? await waLoadSingleKeys({ studyId: parseInt(studyId, 10) }) : [];
+    waPopulateNewChatTemplates(keys);
+    waResetBulkKind();
+}
+
+function waPopulateNewChatTemplates(keys) {
+    const group = document.getElementById('waNewChatSingleGroup');
+    const select = document.getElementById('waNewChatKind');
+    const available = (keys || []).filter(k => waTemplateCatalogMap[k]);
+    if (available.length === 0) {
+        group.innerHTML = '<option value="" disabled>(sin plantillas conectadas)</option>';
+    } else {
+        group.innerHTML = available.map(k => {
+            const t = waTemplateCatalogMap[k];
+            return `<option value="${waEsc(k)}">${waEsc(t.label || k)} — ${waEsc(k)}</option>`;
+        }).join('');
+    }
+    if (available.length > 0) {
+        select.value = available[0];
+    } else {
+        select.value = 'filter';
+    }
+}
+
 function waToggleNewChatLink() {
     const kind = document.getElementById('waNewChatKind').value;
-    const isManana = kind === 'manana_3';
-    const isShampo = ['shampo_primer', 'shampo_segundo'].includes(kind);
-    const needsName = isManana || isShampo;
+    const item = waTemplateCatalogMap[kind];
+    const params = (item && Array.isArray(item.params)) ? item.params : [];
+    const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre'));
+    const needsCategory = params.includes('categoria') || kind === 'filter' || kind === 'form';
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
     document.getElementById('waNewChatNameLabel').style.display = needsName ? 'block' : 'none';
-    document.getElementById('waNewChatSubjectLabel').style.display = (kind === 'form' || kind === 'filter' || isManana) ? 'block' : 'none';
+    document.getElementById('waNewChatSubjectLabel').style.display = needsCategory ? 'block' : 'none';
     waRenderNewChatPreview();
 }
 
@@ -5757,14 +5913,15 @@ function waRenderNewChatPreview() {
     const kind = document.getElementById('waNewChatKind').value;
     const name = (document.getElementById('waNewChatName').value || '').trim();
     const subject = (document.getElementById('waNewChatSubject').value || '').trim();
-    if (kind === 'filter' || kind === 'form') {
+    const item = waTemplateCatalogMap[kind];
+    if (!item) {
         box.innerHTML = '<span style="color:#64748b;">Esta opción envía una plantilla fija de ' +
             (kind === 'filter' ? 'filtro de participación' : 'invitación al formulario') +
             '. No tiene texto con variables para previsualizar.</span>';
         box.scrollTop = 0;
         return;
     }
-    let body = WA_TEMPLATE_BODIES[kind] || '';
+    let body = waTemplateBody(kind) || WA_TEMPLATE_BODIES[kind] || '';
     if (!body) {
         box.innerHTML = '<span style="color:#64748b;">(sin texto de vista previa)</span>';
         return;
@@ -5774,6 +5931,7 @@ function waRenderNewChatPreview() {
         .replace(/\{\{encuestado\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestador\}\}/g, currentUserName || 'Encuestador')
         .replace(/\{\{categoria\}\}/g, subject || '[estudio]')
+        .replace(/\{\{hora_asignada\}\}/g, '[hora de recogida]')
         .replace(/\{\{hora\}\}/g, '[hora de recogida]');
     box.textContent = body;
     box.scrollTop = 0;
@@ -5781,14 +5939,14 @@ function waRenderNewChatPreview() {
 
 function waNewChatTemplateParams() {
     const kind = document.getElementById('waNewChatKind').value;
-    const isManana = kind === 'manana_3';
-    const isShampo = ['shampo_primer', 'shampo_segundo'].includes(kind);
+    const item = waTemplateCatalogMap[kind];
+    const params = (item && Array.isArray(item.params)) ? item.params : [];
+    const isTemplate = !!item;
     return {
-        needsName: isManana || isShampo,
-        needsCategory: kind === 'filter' || kind === 'form' || isManana,
+        isTemplate: isTemplate,
+        needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre')),
+        needsCategory: params.includes('categoria') || kind === 'filter' || kind === 'form',
         needsLink: kind === 'form',
-        isManana: isManana,
-        isShampo: isShampo,
     };
 }
 
@@ -5805,20 +5963,22 @@ async function sendWhatsAppNewChat() {
     button.disabled = true;
     button.textContent = 'Enviando...';
     try {
-        if (params.isManana || params.isShampo) {
+        if (params.isTemplate) {
             const personName = document.getElementById('waNewChatName').value.trim();
-            if (!personName) {
+            if (params.needsName && !personName) {
                 throw new Error('Indica el nombre del encuestado.');
             }
             if (params.needsCategory && !subject) {
                 throw new Error('Indica la categoría o tipo de estudio.');
             }
+            const studyId = document.getElementById('waNewChatStudy').value;
             const payload = {
                 phone_number: phone,
                 template_key: kind,
                 category: subject,
                 person_name: personName,
             };
+            if (studyId) payload.study_id = parseInt(studyId, 10);
             const res = await fetch('/whatsapp/send-template', { method: 'POST', headers, body: JSON.stringify(payload) });
             const data = await res.json();
             if (!res.ok) throw new Error(data.detail || 'No se pudo enviar la plantilla');
@@ -5849,7 +6009,10 @@ async function sendWhatsAppNewChat() {
 }
 
 function waResetBulkKind() {
-    document.getElementById('waNewChatKind').value = 'shampo_primer';
+    const select = document.getElementById('waNewChatKind');
+    const firstSingle = select.querySelector('#waNewChatSingleGroup option:not([disabled])');
+    if (!select.value && firstSingle) select.value = firstSingle.value;
+    if (!select.value) select.value = 'filter';
     waToggleNewChatLink();
 }
 

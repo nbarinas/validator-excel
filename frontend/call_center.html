@@ -1390,6 +1390,25 @@
                 </div>
             </div>
         </div>
+        <!-- CONNECT SINGLE ("una por una") TEMPLATES TO STUDY MODAL (superuser only) -->
+        <div id="studySingleTemplatesModal"
+            style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1100; justify-content: center; align-items: center;">
+            <div style="background: white; padding: 2rem; border-radius: 12px; width: 560px; max-width: 92%; max-height: 85vh; overflow-y: auto;">
+                <h2 id="studySingleTemplatesTitle" style="margin-top: 0; color: #1e293b;">Plantillas una por una</h2>
+                <p style="margin-bottom: 1rem; color: #475569; font-size: 0.9rem;">
+                    Marca las plantillas que se podrán enviar <strong>una por una</strong> (por registro) en este estudio.
+                    Solo las plantillas conectadas aparecerán en el selector de envío por registro.
+                </p>
+                <div id="studySingleTemplatesBody" style="display: flex; flex-direction: column; gap: 8px;"></div>
+                <div id="studySingleTemplatesError" style="display:none; color:#b91c1c; font-size:.85rem; margin-top: 10px;"></div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <button onclick="closeStudySingleTemplatesModal()"
+                        style="background: #94a3b8; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer;">Cancelar</button>
+                    <button id="studySingleTemplatesSave" onclick="saveStudySingleTemplates()"
+                        style="background: #7c3aed; border: none; padding: 0.8rem 1.5rem; border-radius: 6px; color: white; cursor: pointer; font-weight: 600;">Guardar</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- DAILY REPORT MODAL -->
@@ -3023,12 +3042,11 @@
             <div class="wa-chat-header" style="background:#075e54;"><div class="wa-chat-title"><h3>Nuevo chat WhatsApp</h3><div class="wa-chat-sub">Elige una plantilla para iniciar</div></div><button class="wa-chat-close" onclick="closeWhatsAppNewChat()">&times;</button></div>
             <div style="padding:16px;display:flex;flex-direction:column;gap:10px;color:#1e293b;max-height:70vh;overflow-y:auto;">
                 <label>Número WhatsApp<input id="waNewChatPhone" type="tel" placeholder="3181234567" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <label>Estudio<select id="waNewChatStudy" onchange="waOnNewChatStudyChange()" style="width:100%;padding:9px;box-sizing:border-box;">
+                    <option value="">Selecciona un estudio</option>
+                </select></label>
                 <label>Tipo de contacto<select id="waNewChatKind" onchange="waToggleNewChatLink()" style="width:100%;padding:9px;box-sizing:border-box;">
-                    <optgroup label="Plantillas de seguimiento">
-                        <option value="shampo_primer" selected>Shampoo — primer contacto — shampo_primer</option>
-                        <option value="shampo_segundo">Shampoo — segundo recordatorio — shampo_segundo</option>
-                        <option value="manana_3">Buenas tardes (recordatorio) — manana_3</option>
-                    </optgroup>
+                    <optgroup label="Plantillas una por una" id="waNewChatSingleGroup"></optgroup>
                     <option value="filter">Filtro de participación</option>
                     <option value="form">Enviar formulario</option>
                 </select></label>
@@ -3180,29 +3198,7 @@
             <div style="padding:16px;display:flex;flex-direction:column;gap:12px;color:#1e293b;">
                 <input type="hidden" id="waTemplateSourceField" value="">
                 <label style="font-weight:600;font-size:0.9rem;">Selecciona la plantilla</label>
-                <div style="display:flex;flex-direction:column;gap:8px;">
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="manana_3" onchange="waUpdateTemplateForm()" checked style="margin-top:3px;">
-                        <div>
-                            <div style="font-weight:600;">Buenas tardes (recordatorio)</div>
-                            <div style="font-size:0.8rem;color:#64748b;">manana_3</div>
-                        </div>
-                    </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="shampo_primer" onchange="waUpdateTemplateForm()" style="margin-top:3px;">
-                        <div>
-                            <div style="font-weight:600;">Shampoo — primer contacto</div>
-                            <div style="font-size:0.8rem;color:#64748b;">shampo_primer</div>
-                        </div>
-                    </label>
-                    <label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;background:#f8fafc;">
-                        <input type="radio" name="waTemplateKey" value="shampo_segundo" onchange="waUpdateTemplateForm()" style="margin-top:3px;">
-                        <div>
-                            <div style="font-weight:600;">Shampoo — segundo recordatorio</div>
-                            <div style="font-size:0.8rem;color:#64748b;">shampo_segundo</div>
-                        </div>
-                    </label>
-                </div>
+                <div id="waTemplateOptionsList" style="display:flex;flex-direction:column;gap:8px;"></div>
                 <div id="waTemplateCategoryGroup">
                     <label>Categoría / Tipo de estudio<input id="waTemplateCategory" type="text" oninput="waUpdateTemplateForm()" placeholder="Ej: hábitos de compra, shampoo, alimento de perros..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 </div>
