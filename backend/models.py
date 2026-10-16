@@ -66,6 +66,7 @@ class Study(Base):
     calls = relationship("Call", back_populates="study")
     assistants = relationship("User", secondary=study_assignments, back_populates="assigned_studies")
     templates = relationship("StudyTemplate", back_populates="study", cascade="all, delete-orphan")
+    single_templates = relationship("StudySingleTemplate", back_populates="study", cascade="all, delete-orphan")
 
 
 class StudyTemplate(Base):
@@ -81,6 +82,25 @@ class StudyTemplate(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     study = relationship("Study", back_populates="templates")
+
+
+class StudySingleTemplate(Base):
+    """Plantillas de WhatsApp "una por una" (envío por registro) conectadas a un estudio.
+
+    Es un conjunto independiente del masivo (StudyTemplate): la misma key puede estar
+    conectada en ambos, por eso viven en tablas separadas.
+    """
+    __tablename__ = "study_single_templates"
+    __table_args__ = (
+        UniqueConstraint('study_id', 'template_key', name='uq_study_single_template'),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    study_id = Column(Integer, ForeignKey("studies.id"), index=True, nullable=False)
+    template_key = Column(String(50), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    study = relationship("Study", back_populates="single_templates")
 
 
 class Call(Base):

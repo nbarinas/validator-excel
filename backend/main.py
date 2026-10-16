@@ -243,6 +243,17 @@ def on_startup():
             db.execute(text("CREATE INDEX ix_whatsapp_messages_next_retry_at ON whatsapp_messages (next_retry_at)"))
             print("Migration: Added index ix_whatsapp_messages_next_retry_at")
 
+        # Sembrado unico de plantillas "una por una": si la tabla esta totalmente vacia
+        # (primer arranque con la feature), conectar las 3 historicas a los estudios
+        # activos para no cortar el trabajo el dia 1. No es un fallback permanente:
+        # en cuanto exista una sola fila, no vuelve a sembrar.
+        try:
+            seeded = _seed_single_templates(db)
+            if seeded:
+                print(f"Migration: Seeded single templates for {seeded} active studies")
+        except Exception as seed_err:
+            print(f"Single-template seed skipped: {seed_err}")
+
         db.commit()
     except Exception as e:
         print(f"Migration error: {e}")
@@ -1391,6 +1402,7 @@ WHATSAPP_TEMPLATE_MAP = {
     "manana_3": {"name": "manana_3", "language": "es_ES", "params": ["nombre", "encuestador", "categoria"]},
     "shampo_primer": {"name": "shampo_primer", "language": "es", "params": ["encuestada", "encuestador", "hora"]},
     "shampo_segundo": {"name": "shampo_segundo", "language": "es", "params": ["encuestado"]},
+    "in_home_beta_385": {"name": "in_home_beta_385", "language": "es", "params": ["encuestada", "encuestador", "hora_asignada"]},
     "bono_final": {"name": "bono_final", "language": "es", "params": ["encuestada"]},
     "bono_parcial": {"name": "bono_parcial", "language": "es", "params": ["encuestada", "dia_y_hora", "monto"]},
     "siabate_producto": {"name": "siabate_producto", "language": "es", "params": ["encuestada", "mascota", "censo"]},
@@ -1418,6 +1430,7 @@ WHATSAPP_TEMPLATE_LABELS = {
     "manana_3": "Buenas tardes (recordatorio)",
     "shampo_primer": "Shampoo — primer contacto",
     "shampo_segundo": "Shampoo — segundo recordatorio",
+    "in_home_beta_385": "In Home Beta 385 — recordatorio de videollamada",
     "bono_final": "Bono final",
     "bono_parcial": "Bono parcial",
     "siabate_producto": "Registro diario concentrado + producto (fatiga)",
@@ -1438,6 +1451,16 @@ WHATSAPP_TEMPLATE_LABELS = {
     "concentrado__producto_sibate_2_203": "Concentrado producto Sibate 2 — 203",
     "conce_prodcuto_sibate_1_310": "Concentrado producto Sibate 1 — 310",
 }
+
+# Plantillas habilitadas para el envío "una por una" (por registro). El resto del
+# catálogo sólo se puede conectar al envío masivo. Una key puede estar en ambos
+# conjuntos a la vez (p.ej. in_home_beta_385).
+WHATSAPP_SINGLE_TEMPLATE_KEYS = [
+    "manana_3",
+    "shampo_primer",
+    "shampo_segundo",
+    "in_home_beta_385",
+]
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
 # evitar que expire durante el envío.
@@ -1476,6 +1499,7 @@ WHATSAPP_TEMPLATE_BODIES = {
     "manana_3": "Buenas tardes, señora {{nombre}}, ¿cómo está?\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de {{categoria}} y quería confirmar si en este momento podríamos realizar la videollamada.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "shampo_primer": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de shampoo. Hace 15 días le entregamos el producto y el día de hoy tiene programada una videollamada a las {{hora}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "in_home_beta_385": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de tratamiento para el cabello de los que se compran listos. Hace 15 días le entregamos el producto 358  y el día de hoy tiene programada una videollamada a las {{hora_asignada}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día.",
     "registro_diario_fatiga_6_semanas": "🐶 ¡Hola, {{encuestado}}! 👋\n\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Recuerda realizar hoy, es el dia {{dia}}, en el que vamos, el registro del consumo de tu perro {{perro}}, utilizando su alimento habitual junto con el producto que te enviamos.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo horario y tipo de comida durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Es muy importante realizar el registro todos los días durante el estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/Zwj9RbSh9pn2nQLU8\n\n¡Muchas gracias por tu compromiso y participación! 🐾",
@@ -1533,9 +1557,43 @@ def _study_template_keys(db, study_id):
     rows = (
         db.query(models.StudyTemplate.template_key)
         .filter(models.StudyTemplate.study_id == study_id)
+        .order_by(asc(models.StudyTemplate.id))
         .all()
     )
     return [r[0] for r in rows]
+
+
+def _study_single_template_keys(db, study_id):
+    """Claves de plantilla "una por una" conectadas a un estudio (lista, puede estar vacía)."""
+    if not study_id:
+        return []
+    rows = (
+        db.query(models.StudySingleTemplate.template_key)
+        .filter(models.StudySingleTemplate.study_id == study_id)
+        .order_by(asc(models.StudySingleTemplate.id))
+        .all()
+    )
+    return [r[0] for r in rows]
+
+
+_LEGACY_SINGLE_TEMPLATE_KEYS = ["manana_3", "shampo_primer", "shampo_segundo"]
+
+
+def _seed_single_templates(db):
+    """Sembrado unico de plantillas 1x1 (ver on_startup).
+
+    Si la tabla esta totalmente vacia, conecta las 3 historicas a los estudios activos.
+    No es un fallback permanente: en cuanto exista una fila, no vuelve a sembrar.
+    Devuelve la cantidad de estudios activos sembrados (0 si no correspondia).
+    """
+    if db.query(models.StudySingleTemplate).count():
+        return 0
+    active_studies = db.query(models.Study).filter(models.Study.is_active == True).all()
+    for s in active_studies:
+        for key in _LEGACY_SINGLE_TEMPLATE_KEYS:
+            db.add(models.StudySingleTemplate(study_id=s.id, template_key=key))
+    db.commit()
+    return len(active_studies)
 
 
 def _wa_render_template_body(template_key, param_values):
@@ -2447,7 +2505,39 @@ def whatsapp_templates_catalog(
         "label": WHATSAPP_TEMPLATE_LABELS.get(key, key),
         "params": cfg.get("params", []),
         "body": WHATSAPP_TEMPLATE_BODIES.get(key),
+        "single_eligible": key in WHATSAPP_SINGLE_TEMPLATE_KEYS,
     } for key, cfg in WHATSAPP_TEMPLATE_MAP.items()]
+
+
+@app.get("/whatsapp/single-templates")
+def whatsapp_single_templates_for_target(
+    call_id: Optional[int] = None,
+    phone_number: Optional[str] = None,
+    study_id: Optional[int] = None,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(auth.get_current_user),
+):
+    """Plantillas "una por una" disponibles para un envío (resuelve el estudio).
+
+    Orden de resolución: study_id explícito, la llamada, o la llamada del teléfono.
+    Si no se puede resolver ningún estudio, devuelve lista vacía.
+    """
+    resolved = study_id
+    if not resolved and call_id:
+        call = db.query(models.Call).filter(models.Call.id == call_id).first()
+        if call and call.study_id:
+            resolved = call.study_id
+    if not resolved and phone_number:
+        linked = _find_call_by_phone(db, phone_number)
+        if linked and linked.study_id:
+            resolved = linked.study_id
+    keys = _study_single_template_keys(db, resolved) if resolved else []
+    study = db.query(models.Study).filter(models.Study.id == resolved).first() if resolved else None
+    return {
+        "study_id": resolved,
+        "study_name": study.name if study else None,
+        "single_template_keys": keys,
+    }
 
 
 class WhatsAppSendTemplateRequest(BaseModel):
@@ -2464,6 +2554,7 @@ class WhatsAppSendTemplateRequest(BaseModel):
     nombremascota: Optional[str] = None
     fecha: Optional[str] = None
     bulk_link: bool = False
+    study_id: Optional[int] = None
 
 
 @app.post("/whatsapp/send-template")
@@ -2514,6 +2605,29 @@ def whatsapp_send_template(
                 status_code=403,
                 detail="Esa plantilla no está conectada a este estudio. Elige una de las plantillas disponibles.",
             )
+
+    # Envío "una por una" (por registro): la plantilla tiene que estar conectada al
+    # conjunto 1x1 del estudio. El estudio se resuelve con la llamada, con el
+    # study_id explícito (modal "Nuevo chat") o buscando la llamada por teléfono.
+    # Si no hay ningún estudio determinable, no se bloquea (número nuevo suelto).
+    if not request.bulk_link:
+        single_study_id = call.study_id if (call and call.study_id) else request.study_id
+        if not single_study_id and request.phone_number:
+            linked_call = _find_call_by_phone(db, request.phone_number)
+            if linked_call and linked_call.study_id:
+                single_study_id = linked_call.study_id
+        if single_study_id:
+            allowed_single = _study_single_template_keys(db, single_study_id)
+            if not allowed_single:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Este estudio todavía no tiene plantillas \"una por una\" conectadas. Pídele al superusuario que las conecte antes de enviar.",
+                )
+            if request.template_key not in allowed_single:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Esa plantilla no está conectada al envío \"una por una\" de este estudio. Elige una de las plantillas disponibles.",
+                )
 
     phone = _resolve_call_wa_phone(db, call, request.phone_number)
     if not phone:
@@ -2616,6 +2730,7 @@ def whatsapp_send_template(
         "encuestada": person_name,
         "encuestado": person_name,
         "hora": hora_texto,
+        "hora_asignada": hora_texto,
         "dia_y_hora": dia_y_hora,
         "monto": monto,
         "nombre_mascota": nombre_mascota,
@@ -2968,6 +3083,7 @@ def whatsapp_send_bulk(
                 "encuestada": person_name,
                 "encuestado": person_name,
                 "hora": "hoy",
+                "hora_asignada": "hoy",
             }
             parameters = [
                 {"type": "text", "text": param_values.get(p, ""), "parameter_name": p}
@@ -3631,14 +3747,23 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
     studies = query.all()
     # Plantillas conectadas por estudio (una sola consulta para evitar N+1).
     templates_by_study = {}
+    single_templates_by_study = {}
     if studies:
+        study_ids = [s.id for s in studies]
         rows = (
             db.query(models.StudyTemplate.study_id, models.StudyTemplate.template_key)
-            .filter(models.StudyTemplate.study_id.in_([s.id for s in studies]))
+            .filter(models.StudyTemplate.study_id.in_(study_ids))
             .all()
         )
         for study_id, template_key in rows:
             templates_by_study.setdefault(study_id, []).append(template_key)
+        single_rows = (
+            db.query(models.StudySingleTemplate.study_id, models.StudySingleTemplate.template_key)
+            .filter(models.StudySingleTemplate.study_id.in_(study_ids))
+            .all()
+        )
+        for study_id, template_key in single_rows:
+            single_templates_by_study.setdefault(study_id, []).append(template_key)
     # Explicitly return dict to ensure is_active is available on frontend
     return [{
         "id": s.id,
@@ -3649,6 +3774,7 @@ def get_studies(include_inactive: bool = False, db: Session = Depends(database.g
         "study_type": s.study_type,
         "stage": s.stage,
         "template_keys": templates_by_study.get(s.id, []),
+        "single_template_keys": single_templates_by_study.get(s.id, []),
     } for s in studies]
 
 class AssistantAssignment(BaseModel):
@@ -3717,6 +3843,44 @@ def set_study_templates(study_id: int, update: StudyTemplatesUpdate, db: Session
         db.add(models.StudyTemplate(study_id=study_id, template_key=key))
     db.commit()
     return {"study_id": study_id, "template_keys": keys}
+
+
+class StudySingleTemplatesUpdate(BaseModel):
+    template_keys: List[str] = []
+
+
+@app.get("/studies/{study_id}/single-templates")
+def get_study_single_templates(study_id: int, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """Plantillas "una por una" conectadas a un estudio (las usa el envío por registro)."""
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Estudio no encontrado")
+    return {"study_id": study_id, "single_template_keys": _study_single_template_keys(db, study_id)}
+
+
+@app.put("/studies/{study_id}/single-templates")
+def set_study_single_templates(study_id: int, update: StudySingleTemplatesUpdate, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    """Conecta/desconecta plantillas "una por una" a un estudio. Solo el superusuario."""
+    if current_user.role != "superuser":
+        raise HTTPException(status_code=403, detail="Solo el superusuario puede conectar plantillas a los estudios")
+    study = db.query(models.Study).filter(models.Study.id == study_id).first()
+    if not study:
+        raise HTTPException(status_code=404, detail="Estudio no encontrado")
+
+    keys = []
+    seen = set()
+    for key in (update.template_keys or []):
+        key = (key or "").strip()
+        # Solo las plantillas habilitadas para envío 1x1 pueden conectarse aca.
+        if key and key in WHATSAPP_SINGLE_TEMPLATE_KEYS and key not in seen:
+            seen.add(key)
+            keys.append(key)
+
+    db.query(models.StudySingleTemplate).filter(models.StudySingleTemplate.study_id == study_id).delete()
+    for key in keys:
+        db.add(models.StudySingleTemplate(study_id=study_id, template_key=key))
+    db.commit()
+    return {"study_id": study_id, "single_template_keys": keys}
 
 
 class CallBulkStatusUpdate(BaseModel):
