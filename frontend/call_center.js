@@ -1207,7 +1207,7 @@ async function loadManageStudiesTable() {
                     <td style="padding:0.5rem; color: #334155;"><strong>${s.name}</strong><br><span style="font-size:0.8rem; color:#64748b;">${s.code}</span></td>
                     <td style="padding:0.5rem; color: #334155;">${s.study_type || '-'} <span style="font-size:0.8rem; color:#f59e0b;">[${s.stage || '-'}]</span></td>
                     <td style="padding:0.5rem;"><span style="color:white; background:${statusColor}; padding:2px 8px; border-radius:10px; font-size:0.8rem;">${statusText}</span></td>
-                    <td style="padding:0.5rem; display:flex; gap:5px;">
+                    <td style="padding:0.5rem; display:flex; flex-wrap:wrap; gap:5px;">
                          <button onclick="toggleStudyStatus(${s.id})" style="cursor:pointer; background: ${s.is_active ? '#ef4444' : '#22c55e'}; color:white; border:none; padding:4px 8px; border-radius:4px; font-size:0.75rem;">
                             ${s.is_active ? 'Desactivar' : 'Activar'}
                          </button>
