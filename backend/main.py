@@ -2609,8 +2609,9 @@ def whatsapp_send_template(
     # Envío "una por una" (por registro): la plantilla tiene que estar conectada al
     # conjunto 1x1 del estudio. El estudio se resuelve con la llamada, con el
     # study_id explícito (modal "Nuevo chat") o buscando la llamada por teléfono.
-    # Si no hay ningún estudio determinable, no se bloquea (número nuevo suelto).
-    if not request.bulk_link:
+    # Solo aplica a las plantillas del catálogo 1x1: el resto (bonos, etc.) mantiene
+    # su comportamiento previo. Si no hay ningún estudio determinable, no se bloquea.
+    if not request.bulk_link and request.template_key in WHATSAPP_SINGLE_TEMPLATE_KEYS:
         single_study_id = call.study_id if (call and call.study_id) else request.study_id
         if not single_study_id and request.phone_number:
             linked_call = _find_call_by_phone(db, request.phone_number)

@@ -5844,7 +5844,7 @@ async function openWhatsAppNewChat() {
     await waLoadTemplateCatalog();
     await waLoadNewChatStudies();
     document.getElementById('waNewChatStudy').value = '';
-    waPopulateNewChatTemplates([]);
+    waPopulateNewChatTemplates(waNewChatAllSingleKeys());
     waResetBulkKind();
 }
 
@@ -5871,9 +5871,21 @@ async function waLoadNewChatStudies() {
 
 async function waOnNewChatStudyChange() {
     const studyId = document.getElementById('waNewChatStudy').value;
-    const keys = studyId ? await waLoadSingleKeys({ studyId: parseInt(studyId, 10) }) : [];
+    const keys = studyId ? await waLoadSingleKeys({ studyId: parseInt(studyId, 10) }) : waNewChatAllSingleKeys();
     waPopulateNewChatTemplates(keys);
     waResetBulkKind();
+}
+
+// Union de las 1x1 de los estudios activos, para el caso "sin estudio elegido"
+// (asi el select compartido con el envio masivo nunca queda con un valor invalido).
+function waNewChatAllSingleKeys() {
+    const keys = [];
+    (waNewChatStudies || []).forEach(s => {
+        (s.single_template_keys || []).forEach(k => {
+            if (!keys.includes(k)) keys.push(k);
+        });
+    });
+    return keys;
 }
 
 function waPopulateNewChatTemplates(keys) {
@@ -6062,6 +6074,11 @@ async function sendWhatsAppBulk() {
 
     errorEl.style.display = 'none';
     statusEl.style.display = 'none';
+    if (!waTemplateCatalogMap[kind]) {
+        errorEl.textContent = 'Elige una plantilla válida para el envío masivo.';
+        errorEl.style.display = 'block';
+        return;
+    }
     const contacts = parseBulkList(listEl.value);
     if (contacts.length === 0) {
         errorEl.textContent = 'Pega al menos una línea con Nombre, número.';
