@@ -5458,6 +5458,7 @@ const WA_TEMPLATE_BODIES = {
     "shampo_primer": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de shampoo. Hace 10 días le entregamos el producto 729  y el día de hoy tiene programada una videollamada a las {{hora}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "in_home_beta_385": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de tratamiento para el cabello de los que se compran listos. Hace 15 días le entregamos el producto 358  y el día de hoy tiene programada una videollamada a las {{hora_asignada}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
+    "r2_729": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día."
 };
@@ -5475,7 +5476,7 @@ function waUpdateTemplateForm() {
     const item = kind ? waTemplateCatalogMap[kind] : null;
     const params = (item && Array.isArray(item.params)) ? item.params : [];
     const needsCategory = params.includes('categoria');
-    const needsHora = params.includes('hora') || params.includes('hora_asignada');
+    const needsHora = params.includes('hora') || params.includes('hora_asignada') || params.includes('hora_agendada');
     document.getElementById('waTemplateCategoryGroup').style.display = needsCategory ? 'block' : 'none';
     const horaGroup = document.getElementById('waTemplateHoraGroup');
     if (horaGroup) {
@@ -5504,9 +5505,11 @@ function waRenderInlineTemplatePreview(kind) {
     body = body.replace(/\{\{nombre\}\}/g, personName)
         .replace(/\{\{encuestada\}\}/g, personName)
         .replace(/\{\{encuestado\}\}/g, personName)
+        .replace(/\{\{nombre_entrevistada\}\}/g, personName)
         .replace(/\{\{encuestador\}\}/g, agentName)
         .replace(/\{\{categoria\}\}/g, category || '[estudio]')
         .replace(/\{\{hora_asignada\}\}/g, hora)
+        .replace(/\{\{hora_agendada\}\}/g, hora)
         .replace(/\{\{hora\}\}/g, hora);
     box.textContent = body;
     box.scrollTop = 0;
@@ -5645,9 +5648,11 @@ function showWhatsAppTemplatePreview() {
     body = body.replace(/\{\{nombre\}\}/g, personName);
     body = body.replace(/\{\{encuestada\}\}/g, personName);
     body = body.replace(/\{\{encuestado\}\}/g, personName);
+    body = body.replace(/\{\{nombre_entrevistada\}\}/g, personName);
     body = body.replace(/\{\{encuestador\}\}/g, agentName);
     body = body.replace(/\{\{categoria\}\}/g, category || '-');
     body = body.replace(/\{\{hora_asignada\}\}/g, hora);
+    body = body.replace(/\{\{hora_agendada\}\}/g, hora);
     body = body.replace(/\{\{hora\}\}/g, hora);
 
     document.getElementById('waPreviewTemplateName').textContent = waTemplateLabel(kind) + ' — ' + kind;
@@ -5911,7 +5916,7 @@ function waToggleNewChatLink() {
     const kind = document.getElementById('waNewChatKind').value;
     const item = waTemplateCatalogMap[kind];
     const params = (item && Array.isArray(item.params)) ? item.params : [];
-    const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre'));
+    const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre') || params.includes('nombre_entrevistada'));
     const needsCategory = params.includes('categoria') || kind === 'filter' || kind === 'form';
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
     document.getElementById('waNewChatNameLabel').style.display = needsName ? 'block' : 'none';
@@ -5941,9 +5946,11 @@ function waRenderNewChatPreview() {
     body = body.replace(/\{\{nombre\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestada\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestado\}\}/g, name || '[nombre]')
+        .replace(/\{\{nombre_entrevistada\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestador\}\}/g, currentUserName || 'Encuestador')
         .replace(/\{\{categoria\}\}/g, subject || '[estudio]')
         .replace(/\{\{hora_asignada\}\}/g, '[hora de recogida]')
+        .replace(/\{\{hora_agendada\}\}/g, '[hora de recogida]')
         .replace(/\{\{hora\}\}/g, '[hora de recogida]');
     box.textContent = body;
     box.scrollTop = 0;
@@ -5956,7 +5963,7 @@ function waNewChatTemplateParams() {
     const isTemplate = !!item;
     return {
         isTemplate: isTemplate,
-        needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre')),
+        needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre') || params.includes('nombre_entrevistada')),
         needsCategory: params.includes('categoria') || kind === 'filter' || kind === 'form',
         needsLink: kind === 'form',
     };

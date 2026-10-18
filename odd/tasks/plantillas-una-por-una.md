@@ -39,10 +39,28 @@ plantillas masivas, debe haber un botón `Plantillas 1×1` para agregar o quitar
 **S4.** El backend debe **rechazar siempre** el envío 1×1 de una plantilla que no esté
 conectada al estudio (decisión del usuario; sin fallback permisivo).
 
-**S5.** Elegibles para 1×1: `manana_3`, `shampo_primer`, `shampo_segundo`, `in_home_beta_385`.
-El masivo conserva todo el catálogo, incluida `in_home_beta_385`.
+**S5.** Elegibles para 1×1: `manana_3`, `shampo_primer`, `shampo_segundo`,
+`in_home_beta_385`, `r2_729`. El masivo conserva todo el catálogo, incluidas
+`in_home_beta_385` y `r2_729`.
 
 **S6.** El modal "Nuevo chat" suma un selector de Estudio y ofrece solo las 1×1 de ese estudio.
+
+**S8.** (Cambio de requerimiento, ver L11) El catálogo suma la plantilla `r2_729` (nombre Meta
+`r2_729`, idioma `es`), habilitada para 1×1 y para el masivo. Usa las variables
+`{{nombre_entrevistada}}`, `{{encuestador}}` y `{{hora_agendada}}`; esta última se resuelve con
+`collection_time`, igual que `{{hora}}`. Cuerpo verbatim:
+
+```
+¡Muy buenos días, señora {{nombre_entrevistada}}! 😊
+
+La saluda {{encuestador}}, de AZ Marketing Plus.
+
+Le escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 729, a las {{hora_agendada}}.
+
+¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?
+
+Quedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷
+```
 
 **S7.** Al arrancar, si la tabla de 1×1 está totalmente vacía (primer deploy), conectar las 3
 históricas a los estudios activos, para no cortar el trabajo el día 1. Es un sembrado único,
@@ -66,9 +84,10 @@ no un fallback permanente.
 | T12 | S4 | fix B1: la validación aplica solo al catálogo 1×1 | hecho (b5676a1) |
 | T13 | S6 | fix B2: default válido del select compartido | hecho (b5676a1) |
 | T14 | S1-S7 | `scripts/tests/check_single_templates_regression.py` + `check_new_chat_bulk_default.js` | hecho (3f82582) |
+| T15 | S8 (S5) | `backend/main.py` + `frontend/call_center.js` + `scripts/tests/check_r2_729_preview.js` | hecho (sin commit) |
 
 Work units: backend (fd2c27b), frontend (9a25f0d), tests (a618814), fix de la verificación
-(b5676a1), regresión (3f82582) y esta doc.
+(b5676a1), regresión (3f82582), r2_729 (sin commit) y esta doc.
 
 ## Log
 
@@ -149,3 +168,30 @@ conectadas dan 403; y que con un `<select>` realista `waNewChatKind` queda en `m
 
 **L10** (commits): `fd2c27b` backend, `9a25f0d` frontend, `a618814` check, `b5676a1` fix de
 B1/B2, `3f82582` tests de regresión. Rama `feat/plantillas-una-por-una`, sin push ni PR.
+
+**L11** (cambio de requerimiento, pedido del usuario verbatim):
+
+> quiero agregar la plantilla de meta r2_729 · Spanish que dice ¡Muy buenos días, señora {{nombre_entrevistada}}! 😊
+>
+> La saluda {{encuestador}}, de AZ Marketing Plus.
+>
+> Le escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 729, a las {{hora_agendada}}.
+>
+> ¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?
+>
+> Quedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷
+> 2:26 pm
+> Si porfa, de una vez
+> Mas tarde, porfa, para que el superusuario la agregue en 1x1 y plantillas (tambien en la previsializacion para que se vea en el front) sabes donde puedo hacer eso? revisa y me avisas antes de proceder a modificar el codigo
+
+**L12** (decisión y evidencia): el usuario autorizó proceder con `r2_729` / `es`. Se agregó al
+catálogo (`WHATSAPP_TEMPLATE_MAP`/`LABELS`/`BODIES`) y a `WHATSAPP_SINGLE_TEMPLATE_KEYS`, y se
+mapearon `nombre_entrevistada` y `hora_agendada` en `param_values` (`backend/main.py`). En el
+front (`frontend/call_center.js`): cuerpo de respaldo en `WA_TEMPLATE_BODIES`, reemplazo de las
+variables en las tres vistas previas y reconocimiento de los nombres de parámetro en
+`waUpdateTemplateForm`/`waToggleNewChatLink`/`waNewChatTemplateParams`. Checks nuevos:
+`check_single_templates.py` (RED→GREEN) y `check_r2_729_preview.js`. El cuerpo del backend y el
+del front quedan byte-idénticos (SHA-256 `2dec573524e11c67b590f4accaf06b9d29be1b0e589eaa9929adf86cf47fb6ce`).
+Suite `scripts/tests` 5/5 OK, `py_compile` y `node --check` OK. Pendiente fuera del código:
+que Meta tenga la plantilla `r2_729` (`es`) aprobada con esos `parameter_name`, y que el
+superusuario la conecte al estudio (botones `Plantillas 1×1` y `Plantillas`).
