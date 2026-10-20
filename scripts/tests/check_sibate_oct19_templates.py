@@ -56,7 +56,7 @@ BODY_FINAL = (
 )
 
 BODY_RECORDATORIO = (
-    "🐶 REGISTRO DIARIO – DÍA 6/7\n"
+    "🐶 REGISTRO DIARIO – DÍA {{dia}}\n"
     "\n"
     "¡Hola, {{encuestada}}! 👋\n"
     "Te saluda el equipo de AZ Marketing Plus.\n"
@@ -125,7 +125,7 @@ NUEVAS = {
         "body": BODY_FINAL,
     },
     "recordatorio_diario_semana_19_de_octubre_": {
-        "params": ["encuestada", "mascota", "censo"],
+        "params": ["dia", "encuestada", "mascota", "censo"],
         "body": BODY_RECORDATORIO,
     },
     "inicio_semana_19_de_octu": {
@@ -211,10 +211,14 @@ def correr():
         for key in ("recordatorio_diario_semana_19_de_octubre_", "inicio_semana_19_de_octu"):
             body = main._wa_render_template_body(
                 key,
-                {"encuestada": "Ana", "mascota": "Luna", "censo": "1234"},
+                {"dia": "3", "encuestada": "Ana", "mascota": "Luna", "censo": "1234"},
             )
             check(body is not None and "Ana" in body and "Luna" in body and "1234" in body
                   and "{{" not in body, f"{key} sustituye encuestada/mascota/censo")
+            if key == "recordatorio_diario_semana_19_de_octubre_":
+                check(body is not None and body.startswith("🐶 REGISTRO DIARIO – DÍA 3\n"),
+                      f"{key} sustituye el dia digitado en el encabezado")
+
 
         print("[5] Conexion por estudio (masivo y 1x1)")
         study = models.Study(code="OCT19", name="Octubre 19", is_active=True)
@@ -257,6 +261,26 @@ def correr():
                             ("showWhatsAppTemplatePreview", final_preview)):
             check(r".replace(/\{\{mascota\}\}/g" in src, f"{nombre} sustituye {{{{mascota}}}}")
             check(r".replace(/\{\{censo\}\}/g" in src, f"{nombre} sustituye {{{{censo}}}}")
+            check(r".replace(/\{\{dia\}\}/g" in src, f"{nombre} sustituye {{{{dia}}}}")
+
+        print("[7] El dia se digita y viaja en masivo y 1x1")
+        backend = (RAIZ / "backend" / "main.py").read_text(encoding="utf-8")
+        check('if "dia" in template_params and not dia' in backend,
+              "el backend rechaza el envio sin dia")
+        check('"dia": dia,' in backend, "el backend manda dia en los parametros")
+
+        dia_list = next((ln for ln in js.splitlines() if ln.startswith("const BULK_DAY_TEMPLATES")), "")
+        check(dia_list != "", "existe BULK_DAY_TEMPLATES")
+        for key in ("sibate_2", "registro_diario_fatiga_6_semanas", "sibate_90mas15_dias",
+                    "recordatorio_diario_semana_19_de_octubre_"):
+            check("'%s'" % key in dia_list, f"{key} esta en BULK_DAY_TEMPLATES")
+
+        for nombre in ("showWhatsAppTemplatePreview", "sendWhatsAppNewChat"):
+            check("payload.dia" in _func_src(js, nombre), f"{nombre} manda payload.dia")
+
+        html = (RAIZ / "frontend" / "call_center.html").read_text(encoding="utf-8")
+        check('id="waTemplateDay"' in html, "el modal 1x1 tiene input de dia")
+        check('id="waNewChatDay"' in html, "el modal de nuevo chat tiene input de dia")
     finally:
         db.close()
 

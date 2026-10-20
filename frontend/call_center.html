@@ -3052,6 +3052,7 @@
                 </select></label>
                 <label id="waNewChatNameLabel" style="display:none;">Nombre del encuestado<input id="waNewChatName" type="text" placeholder="Ej: María Pérez" oninput="waRenderNewChatPreview()" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label id="waNewChatSubjectLabel">Estudio o tema<input id="waNewChatSubject" type="text" placeholder="Ej: hábitos de compra" oninput="waRenderNewChatPreview()" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                <label id="waNewChatDayLabel" style="display:none;">Día del registro<input id="waNewChatDay" type="number" min="1" placeholder="Ej: 1" oninput="waRenderNewChatPreview()" style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <label id="waNewChatLinkLabel" style="display:none;">Enlace del formulario<input id="waNewChatLink" type="url" placeholder="https://..." style="width:100%;padding:9px;box-sizing:border-box;"></label>
                 <div>
                     <div style="font-size:0.8rem;color:#64748b;font-weight:600;margin-bottom:4px;">VISTA PREVIA DEL MENSAJE</div>
@@ -3205,6 +3206,10 @@
                 <div id="waTemplateHoraGroup" style="display:none;">
                     <label>Hora programada<input id="waTemplateHora" type="text" readonly style="width:100%;padding:9px;box-sizing:border-box;background:#f1f5f9;border:1px solid #e2e8f0;color:#475569;"></label>
                     <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Se toma de la hora de recogida del registro. Si no tiene, se enviará "hoy".</div>
+                </div>
+                <div id="waTemplateDayGroup" style="display:none;">
+                    <label>Día del registro<input id="waTemplateDay" type="number" min="1" placeholder="Ej: 1" oninput="waUpdateTemplateForm()" style="width:100%;padding:9px;box-sizing:border-box;"></label>
+                    <div style="font-size:0.75rem;color:#64748b;margin-top:4px;">Digítalo antes de enviar; se envía en la plantilla.</div>
                 </div>
                 <div>
                     <div style="font-size:0.8rem;color:#64748b;font-weight:600;margin-bottom:4px;">VISTA PREVIA DEL MENSAJE</div>

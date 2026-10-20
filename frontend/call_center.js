@@ -5460,7 +5460,7 @@ const WA_TEMPLATE_BODIES = {
     "in_home_beta_385": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de tratamiento para el cabello de los que se compran listos. Hace 15 días le entregamos el producto 358  y el día de hoy tiene programada una videollamada a las {{hora_asignada}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "r2_729": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
     "sibate_encuesta_final": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la videollamada del estudio de mascotas, relacionada con el producto que le entregamos para que lo probara su perrito. 🐶\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
-    "recordatorio_diario_semana_19_de_octubre_": "🐶 REGISTRO DIARIO – DÍA 6/7\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Hoy corresponde realizar el registro diario del consumo de tu perrita {{mascota}}. 🐾\n\n🍽️ Recuerda registrar una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n⏱️ Mide el tiempo desde que le sirves el alimento hasta que termine de comer.\n\n👀 Observa su comportamiento al alimentarse y registra tus observaciones en la encuesta.\n\n📝 ¡Ya casi terminamos! Recuerda completar el registro diario durante los 7 días del estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t8yGGbVwugRpNKK67\n\n¡Muchas gracias por tu compromiso y participación! 🐶💚",
+    "recordatorio_diario_semana_19_de_octubre_": "🐶 REGISTRO DIARIO – DÍA {{dia}}\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Hoy corresponde realizar el registro diario del consumo de tu perrita {{mascota}}. 🐾\n\n🍽️ Recuerda registrar una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n⏱️ Mide el tiempo desde que le sirves el alimento hasta que termine de comer.\n\n👀 Observa su comportamiento al alimentarse y registra tus observaciones en la encuesta.\n\n📝 ¡Ya casi terminamos! Recuerda completar el registro diario durante los 7 días del estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t8yGGbVwugRpNKK67\n\n¡Muchas gracias por tu compromiso y participación! 🐶💚",
     "inicio_semana_19_de_octu": "ENCUESTA DIARIA – 7 DÍAS\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos el registro diario con tu perrito {{mascota}}. 🐾\n\n📅 La dinámica completa dura 7 semanas, y durante estos primeros 7 días registrarás diariamente el tiempo que tarda tu mascota en consumir su alimento habitual.\n\n⏱️ ¿Qué debes hacer?\n\nMide el tiempo desde que sirves el alimento hasta que termina de comer.\n\nObserva si comienza a comer inmediatamente o si primero olfatea el alimento.\n\nRegistra la información en la encuesta diaria.\n\n🍽️ Realiza el registro en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: mantener  en lo posible, el mismo horario durante estos 7 días.\n\n📝 Recuerda diligenciar una encuesta cada día, durante los 7 días.\n\n🔑 Código de registro: {{censo}}\n\n🔗 Ingresa aquí a la encuesta:\nhttps://forms.gle/JtjAMgbwLKG5UrpP6\n\nGracias\n¡Muchas gracias por tu compromiso y colaboración!",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día."
@@ -5480,7 +5480,10 @@ function waUpdateTemplateForm() {
     const params = (item && Array.isArray(item.params)) ? item.params : [];
     const needsCategory = params.includes('categoria');
     const needsHora = params.includes('hora') || params.includes('hora_asignada') || params.includes('hora_agendada');
+    const needsDia = params.includes('dia');
     document.getElementById('waTemplateCategoryGroup').style.display = needsCategory ? 'block' : 'none';
+    const diaGroup = document.getElementById('waTemplateDayGroup');
+    if (diaGroup) diaGroup.style.display = needsDia ? 'block' : 'none';
     const horaGroup = document.getElementById('waTemplateHoraGroup');
     if (horaGroup) {
         horaGroup.style.display = needsHora ? 'block' : 'none';
@@ -5495,6 +5498,7 @@ function waRenderInlineTemplatePreview(kind) {
     const box = document.getElementById('waTemplateInlinePreview');
     if (!box) return;
     const category = (document.getElementById('waTemplateCategory').value || '').trim();
+    const dia = (document.getElementById('waTemplateDay').value || '').trim();
     const personName = currentCallData && currentCallData.person_name
         ? currentCallData.person_name.trim()
         : 'Cliente';
@@ -5515,6 +5519,7 @@ function waRenderInlineTemplatePreview(kind) {
         .replace(/\{\{hora_agendada\}\}/g, hora)
         .replace(/\{\{mascota\}\}/g, (currentCallData && currentCallData.dog_name) ? currentCallData.dog_name : '[mascota]')
         .replace(/\{\{censo\}\}/g, (currentCallData && currentCallData.census) ? currentCallData.census : '[censo]')
+        .replace(/\{\{dia\}\}/g, dia || '[día]')
         .replace(/\{\{hora\}\}/g, hora);
     box.textContent = body;
     box.scrollTop = 0;
@@ -5612,8 +5617,16 @@ function showWhatsAppTemplatePreview() {
         error.style.display = 'block';
         return;
     }
+    const needsDia = params.includes('dia');
+    const dia = (document.getElementById('waTemplateDay').value || '').trim();
+    if (needsDia && !dia) {
+        error.textContent = 'Indica el día del registro antes de enviar.';
+        error.style.display = 'block';
+        return;
+    }
 
     const payload = { template_key: kind, category };
+    if (needsDia) payload.dia = dia;
 
     if (waTemplateSourceField === 'chat') {
         if (waChatCallId) payload.call_id = waChatCallId;
@@ -5661,6 +5674,7 @@ function showWhatsAppTemplatePreview() {
     body = body.replace(/\{\{hora\}\}/g, hora);
     body = body.replace(/\{\{mascota\}\}/g, (currentCallData && currentCallData.dog_name) ? currentCallData.dog_name : '[mascota]');
     body = body.replace(/\{\{censo\}\}/g, (currentCallData && currentCallData.census) ? currentCallData.census : '[censo]');
+    body = body.replace(/\{\{dia\}\}/g, dia || '[día]');
 
     document.getElementById('waPreviewTemplateName').textContent = waTemplateLabel(kind) + ' — ' + kind;
     document.getElementById('waPreviewBody').textContent = body;
@@ -5925,9 +5939,11 @@ function waToggleNewChatLink() {
     const params = (item && Array.isArray(item.params)) ? item.params : [];
     const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre') || params.includes('nombre_entrevistada'));
     const needsCategory = params.includes('categoria') || kind === 'filter' || kind === 'form';
+    const needsDia = params.includes('dia');
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
     document.getElementById('waNewChatNameLabel').style.display = needsName ? 'block' : 'none';
     document.getElementById('waNewChatSubjectLabel').style.display = needsCategory ? 'block' : 'none';
+    document.getElementById('waNewChatDayLabel').style.display = needsDia ? 'block' : 'none';
     waRenderNewChatPreview();
 }
 
@@ -5937,6 +5953,7 @@ function waRenderNewChatPreview() {
     const kind = document.getElementById('waNewChatKind').value;
     const name = (document.getElementById('waNewChatName').value || '').trim();
     const subject = (document.getElementById('waNewChatSubject').value || '').trim();
+    const dia = (document.getElementById('waNewChatDay').value || '').trim();
     const item = waTemplateCatalogMap[kind];
     if (!item) {
         box.innerHTML = '<span style="color:#64748b;">Esta opción envía una plantilla fija de ' +
@@ -5960,6 +5977,7 @@ function waRenderNewChatPreview() {
         .replace(/\{\{hora_agendada\}\}/g, '[hora de recogida]')
         .replace(/\{\{mascota\}\}/g, '[mascota]')
         .replace(/\{\{censo\}\}/g, '[censo]')
+        .replace(/\{\{dia\}\}/g, dia || '[día]')
         .replace(/\{\{hora\}\}/g, '[hora de recogida]');
     box.textContent = body;
     box.scrollTop = 0;
@@ -5974,6 +5992,7 @@ function waNewChatTemplateParams() {
         isTemplate: isTemplate,
         needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre') || params.includes('nombre_entrevistada')),
         needsCategory: params.includes('categoria') || kind === 'filter' || kind === 'form',
+        needsDia: params.includes('dia'),
         needsLink: kind === 'form',
     };
 }
@@ -5999,6 +6018,10 @@ async function sendWhatsAppNewChat() {
             if (params.needsCategory && !subject) {
                 throw new Error('Indica la categoría o tipo de estudio.');
             }
+            const dia = (document.getElementById('waNewChatDay').value || '').trim();
+            if (params.needsDia && !dia) {
+                throw new Error('Indica el día del registro antes de enviar.');
+            }
             const studyId = document.getElementById('waNewChatStudy').value;
             const payload = {
                 phone_number: phone,
@@ -6006,6 +6029,7 @@ async function sendWhatsAppNewChat() {
                 category: subject,
                 person_name: personName,
             };
+            if (params.needsDia) payload.dia = dia;
             if (studyId) payload.study_id = parseInt(studyId, 10);
             const res = await fetch('/whatsapp/send-template', { method: 'POST', headers, body: JSON.stringify(payload) });
             const data = await res.json();
@@ -6597,7 +6621,7 @@ const BULK_TEMPLATE_VARS = {
 };
 
 // Plantillas que requieren que el usuario digite el día antes de enviar.
-const BULK_DAY_TEMPLATES = ['sibate_2', 'registro_diario_fatiga_6_semanas', 'sibate_90mas15_dias'];
+const BULK_DAY_TEMPLATES = ['sibate_2', 'registro_diario_fatiga_6_semanas', 'sibate_90mas15_dias', 'recordatorio_diario_semana_19_de_octubre_'];
 
 function bulkLinkRenderTemplatePreview(key) {
     const box = document.getElementById('bulkLinkTemplatePreview');
