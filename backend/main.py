@@ -1423,6 +1423,8 @@ WHATSAPP_TEMPLATE_MAP = {
     "sibate_encuesta_final": {"name": "sibate_encuesta_final", "language": "es", "params": ["nombre_entrevistada", "encuestador"]},
     "recordatorio_diario_semana_19_de_octubre_": {"name": "recordatorio_diario_semana_19_de_octubre_", "language": "es", "params": ["dia", "encuestada", "mascota", "censo"]},
     "inicio_semana_19_de_octu": {"name": "inicio_semana_19_de_octu", "language": "es", "params": ["encuestada", "mascota", "censo"]},
+    "entrega_sibate_19_oct_sibate_1_204": {"name": "entrega_sibate_19_oct_sibate_1_204", "language": "es", "params": []},
+    "entrega_sibate_19_oct_sibate_2_302": {"name": "entrega_sibate_19_oct_sibate_2_302", "language": "es", "params": []},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1452,6 +1454,8 @@ WHATSAPP_TEMPLATE_LABELS = {
     "sibate_encuesta_final": "Sibate — encuesta final (videollamada)",
     "recordatorio_diario_semana_19_de_octubre_": "Recordatorio diario — 19 de octubre",
     "inicio_semana_19_de_octu": "Inicio semana — 19 de octubre",
+    "entrega_sibate_19_oct_sibate_1_204": "Entrega Sibate 1 — producto 204",
+    "entrega_sibate_19_oct_sibate_2_302": "Entrega Sibate 2 — producto 302",
 }
 
 # Plantillas habilitadas para el envío "una por una" (por registro). El resto del
@@ -1466,6 +1470,8 @@ WHATSAPP_SINGLE_TEMPLATE_KEYS = [
     "sibate_encuesta_final",
     "recordatorio_diario_semana_19_de_octubre_",
     "inicio_semana_19_de_octu",
+    "entrega_sibate_19_oct_sibate_1_204",
+    "entrega_sibate_19_oct_sibate_2_302",
 ]
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1516,6 +1522,8 @@ WHATSAPP_TEMPLATE_BODIES = {
     "producto_402_90_dias": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 402, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
     "sibate_encuesta_final": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la videollamada del estudio de mascotas, relacionada con el producto que le entregamos para que lo probara su perrito. 🐶\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
     "recordatorio_diario_semana_19_de_octubre_": "🐶 REGISTRO DIARIO – DÍA {{dia}}\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Hoy corresponde realizar el registro diario del consumo de tu perrita {{mascota}}. 🐾\n\n🍽️ Recuerda registrar una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n⏱️ Mide el tiempo desde que le sirves el alimento hasta que termine de comer.\n\n👀 Observa su comportamiento al alimentarse y registra tus observaciones en la encuesta.\n\n📝 ¡Ya casi terminamos! Recuerda completar el registro diario durante los 7 días del estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t8yGGbVwugRpNKK67\n\n¡Muchas gracias por tu compromiso y participación! 🐶💚",
+    "entrega_sibate_19_oct_sibate_1_204": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 204.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
+    "entrega_sibate_19_oct_sibate_2_302": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 302.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
     "inicio_semana_19_de_octu": "ENCUESTA DIARIA – 7 DÍAS\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos el registro diario con tu perrito {{mascota}}. 🐾\n\n📅 La dinámica completa dura 7 semanas, y durante estos primeros 7 días registrarás diariamente el tiempo que tarda tu mascota en consumir su alimento habitual.\n\n⏱️ ¿Qué debes hacer?\n\nMide el tiempo desde que sirves el alimento hasta que termina de comer.\n\nObserva si comienza a comer inmediatamente o si primero olfatea el alimento.\n\nRegistra la información en la encuesta diaria.\n\n🍽️ Realiza el registro en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: mantener  en lo posible, el mismo horario durante estos 7 días.\n\n📝 Recuerda diligenciar una encuesta cada día, durante los 7 días.\n\n🔑 Código de registro: {{censo}}\n\n🔗 Ingresa aquí a la encuesta:\nhttps://forms.gle/JtjAMgbwLKG5UrpP6\n\nGracias\n¡Muchas gracias por tu compromiso y colaboración!",
 }
 
@@ -1601,6 +1609,19 @@ def _seed_single_templates(db):
             db.add(models.StudySingleTemplate(study_id=s.id, template_key=key))
     db.commit()
     return len(active_studies)
+
+
+def _wa_template_payload(template_name, template_language, parameters):
+    """Objeto `template` del payload de Meta.
+
+    Las plantillas sin variables (p. ej. `entrega_sibate_19_oct_sibate_1_204`)
+    omiten el componente `body`: mandar una lista vacía de parámetros no
+    corresponde al contrato de la plantilla aprobada.
+    """
+    template = {"name": template_name, "language": {"code": template_language}}
+    if parameters:
+        template["components"] = [{"type": "body", "parameters": parameters}]
+    return template
 
 
 def _wa_render_template_body(template_key, param_values):
@@ -2803,14 +2824,7 @@ def whatsapp_send_template(
             "messaging_product": "whatsapp",
             "to": phone,
             "type": "template",
-            "template": {
-                "name": template_name,
-                "language": {"code": template_language},
-                "components": [{
-                    "type": "body",
-                    "parameters": parameters,
-                }],
-            },
+            "template": _wa_template_payload(template_name, template_language, parameters),
         }
         msg_type = "template"
 
@@ -3117,11 +3131,7 @@ def whatsapp_send_bulk(
                     "messaging_product": "whatsapp",
                     "to": phone,
                     "type": "template",
-                    "template": {
-                        "name": template_name,
-                        "language": {"code": template_language},
-                        "components": [{"type": "body", "parameters": parameters}],
-                    },
+                    "template": _wa_template_payload(template_name, template_language, parameters),
                 }
                 msg_type = "template"
             result = _wa_graph_request(f"{WHATSAPP_PHONE_ID}/messages", payload)
