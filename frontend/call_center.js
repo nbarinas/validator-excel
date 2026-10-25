@@ -1019,7 +1019,9 @@ const HIDDEN_TEMPLATE_KEYS = [
 ];
 
 async function waLoadTemplateCatalog() {
-    if (waTemplateCatalog) return waTemplateCatalog;
+    // Sin cache: el catalogo depende de las conexiones por estudio, que el superusuario
+    // cambia en vivo. Cachearlo dejaba al agente sin la plantilla recien conectada hasta un F5.
+    // Los call sites son aperturas de modal (no polling), asi que siempre se vuelve a pedir.
     try {
         const res = await fetch('/whatsapp/templates', { headers });
         if (!res.ok) throw new Error('No se pudo cargar el catálogo de plantillas');

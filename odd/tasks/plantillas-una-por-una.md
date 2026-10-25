@@ -108,6 +108,39 @@ En la misma entrega se **retiran** `sibate_encuesta_final`, `recordatorio_diario
 e `inicio_semana_19_de_octu`: no se ven más en ningún selector, no quedan como respaldo de vista
 previa, salen de `BULK_DAY_TEMPLATES` y se rechazan en 1×1 y en masivo.
 
+**S10.** (Cambio de requerimiento, ver L15) `GET /whatsapp/templates` deja de devolver el
+catálogo completo a cualquier usuario autenticado:
+
+| Rol | Qué ve en `/whatsapp/templates` |
+|---|---|
+| `superuser` | catálogo completo (`WHATSAPP_TEMPLATE_MAP`), sin cambios: lo necesita para conectar plantillas a los estudios |
+| `coordinator` | solo las keys conectadas (masivas + 1×1) a los estudios que ve: todos, activos e inactivos |
+| `agent` | solo las keys conectadas a estudios **activos** |
+| `auxiliar` | solo las keys conectadas a **sus** estudios asignados |
+| cualquier rol sin estudios / sin plantillas conectadas | lista vacía |
+
+*"Sólo los estudios que ese usuario puede ver"* (pedido del usuario, L15). La visibilidad se
+comparte con `GET /studies` vía `_visible_studies_query(db, user)`, una **extracción pura** de esa
+lógica (superuser/coordinator/auxiliar sin filtro, resto solo `is_active`, auxiliar además `join`
+con `study_assignments`). `GET /studies` no cambia de comportamiento: ni el orden, ni el shape, ni
+el `include_inactive` que hoy se ignora. El shape de cada item del catálogo tampoco cambia
+(`key`, `name`, `language`, `label`, `params`, `body`, `single_eligible`), y el catálogo filtrado
+usa como máximo 3 consultas (estudios + masivas + 1×1), sin N+1.
+
+**Consecuencia deliberada sobre `auxiliar`:** deja de ver las plantillas de los estudios que no
+tiene asignados, y por lo tanto deja de poder mandarlas por 1×1 desde un chat de ese estudio.
+Un `auxiliar` sin asignaciones no ve ninguna plantilla.
+
+**El front sí cambia (T20).** `waLoadTemplateCatalog()` cacheaba el catálogo para toda la vida de
+la página (`if (waTemplateCatalog) return waTemplateCatalog;`). Con el catálogo estático eso era
+inocuo; con el filtro por estudio es un bug: si el superusuario conecta una plantilla mientras el
+agente tiene la página abierta, el catálogo cacheado no tiene la key nueva, el selector la tira por
+`waTemplateCatalogMap[key]` ausente (`waRenderTemplateOptions`, `waPopulateNewChatTemplates` y
+`bulkLinkPopulateTemplates` filtran con `.filter(k => waTemplateCatalogMap[k])`) y al agente le
+queda "(sin plantillas conectadas)" o la plantilla desaparece, sin error visible, hasta un F5.
+Ahora la función vuelve a pedir `/whatsapp/templates` en **cada** llamada y refresca
+`waTemplateCatalog`/`waTemplateCatalogMap`; los 6 call sites son aperturas de modal (no polling).
+
 ## Tasks
 
 | ID | Spec | Ruta | Estado |
@@ -129,6 +162,9 @@ previa, salen de `BULK_DAY_TEMPLATES` y se rechazan en 1×1 y en masivo.
 | T15 | S8 (S5) | `backend/main.py` + `frontend/call_center.js` + `scripts/tests/check_r2_729_preview.js` | hecho (sin commit) |
 | T16 | S9 | `backend/main.py` + `frontend/call_center.js`: 2 plantillas nuevas y 3 retiradas | hecho (commit único Oct 26) |
 | T17 | S9 | `scripts/tests/check_sibate_oct26_templates.py`; retiro de los tests del 19 oct y día digitado reapuntado | hecho (commit único Oct 26) |
+| T18 | S10 | `backend/main.py`: `_visible_studies_query` extraído de `GET /studies` + `GET /whatsapp/templates` filtrado por rol (masivas + 1×1 de los estudios visibles) | hecho (sin commit) |
+| T19 | S10 | `scripts/tests/check_template_visibility.py` (RED→GREEN) + diferencial contra `HEAD` | hecho (sin commit) |
+| T20 | S10 | fix del blocker: `frontend/call_center.js` `waLoadTemplateCatalog()` sin caché (refresca en cada apertura de modal) + `scripts/tests/check_template_catalog_refresh.js` (RED→GREEN) + `scripts/tests/check_template_visibility_edges.py` (bordes de S10) | hecho (sin commit) |
 
 Work units: backend (fd2c27b), frontend (9a25f0d), tests (a618814), fix de la verificación
 (b5676a1), regresión (3f82582), r2_729 (sin commit), esta doc y el cambio del 26 de octubre
@@ -340,3 +376,82 @@ superusuario la conecte al estudio (botones `Plantillas 1×1` y `Plantillas`).
   con el nombre del contacto (`WhatsAppBulkContact` sólo lleva `nombre` y `telefono`), así que
   `{{mascota}}`/`{{censo}}` salen vacíos en el masivo. Le pasa igual a las plantillas que ya
   existían con esos parámetros; no se tocó para no cambiar el comportamiento de las demás.
+
+**L15** (cambio de requerimiento: el catálogo deja de ser global, pedido del usuario verbatim):
+
+> ok si quiero que desaparezca si el superusurio mismo no se lo otorga, se puede?
+
+- **Respuesta de alcance (tal como llegó al implementador):** sí, el catálogo se filtra por la
+  visibilidad de estudios. `superuser` conserva el catálogo completo porque es quien conecta las
+  plantillas a los estudios; cualquier otro rol ve **sólo los estudios que ese usuario puede ver**
+  (keys conectadas en `study_templates` y `study_single_templates` de esos estudios). El shape del
+  item tampoco cambia. El front **sí** cambia: el catálogo se cacheaba para toda la sesión, y el
+  filtro por estudio convirtió ese cache en un bug (el usuario no veía una plantilla recién
+  conectada hasta refrescar la página); ahora se refresca en cada apertura de modal (T20, hallazgo
+  más abajo).
+- **Decisiones:** (1) la visibilidad se extrae a `_visible_studies_query(db, user)` y la comparten
+  `GET /studies` y el catálogo, para que no existan dos definiciones de "qué estudios ve"; la
+  extracción es pura y deja `include_inactive` igual de ignorado que antes. (2) El catálogo filtra
+  recorriendo `WHATSAPP_TEMPLATE_MAP` (así una key retirada no reaparece aunque queden filas viejas
+  conectadas en la base). (3) Sin estudios o sin plantillas conectadas devuelve `[]`.
+- **Consecuencia documentada en S10:** un `auxiliar` deja de ver las plantillas de los estudios
+  que no tiene asignados y, con eso, deja de poder mandarlas por 1×1 desde un chat de ese
+  estudio; un `auxiliar` sin asignaciones no ve ninguna.
+- **Test-first:** `scripts/tests/check_template_visibility.py` (nuevo, mismo estilo que
+  `check_sibate_oct26_templates.py`: SQLite temporal en `scratch/_ctrl/`, `check()` acumulando
+  fallas, 0/1). Casos: catálogo completo del superusuario sin nada conectado, coordinator con una
+  sola masiva, agent (activos vs inactivo, masivas + 1×1), auxiliar (asignado / sin
+  asignaciones), plantilla retirada con filas viejas conectadas, regresión de `GET /studies`
+  (ids y orden por rol, shape e `include_inactive`) y conteo de consultas (3, sin N+1, 0 para el
+  superusuario).
+- **RED:** contra el código sin cambiar, **16 fallas**: coordinator, agent y auxiliar veían las
+  **26 keys** (con `plantilla_sibate_2_302_oct_1_26`, `inicio_de_semana_sibate_1_204_oct_26` y
+  `bono_final` incluidas) y el conteo de consultas daba 0 para el rol filtrado (el catálogo no
+  consultaba la base).
+- **GREEN:** **48 OK / 0 fallas**, con el `/studies` de los 4 roles intacto.
+- **Suite:** `scripts/tests` 11/11 OK (8 `.py` + 3 `.js`; los 10 previos verdes más el nuevo),
+  `py_compile` de `backend/main.py` OK y `node --check frontend/call_center.js` OK.
+- **Diferencial contra `HEAD`** (árbol de `git archive HEAD` en `mktemp -d`, sonda y JSON en
+  `scratch/_ctrl/`, nunca commiteados): `/studies` **byte-idéntico** en los 5 roles probados
+  (superuser, coordinator, agent, auxiliar, auxiliar sin asignaciones). `/whatsapp/templates`
+  idéntico para `superuser` (26 keys, item por item); para los demás cambia **sólo por filtrado**
+  (mismos items, mismo orden del catálogo): coordinator 26 → 4 (`manana_3`, `shampo_primer`,
+  `shampo_segundo`, `r2_729`), agent 26 → 2 (`manana_3`, `r2_729`), auxiliar 26 → 2 (`manana_3`,
+  `r2_729`), auxiliar sin asignaciones 26 → 0.
+- **Hallazgo de la verificación independiente (blocker, corregido en T20):** el filtro por estudio
+  es correcto, pero el front cacheaba el catálogo para toda la vida de la página, así que el
+  cambio no se veía sin F5. **Reproducción:** el agente carga la página (catálogo cacheado), el
+  superusuario conecta una plantilla al estudio del agente mientras la página sigue abierta, el
+  agente reabre el modal 1×1 → `waLoadTemplateCatalog()` devuelve el cache, la key nueva no está en
+  `waTemplateCatalogMap` y el selector la descarta sin error visible. Con el catálogo estático
+  anterior ese cache era inocuo: el filtro es lo que lo vuelve un bug real, y por eso el test
+  nuevo también falla contra `HEAD`.
+- **Fix:** se quita el short-circuit de `waLoadTemplateCatalog()` (queda el `try/catch` y el filtro
+  `HIDDEN_TEMPLATE_KEYS` como estaban) y la función pide `/whatsapp/templates` en cada llamada.
+  Los 6 call sites (`openStudyTemplatesModal`, `openStudySingleTemplatesModal`,
+  `openWhatsAppTemplateModal`, `openWhatsAppTemplateModalFromChat`, el modal de "Nuevo chat" y el
+  de enlace masivo) son aperturas de modal, no polling, así que no hay costo de fondo.
+- **Evidencia del fix:** `scripts/tests/check_template_catalog_refresh.js` extrae la función real y
+  la corre con un `fetch` falso que primero devuelve `['manana_3']` y después
+  `['manana_3', 'r2_729']`. **RED** (contra el árbol de trabajo antes del fix y también contra
+  `HEAD`: el front era el mismo): 8 fallas — un solo fetch, el segundo catálogo seguía en
+  `['manana_3']`, `waTemplateCatalogMap['r2_729']` quedaba ausente y un fetch fallido servía el
+  catálogo viejo. **GREEN** después del fix: 11 OK / 0 fallas.
+- **Guardas versionadas:** `scripts/tests/check_template_visibility_edges.py` fija los bordes de
+  S10 que no estaban cubiertos: rol `SuperUser` con mayúsculas (ve el catálogo completo),
+  coordinator con activos e inactivos, agent sólo activos, auxiliar asignado sólo lo suyo,
+  auxiliar sin asignaciones `[]`, filas huérfanas con `study_id` inexistente que no habilitan nada,
+  key retirada con fila vieja que no reaparece, hash de la SQLite idéntico antes/después de pedir
+  el catálogo, y `GET /studies` por rol con `include_inactive` ignorado (53 OK / 0 fallas: es una
+  guarda, no un RED). Ahí queda documentado un
+  **comportamiento pre-existente** que no se toca: el join con `study_assignments` depende de
+  `user.role == "auxiliar"` (sensible a mayúsculas), así que un `Auxiliar` con mayúsculas no recibe
+  ese filtro y ve todos los estudios; el catálogo lo refleja fielmente (ve lo conectado a todos).
+  Verificación de esta ronda: suite `scripts/tests` verde con los 13 archivos previstos (9 `.py` + 4
+  `.js`: los 11 que ya estaban más los 2 nuevos), `py_compile` de `backend/main.py` y
+  `node --check frontend/call_center.js` OK.
+- **Advisory pre-existente, fuera de alcance:** (1) un usuario puede enviar por 1×1 una plantilla
+  conectada a un estudio que no ve: el servidor valida contra la conexión del estudio, no contra la
+  visibilidad del usuario, así que el filtro del catálogo no es un control de autorización de
+  envío; (2) `/whatsapp/send-bulk` no tiene guard por estudio (no valida que las plantillas del
+  payload estén conectadas a un estudio visible). Ninguno de los dos se tocó en este cambio.

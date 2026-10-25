@@ -2516,12 +2516,33 @@ def whatsapp_new_chat(
 
 @app.get("/whatsapp/templates")
 def whatsapp_templates_catalog(
+    db: Session = Depends(database.get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
     """Catálogo de plantillas disponibles (key, etiqueta, parámetros y cuerpo).
 
     Lo usan el selector de envío masivo y las vistas previas.
+    El superusuario ve el catálogo completo (lo necesita para conectar plantillas a los
+    estudios); el resto ve sólo las plantillas conectadas (masivas + 1×1) a los estudios
+    que ese usuario puede ver (la misma visibilidad de `GET /studies`).
     """
+    allowed_keys = None
+    if current_user.role.lower() != "superuser":
+        study_ids = [study.id for study in _visible_studies_query(db, current_user)]
+        allowed_keys = set()
+        if study_ids:
+            rows = (
+                db.query(models.StudyTemplate.template_key)
+                .filter(models.StudyTemplate.study_id.in_(study_ids))
+                .all()
+            )
+            allowed_keys.update(template_key for (template_key,) in rows)
+            rows = (
+                db.query(models.StudySingleTemplate.template_key)
+                .filter(models.StudySingleTemplate.study_id.in_(study_ids))
+                .all()
+            )
+            allowed_keys.update(template_key for (template_key,) in rows)
     return [{
         "key": key,
         "name": cfg.get("name"),
@@ -2530,7 +2551,8 @@ def whatsapp_templates_catalog(
         "params": cfg.get("params", []),
         "body": WHATSAPP_TEMPLATE_BODIES.get(key),
         "single_eligible": key in WHATSAPP_SINGLE_TEMPLATE_KEYS,
-    } for key, cfg in WHATSAPP_TEMPLATE_MAP.items()]
+    } for key, cfg in WHATSAPP_TEMPLATE_MAP.items()
+        if allowed_keys is None or key in allowed_keys]
 
 
 @app.get("/whatsapp/single-templates")
@@ -3744,23 +3766,34 @@ def create_study(study: StudyCreate, db: Session = Depends(database.get_db), cur
     db.refresh(db_study)
     return db_study
 
-@app.get("/studies")
-def get_studies(include_inactive: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+def _visible_studies_query(db, user):
+    """Query de los estudios que un usuario puede ver (la visibilidad de `GET /studies`).
+
+    La usan `GET /studies` y `GET /whatsapp/templates`, para que un usuario nunca vea
+    plantillas de estudios que no puede ver.
+    """
     query = db.query(models.Study)
-    
+
     # SIMPLIFIED LOGIC requested by user:
     # If Superuser/Coordinator/Auxiliar -> Return ALL (Active + Inactive) always.
     # If Regular User -> Return ONLY Active.
-    if current_user.role.lower() in ["superuser", "coordinator", "auxiliar"]:
+    if user.role.lower() in ["superuser", "coordinator", "auxiliar"]:
         pass # No filter, return everything
     else:
         query = query.filter(models.Study.is_active == True)
-    
+
     # AUXILIAR Filter: Only see assigned studies
-    if current_user.role == "auxiliar":
-        query = query.join(models.study_assignments).filter(models.study_assignments.c.user_id == current_user.id)
-        
-    studies = query.all()
+    if user.role == "auxiliar":
+        query = query.join(models.study_assignments).filter(models.study_assignments.c.user_id == user.id)
+
+    return query
+
+
+@app.get("/studies")
+def get_studies(include_inactive: bool = False, db: Session = Depends(database.get_db), current_user: models.User = Depends(auth.get_current_user)):
+    # La visibilidad por rol vive en `_visible_studies_query` (la comparte el catalogo de
+    # plantillas). El parametro `include_inactive` sigue sin usarse: comportamiento previo.
+    studies = _visible_studies_query(db, current_user).all()
     # Plantillas conectadas por estudio (una sola consulta para evitar N+1).
     templates_by_study = {}
     single_templates_by_study = {}
