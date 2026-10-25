@@ -66,6 +66,48 @@ Quedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷
 históricas a los estudios activos, para no cortar el trabajo el día 1. Es un sembrado único,
 no un fallback permanente.
 
+**S9.** (Cambio de requerimiento, ver L13) El catálogo suma `plantilla_sibate_2_302_oct_1_26`
+(idioma `es`, plantilla de Meta categoría *Marketing*) e `inicio_de_semana_sibate_1_204_oct_26`
+(idioma `es`, categoría *Utilidad*, identificador 13), con las variables `{{encuestada}}`,
+`{{mascota}}` y `{{censo}}`, habilitadas para el envío 1×1 y para el masivo, con vista previa en
+el front. Cuerpo verbatim del pedido (los dos textos pegados difieren **solo** en una línea: la
+302 dice `codigo de resistro censo:` y la 204 dice `codigo de registro censo:`):
+
+```
+Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.
+
+¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.
+
+📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.
+
+🍽️ ¿Qué debes hacer cada día?
+
+1. Sirve el alimento mezclado con el suplemento.
+2. Mide el tiempo desde que le sirves hasta que termine de comer.
+3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.
+4. Al finalizar, diligencia la encuesta del día.
+
+⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.
+
+codigo de resistro censo: {{censo}}
+
+🔗 Enlace para registrar tu actividad diaria:
+https://forms.gle/kFrKRWKXFRkp6dhT9
+
+🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp
+```
+
+Ese es el cuerpo de `plantilla_sibate_2_302_oct_1_26`. El de
+`inicio_de_semana_sibate_1_204_oct_26` es idéntico salvo esa línea, que en el pedido dice:
+
+```
+codigo de registro censo: {{censo}}
+```
+
+En la misma entrega se **retiran** `sibate_encuesta_final`, `recordatorio_diario_semana_19_de_octubre_`
+e `inicio_semana_19_de_octu`: no se ven más en ningún selector, no quedan como respaldo de vista
+previa, salen de `BULK_DAY_TEMPLATES` y se rechazan en 1×1 y en masivo.
+
 ## Tasks
 
 | ID | Spec | Ruta | Estado |
@@ -85,9 +127,12 @@ no un fallback permanente.
 | T13 | S6 | fix B2: default válido del select compartido | hecho (b5676a1) |
 | T14 | S1-S7 | `scripts/tests/check_single_templates_regression.py` + `check_new_chat_bulk_default.js` | hecho (3f82582) |
 | T15 | S8 (S5) | `backend/main.py` + `frontend/call_center.js` + `scripts/tests/check_r2_729_preview.js` | hecho (sin commit) |
+| T16 | S9 | `backend/main.py` + `frontend/call_center.js`: 2 plantillas nuevas y 3 retiradas | hecho (commit único Oct 26) |
+| T17 | S9 | `scripts/tests/check_sibate_oct26_templates.py`; retiro de los tests del 19 oct y día digitado reapuntado | hecho (commit único Oct 26) |
 
 Work units: backend (fd2c27b), frontend (9a25f0d), tests (a618814), fix de la verificación
-(b5676a1), regresión (3f82582), r2_729 (sin commit) y esta doc.
+(b5676a1), regresión (3f82582), r2_729 (sin commit), esta doc y el cambio del 26 de octubre
+(commit único: plantillas + tests + doc).
 
 ## Log
 
@@ -195,3 +240,103 @@ del front quedan byte-idénticos (SHA-256 `2dec573524e11c67b590f4accaf06b9d29be1
 Suite `scripts/tests` 5/5 OK, `py_compile` y `node --check` OK. Pendiente fuera del código:
 que Meta tenga la plantilla `r2_729` (`es`) aprobada con esos `parameter_name`, y que el
 superusuario la conecte al estudio (botones `Plantillas 1×1` y `Plantillas`).
+
+**L13** (cambio de requerimiento, pedido del usuario verbatim):
+
+> querio agregar plantilla_sibate_2_302_oct_1_26 · Spanish
+> En revisión
+> En revisión
+> ·
+> Marketing
+> ·
+> y dice Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.
+>
+> ¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.
+>
+> 📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.
+>
+> 🍽️ ¿Qué debes hacer cada día?
+>
+> 1. Sirve el alimento mezclado con el suplemento.
+> 2. Mide el tiempo desde que le sirves hasta que termine de comer.
+> 3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.
+> 4. Al finalizar, diligencia la encuesta del día.
+>
+> ⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.
+>
+> codigo de resistro censo: {{censo}}
+>
+> 🔗 Enlace para registrar tu actividad diaria:
+> https://forms.gle/kFrKRWKXFRkp6dhT9
+>
+> 🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp
+> 4:48 pm
+> Listo, ya lo llene
+> Ahora lo hago, ademas quiero agregar inicio_de_semana_sibate_1_204_oct_26 · Spanish
+> En revisión
+> En revisión
+> ·
+> Utilidad
+> ·
+> Fecha de actualización: 25 oct 2026
+> ·
+> Identificador: 13 que dice Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.
+>
+> ¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.
+>
+> 📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.
+>
+> 🍽️ ¿Qué debes hacer cada día?
+>
+> 1. Sirve el alimento mezclado con el suplemento.
+> 2. Mide el tiempo desde que le sirves hasta que termine de comer.
+> 3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.
+> 4. Al finalizar, diligencia la encuesta del día.
+>
+> ⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.
+>
+> codigo de registro censo: {{censo}}
+>
+> 🔗 Enlace para registrar tu actividad diaria:
+> https://forms.gle/kFrKRWKXFRkp6dhT9
+>
+> 🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp
+> 4:49 pm
+> Listo, ya la llene
+> Ahora la lleno que los agregues para que el superusuario los pueda ver y agregar en 1x1 y envio masivo ademas quiero que en este mismo commit me ayuda a desactivar
+> Sibate — encuesta final (videollamada) (si
+>
+> Recordatorio diario — 19 de octubre
+>
+> Inicio semana — 19 de octubre que no se vean porque no los voy a usar mas, entiendes?
+
+**L14** (decisiones y evidencia de la implementación del 26 de octubre):
+- Las dos plantillas pegadas son **dos plantillas distintas** (una de Marketing y una de
+  Utilidad), no un duplicado: sus textos difieren exactamente en la línea del código de
+  registro (`resistro` en la 302, `registro` en la 204), así que se guardó cada cuerpo verbatim
+  en la suya. **Pendiente del usuario:** el typo `resistro` está hoy en la plantilla de Meta
+  302; si lo corrigen allá durante la revisión, el cuerpo de acá se ajusta en una línea.
+- "Desactivar" = retirar del catálogo (mismo criterio que el set de concentrado en L1/L4): no
+  se ven en ningún selector, no se pueden conectar por estudio y el backend las rechaza con
+  `400 Plantilla no válida` en 1×1 y en masivo. Las filas viejas de `study_templates` /
+  `study_single_templates` quedan en la base, pero el catálogo y los filtros de los `PUT` las
+  ignoran.
+- Etiquetas legibles en el estilo del catálogo: "Sibate 2 — producto 302 (segunda fase)" e
+  "Inicio de semana Sibate 1 — producto 204".
+- `BULK_DAY_TEMPLATES` quedó con las 3 plantillas con día que siguen vivas (`sibate_2`,
+  `registro_diario_fatiga_6_semanas`, `sibate_90mas15_dias`).
+- Tests: `check_sibate_oct26_templates.py` (RED 57 fallas → GREEN) cubre catálogo, cuerpos
+  byte-exactos, render, conexión 1×1/masivo en un estudio, payloads a Meta, el rechazo de las 3
+  retiradas y la regresión del día digitado. Se dio de baja
+  `check_sibate_oct19_templates.py` (su objeto ya no existe; lo que seguía vivo pasó al test
+  nuevo) y `check_oct19_dia_preview.js` se reapuntó a `sibate_90mas15_dias` como
+  `check_template_day_preview.js`.
+- Verificación: suite `scripts/tests` 10/10 OK, `py_compile` de `backend/main.py` y
+  `node --check frontend/call_center.js` OK. Diferencial contra `HEAD` (árbol de `git archive`
+  en `mktemp -d`, nunca commiteado): catálogo, cuerpos renderizados y payloads de 1×1 y masivo
+  byte-idénticos en las 24 plantillas que siguen; las únicas diferencias son las 3 retiradas y
+  las 2 nuevas.
+- **Límite conocido, fuera de alcance:** el envío masivo sólo completa `encuestada`/`encuestado`
+  con el nombre del contacto (`WhatsAppBulkContact` sólo lleva `nombre` y `telefono`), así que
+  `{{mascota}}`/`{{censo}}` salen vacíos en el masivo. Le pasa igual a las plantillas que ya
+  existían con esos parámetros; no se tocó para no cambiar el comportamiento de las demás.

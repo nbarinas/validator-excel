@@ -1420,11 +1420,10 @@ WHATSAPP_TEMPLATE_MAP = {
     "producto_310_90_dias": {"name": "producto_310_90_dias", "language": "es", "params": ["encuestada"]},
     "producto_203_90_dias": {"name": "producto_203_90_dias", "language": "es", "params": ["encuestada"]},
     "producto_402_90_dias": {"name": "producto_402_90_dias", "language": "es", "params": ["encuestada"]},
-    "sibate_encuesta_final": {"name": "sibate_encuesta_final", "language": "es", "params": ["nombre_entrevistada", "encuestador"]},
-    "recordatorio_diario_semana_19_de_octubre_": {"name": "recordatorio_diario_semana_19_de_octubre_", "language": "es", "params": ["dia", "encuestada", "mascota", "censo"]},
-    "inicio_semana_19_de_octu": {"name": "inicio_semana_19_de_octu", "language": "es", "params": ["encuestada", "mascota", "censo"]},
     "entrega_sibate_19_oct_sibate_1_204": {"name": "entrega_sibate_19_oct_sibate_1_204", "language": "es", "params": []},
     "entrega_sibate_19_oct_sibate_2_302": {"name": "entrega_sibate_19_oct_sibate_2_302", "language": "es", "params": []},
+    "plantilla_sibate_2_302_oct_1_26": {"name": "plantilla_sibate_2_302_oct_1_26", "language": "es", "params": ["encuestada", "mascota", "censo"]},
+    "inicio_de_semana_sibate_1_204_oct_26": {"name": "inicio_de_semana_sibate_1_204_oct_26", "language": "es", "params": ["encuestada", "mascota", "censo"]},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1451,11 +1450,10 @@ WHATSAPP_TEMPLATE_LABELS = {
     "producto_310_90_dias": "Producto 310 — 90 días",
     "producto_203_90_dias": "Producto 203 — 90 días",
     "producto_402_90_dias": "Producto 402 — 90 días",
-    "sibate_encuesta_final": "Sibate — encuesta final (videollamada)",
-    "recordatorio_diario_semana_19_de_octubre_": "Recordatorio diario — 19 de octubre",
-    "inicio_semana_19_de_octu": "Inicio semana — 19 de octubre",
     "entrega_sibate_19_oct_sibate_1_204": "Entrega Sibate 1 — producto 204",
     "entrega_sibate_19_oct_sibate_2_302": "Entrega Sibate 2 — producto 302",
+    "plantilla_sibate_2_302_oct_1_26": "Sibate 2 — producto 302 (segunda fase)",
+    "inicio_de_semana_sibate_1_204_oct_26": "Inicio de semana Sibate 1 — producto 204",
 }
 
 # Plantillas habilitadas para el envío "una por una" (por registro). El resto del
@@ -1467,11 +1465,10 @@ WHATSAPP_SINGLE_TEMPLATE_KEYS = [
     "shampo_segundo",
     "in_home_beta_385",
     "r2_729",
-    "sibate_encuesta_final",
-    "recordatorio_diario_semana_19_de_octubre_",
-    "inicio_semana_19_de_octu",
     "entrega_sibate_19_oct_sibate_1_204",
     "entrega_sibate_19_oct_sibate_2_302",
+    "plantilla_sibate_2_302_oct_1_26",
+    "inicio_de_semana_sibate_1_204_oct_26",
 ]
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1520,11 +1517,10 @@ WHATSAPP_TEMPLATE_BODIES = {
     "producto_310_90_dias": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 310, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
     "producto_203_90_dias": "Hola, {{encuestada}},  😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 203, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
     "producto_402_90_dias": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto correspondiente al código de producto 402, el cual comenzarás a utilizar a partir del lunes 12 de octubre.\n\nPor favor, respóndenos RECIBIDO para confirmar que ya tienes el producto.\n\n¡Muchas gracias por tu colaboración! 🙌",
-    "sibate_encuesta_final": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la videollamada del estudio de mascotas, relacionada con el producto que le entregamos para que lo probara su perrito. 🐶\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
-    "recordatorio_diario_semana_19_de_octubre_": "🐶 REGISTRO DIARIO – DÍA {{dia}}\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Hoy corresponde realizar el registro diario del consumo de tu perrita {{mascota}}. 🐾\n\n🍽️ Recuerda registrar una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n⏱️ Mide el tiempo desde que le sirves el alimento hasta que termine de comer.\n\n👀 Observa su comportamiento al alimentarse y registra tus observaciones en la encuesta.\n\n📝 ¡Ya casi terminamos! Recuerda completar el registro diario durante los 7 días del estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/t8yGGbVwugRpNKK67\n\n¡Muchas gracias por tu compromiso y participación! 🐶💚",
     "entrega_sibate_19_oct_sibate_1_204": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 204.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
     "entrega_sibate_19_oct_sibate_2_302": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 302.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
-    "inicio_semana_19_de_octu": "ENCUESTA DIARIA – 7 DÍAS\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos el registro diario con tu perrito {{mascota}}. 🐾\n\n📅 La dinámica completa dura 7 semanas, y durante estos primeros 7 días registrarás diariamente el tiempo que tarda tu mascota en consumir su alimento habitual.\n\n⏱️ ¿Qué debes hacer?\n\nMide el tiempo desde que sirves el alimento hasta que termina de comer.\n\nObserva si comienza a comer inmediatamente o si primero olfatea el alimento.\n\nRegistra la información en la encuesta diaria.\n\n🍽️ Realiza el registro en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: mantener  en lo posible, el mismo horario durante estos 7 días.\n\n📝 Recuerda diligenciar una encuesta cada día, durante los 7 días.\n\n🔑 Código de registro: {{censo}}\n\n🔗 Ingresa aquí a la encuesta:\nhttps://forms.gle/JtjAMgbwLKG5UrpP6\n\nGracias\n¡Muchas gracias por tu compromiso y colaboración!",
+    "plantilla_sibate_2_302_oct_1_26": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de resistro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
+    "inicio_de_semana_sibate_1_204_oct_26": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de registro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
 }
 
 

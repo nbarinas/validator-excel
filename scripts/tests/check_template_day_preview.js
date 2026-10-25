@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * Verifica el dia digitado en la plantilla `recordatorio_diario_semana_19_de_octubre_`:
- * el encabezado deja de ser fijo (6/7), se digita antes de enviar y viaja en el
- * payload, tanto en el modal 1x1 como en "Nuevo chat".
+ * Verifica el dia digitado en las plantillas que lo piden (p. ej. `sibate_90mas15_dias`):
+ * el encabezado no es fijo, se digita antes de enviar y viaja en el payload, tanto en
+ * el modal 1x1 como en "Nuevo chat".
  *
  * Evalua el codigo real de frontend/call_center.js con un DOM minimo, sin dependencias.
  * Regresion: las plantillas con dia que ya existian (sibate_2) y las que no lo piden
  * (r2_729) siguen igual.
  *
- * Uso: node scripts/tests/check_oct19_dia_preview.js [ruta/call_center.js]
+ * Uso: node scripts/tests/check_template_day_preview.js [ruta/call_center.js]
  */
 const fs = require('fs');
 const vm = require('vm');
@@ -27,18 +27,19 @@ function extraer(nombre) {
     throw new Error('no pude cerrar ' + nombre);
 }
 
-// Cuerpos reales del front (respaldo de la vista previa).
-const bodiesInicio = src.indexOf('const WA_TEMPLATE_BODIES = {');
-if (bodiesInicio === -1) throw new Error('no encontre WA_TEMPLATE_BODIES');
-let depth = 0;
-let bodiesFin = -1;
-for (let j = src.indexOf('{', bodiesInicio); j < src.length; j++) {
-    if (src[j] === '{') depth++;
-    else if (src[j] === '}' && --depth === 0) { bodiesFin = j + 1; break; }
-}
-const WA_TEMPLATE_BODIES = vm.runInNewContext('(' + src.slice(src.indexOf('{', bodiesInicio), bodiesFin) + ')');
+const KEY = 'sibate_90mas15_dias';
 
-const KEY = 'recordatorio_diario_semana_19_de_octubre_';
+// Cuerpo real de la plantilla en Meta (respaldo de la vista previa del masivo).
+const BODY = 'REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestado}}! 👋\n' +
+    'Te saluda el equipo de AZ Marketing Plus.\n\n' +
+    '📅 Hoy corresponde realizar el registro del consumo de tu perro {{perro}}.\n\n' +
+    '🍽️ Registra una sola comida al día, procurando mantener el mismo alimento y horario durante toda la semana.\n\n' +
+    '⏱️ Mide el tiempo desde que sirves el alimento hasta que termine de comer.\n\n' +
+    '👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n' +
+    '📝 Recuerda realizar el registro todos los días durante los 7 días del estudio.\n\n' +
+    '🔢 Código de registro: {{censo}}\n\n' +
+    '🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/3qsgqgVaCEepHrA89\n\n' +
+    '¡Muchas gracias por tu compromiso y participación!';
 
 const fns = [
     'waTemplateLabel',
@@ -74,8 +75,8 @@ const els = {};
  'waNewChatLinkLabel', 'waNewChatPreview'].forEach(id => { els[id] = el(id); });
 
 const catalogo = {
-    [KEY]: { key: KEY, label: 'Recordatorio diario — 19 de octubre',
-        params: ['dia', 'encuestada', 'mascota', 'censo'], body: WA_TEMPLATE_BODIES[KEY] },
+    [KEY]: { key: KEY, label: 'Sibate 90 + 15 días',
+        params: ['dia', 'encuestado', 'perro', 'censo'], body: BODY },
     sibate_2: { key: 'sibate_2', label: 'Recordatorio diario',
         params: ['encuestado', 'nombre_mascota', 'censo', 'dia'], body: 'DÍA {{dia}} de {{encuestado}}' },
     r2_729: { key: 'r2_729', label: 'Shampoo 729 — segunda videollamada (R2)',
@@ -113,16 +114,15 @@ els['waTemplateCategory'].value = '';
 els['waTemplateDay'].value = '';
 ctx.waUpdateTemplateForm();
 check(els['waTemplateDayGroup'].style.display === 'block', 'la plantilla muestra el campo Día');
-check(!els['waTemplateInlinePreview'].textContent.includes('6/7'), 'la vista previa ya no dice 6/7');
-check(els['waTemplateInlinePreview'].textContent.startsWith('🐶 REGISTRO DIARIO – DÍA [día]'),
+check(els['waTemplateInlinePreview'].textContent.startsWith('REGISTRO DIARIO – DÍA [día]/7'),
     'sin dia digitado la vista previa muestra [día]');
 els['waTemplateDay'].value = '3';
 ctx.waUpdateTemplateForm();
 const inline = els['waTemplateInlinePreview'].textContent;
-check(inline.startsWith('🐶 REGISTRO DIARIO – DÍA 3'), 'la vista previa muestra el dia digitado (3)');
-check(!inline.includes('{{'), 'la vista previa no deja variables sin sustituir');
-check(inline.includes('Ana') && inline.includes('Luna') && inline.includes('8877'),
-    'la vista previa mantiene encuestada / mascota / censo');
+check(inline.startsWith('REGISTRO DIARIO – DÍA 3/7'), 'la vista previa muestra el dia digitado (3)');
+check(!inline.includes('{{dia}}'), 'la vista previa no deja el dia sin sustituir');
+check(inline.includes('Ana') && inline.includes('8877'),
+    'la vista previa mantiene encuestado / censo');
 
 // 2. Sin dia no se puede pasar a la confirmacion.
 console.log('[2] Validacion antes de enviar');
@@ -143,7 +143,7 @@ ctx.showWhatsAppTemplatePreview();
 const payload = ctx.waPendingTemplatePayload || {};
 check(payload.dia === '3', 'el payload 1x1 manda dia = 3');
 check(payload.template_key === KEY, 'el payload 1x1 conserva la plantilla');
-check(els['waPreviewBody'].textContent.startsWith('🐶 REGISTRO DIARIO – DÍA 3'),
+check(els['waPreviewBody'].textContent.startsWith('REGISTRO DIARIO – DÍA 3/7'),
     'la confirmacion muestra el dia digitado');
 
 // 4. "Nuevo chat": pide y manda el dia.
@@ -157,10 +157,10 @@ els['waNewChatDay'].value = '5';
 els['waNewChatName'].value = 'Ana';
 els['waNewChatSubject'].value = '';
 ctx.waRenderNewChatPreview();
-check(els['waNewChatPreview'].textContent.startsWith('🐶 REGISTRO DIARIO – DÍA 5'),
+check(els['waNewChatPreview'].textContent.startsWith('REGISTRO DIARIO – DÍA 5/7'),
     'la vista previa de "Nuevo chat" muestra el dia digitado (5)');
-check(!els['waNewChatPreview'].textContent.includes('{{'),
-    'la vista previa de "Nuevo chat" no deja variables sin sustituir');
+check(!els['waNewChatPreview'].textContent.includes('{{dia}}'),
+    'la vista previa de "Nuevo chat" no deja el dia sin sustituir');
 
 // 5. Regresion: plantillas con y sin dia siguen igual.
 console.log('[5] Regresion de otras plantillas');
