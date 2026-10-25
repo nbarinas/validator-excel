@@ -6527,6 +6527,7 @@ setInterval(() => {
 // --- Bulk Link Send (multi-link WhatsApp) ---
 let bulkLinkContacts = [];
 let bulkLinkFilter = 'all'; // all | pending
+let bulkLinkVisibleCount = 0; // filas visibles con el filtro multi-estado aplicado
 let bulkLinkSending = false; // bloquea doble clic / envíos concurrentes
 let bulkLinkStudies = [];
 
@@ -6551,7 +6552,10 @@ async function openBulkLinkSendModal() {
     document.getElementById('bulkLinkBusyOverlay').style.display = 'none';
     bulkLinkSending = false;
     bulkLinkContacts = [];
+    bulkLinkVisibleCount = 0;
     bulkLinkFilter = 'all';
+    bulkLinkRenderStatusBadges();
+    document.querySelectorAll('.bulk-status-check').forEach(cb => cb.checked = false);
     const previewBox = document.getElementById('bulkLinkTemplatePreview');
     if (previewBox) { previewBox.dataset.previewKey = ''; previewBox.innerHTML = ''; }
     bulkLinkSetSendEnabled(false);
@@ -6721,6 +6725,8 @@ async function bulkLinkLoadContacts() {
     if (!studyId) {
         document.getElementById('bulkLinkTableBody').innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center; color: #64748b;">Selecciona un estudio</td></tr>';
         bulkLinkContacts = [];
+        bulkLinkVisibleCount = 0;
+        document.getElementById('bulkLinkStatusDashboard').style.display = 'none';
         bulkLinkUpdateCount();
         return;
     }
@@ -6735,15 +6741,63 @@ async function bulkLinkLoadContacts() {
 }
 
 const BULK_LINK_STATUSES = [
-    { value: '', label: '⚪ Pendiente', short: 'Pendiente' },
-    { value: 'sent', label: '🔵 Enviado', short: 'Enviado' },
-    { value: 'read', label: '🟡 Visto', short: 'Visto' },
-    { value: 'responded', label: '🟢 Respondido', short: 'Respondido' },
-    { value: 'survey_done', label: '✅ Encuesta hecha', short: 'Hecha' },
-    { value: 'interested', label: '🟣 Interesado', short: 'Interesado' },
-    { value: 'call_back', label: '🟠 Llamar después', short: 'Después' },
-    { value: 'not_interested', label: '🔴 No interesado', short: 'No' },
+    { value: '', label: '⚪ Pendiente', short: 'Pendiente', emoji: '⚪' },
+    { value: 'sent', label: '🔵 Enviado', short: 'Enviado', emoji: '🔵' },
+    { value: 'read', label: '🟡 Visto', short: 'Visto', emoji: '🟡' },
+    { value: 'responded', label: '🟢 Respondido', short: 'Respondido', emoji: '🟢' },
+    { value: 'survey_done', label: '✅ Encuesta hecha', short: 'Hecha', emoji: '✅' },
+    { value: 'interested', label: '🟣 Interesado', short: 'Interesado', emoji: '🟣' },
+    { value: 'call_back', label: '🟠 Llamar después', short: 'Después', emoji: '🟠' },
+    { value: 'not_interested', label: '🔴 No interesado', short: 'No', emoji: '🔴' },
 ];
+
+// Opciones del filtro multi-estado. Salen de BULK_LINK_STATUSES para que el filtro y el
+// select de cada fila no se desincronicen. 'pending' es el nombre del filtro para un
+// contacto sin estado guardado (bulk_send_status NULL o '').
+function bulkLinkStatusFilterOptions() {
+    return BULK_LINK_STATUSES.map(s => ({
+        value: s.value === '' ? 'pending' : s.value,
+        emoji: s.emoji,
+        short: s.short,
+    })).concat([{ value: 'blocked', emoji: '⛔', short: 'Bloq' }]);
+}
+
+// Regla del filtro: sin estados tildados se ve todo; 'blocked' es excluyente y el resto
+// se compara contra el estado guardado del contacto.
+function bulkLinkMatchesStatusFilter(contact, activeStatuses) {
+    if (!activeStatuses || activeStatuses.length === 0) return true;
+    if (activeStatuses.includes('blocked')) return Boolean(contact.blocked);
+    if (contact.blocked) return false;
+    return activeStatuses.includes(contact.bulk_send_status || 'pending');
+}
+
+function bulkLinkStatusBadgeHTML(opt, count) {
+    return `<label class="bulk-status-badge" data-status="${opt.value}" style="cursor: pointer;">`
+        + `<input type="checkbox" class="bulk-status-check" onchange="bulkLinkApplyStatusFilter()" style="display:none;">`
+        + `${opt.emoji} <span class="bulk-status-count" data-count-for="${opt.value}">${count || 0}</span> ${opt.short}</label>`;
+}
+
+function bulkLinkRenderStatusBadges() {
+    const cont = document.getElementById('bulkLinkStatusBadges');
+    if (!cont) return;
+    cont.innerHTML = bulkLinkStatusFilterOptions().map(o => bulkLinkStatusBadgeHTML(o, 0)).join('');
+}
+
+function bulkLinkActiveStatuses() {
+    return Array.from(document.querySelectorAll('.bulk-status-check:checked'))
+        .map(cb => cb.closest('.bulk-status-badge')?.dataset.status)
+        .filter(v => v !== undefined && v !== null);
+}
+
+function bulkLinkUncheckAllStatuses() {
+    document.querySelectorAll('.bulk-status-check').forEach(cb => cb.checked = false);
+    bulkLinkFilter = 'all';
+}
+
+function bulkLinkClearStatusFilter() {
+    bulkLinkUncheckAllStatuses();
+    bulkLinkRenderTable();
+}
 
 // Traducción de los estados de entrega de WhatsApp al español.
 const WA_STATUS_ES = {
@@ -6797,27 +6851,15 @@ async function bulkLinkSetStatus(callId, newStatus) {
 
 function bulkLinkUpdateDashboard() {
     const counts = {};
-    BULK_LINK_STATUSES.forEach(s => counts[s.value] = 0);
-    counts['blocked'] = 0;
+    bulkLinkStatusFilterOptions().forEach(o => counts[o.value] = 0);
     bulkLinkContacts.forEach(c => {
         if (c.blocked) { counts['blocked']++; return; }
-        const st = c.bulk_send_status || '';
-        if (counts[st] !== undefined) counts[st]++;
-        else counts[''] = (counts[''] || 0) + 1;
+        const estado = c.bulk_send_status || 'pending';
+        if (counts[estado] === undefined) counts['pending'] = (counts['pending'] || 0) + 1;
+        else counts[estado]++;
     });
-    const map = {
-        survey_done: 'bulkCountSurveyDone',
-        interested: 'bulkCountInterested',
-        call_back: 'bulkCountCallBack',
-        responded: 'bulkCountResponded',
-        read: 'bulkCountRead',
-        not_interested: 'bulkCountNotInterested',
-        '': 'bulkCountPending',
-        blocked: 'bulkCountBlocked',
-    };
-    Object.entries(map).forEach(([key, id]) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = counts[key] || 0;
+    document.querySelectorAll('#bulkLinkStatusBadges .bulk-status-count').forEach(el => {
+        el.textContent = counts[el.dataset.countFor] || 0;
     });
     document.getElementById('bulkLinkStatusDashboard').style.display = bulkLinkContacts.length > 0 ? 'flex' : 'none';
 }
@@ -6829,17 +6871,14 @@ function bulkLinkApplyStatusFilter() {
 
 function bulkLinkRenderTable() {
     const tbody = document.getElementById('bulkLinkTableBody');
-    const activeStatuses = Array.from(document.querySelectorAll('.bulk-status-check:checked')).map(cb => cb.closest('.bulk-status-badge')?.dataset.status).filter(Boolean);
+    const activeStatuses = bulkLinkActiveStatuses();
     const visible = bulkLinkContacts.filter(c => {
         if (bulkLinkFilter === 'pending') {
             return !c.blocked && !['responded', 'survey_done', 'interested', 'not_interested', 'call_back'].includes(c.bulk_send_status);
         }
-        if (activeStatuses.length > 0) {
-            if (activeStatuses.includes('blocked')) return c.blocked;
-            return !c.blocked && activeStatuses.includes(c.bulk_send_status || '');
-        }
-        return true;
+        return bulkLinkMatchesStatusFilter(c, activeStatuses);
     });
+    bulkLinkVisibleCount = visible.length;
     if (visible.length === 0) {
         tbody.innerHTML = '<tr><td colspan="9" style="padding: 2rem; text-align: center; color: #64748b;">No hay contactos</td></tr>';
     } else {
@@ -6890,7 +6929,10 @@ function bulkLinkTimeAgo(dateStr) {
 
 function bulkLinkUpdateCount() {
     const selected = document.querySelectorAll('.bulk-link-check:checked').length;
-    document.getElementById('bulkLinkCount').textContent = `${bulkLinkContacts.length} contactos · ${selected} seleccionados`;
+    const conFiltro = bulkLinkActiveStatuses().length > 0 || bulkLinkFilter === 'pending';
+    document.getElementById('bulkLinkCount').textContent = conFiltro
+        ? `${bulkLinkContacts.length} contactos · ${bulkLinkVisibleCount} visibles · ${selected} seleccionados`
+        : `${bulkLinkContacts.length} contactos · ${selected} seleccionados`;
 }
 
 function bulkLinkToggleSelectAll() {
@@ -6930,14 +6972,13 @@ function bulkLinkExportExcel() {
 }
 
 function bulkLinkFilterPending() {
+    bulkLinkUncheckAllStatuses();
     bulkLinkFilter = 'pending';
-    document.querySelectorAll('.bulk-status-check').forEach(cb => cb.checked = false);
     bulkLinkRenderTable();
 }
 
 function bulkLinkFilterAll() {
-    bulkLinkFilter = 'all';
-    document.querySelectorAll('.bulk-status-check').forEach(cb => cb.checked = false);
+    bulkLinkUncheckAllStatuses();
     bulkLinkRenderTable();
 }
 
