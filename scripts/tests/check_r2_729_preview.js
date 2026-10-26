@@ -26,27 +26,47 @@ function extraer(nombre) {
     throw new Error('no pude cerrar ' + nombre);
 }
 
+function extraerConst(nombre) {
+    const inicio = src.indexOf('const ' + nombre + ' = ');
+    if (inicio === -1) throw new Error('no encontre ' + nombre);
+    const fin = src.indexOf('\n};', inicio);
+    if (fin === -1) throw new Error('no pude cerrar ' + nombre);
+    return src.slice(inicio, fin + 3);
+}
+
 const fns = [
-    'getWhatsAppTemplateHora',
-    'waTemplateBody',
-    'waRenderInlineTemplatePreview',
-    'waUpdateTemplateForm',
-    'waToggleNewChatLink',
-    'waRenderNewChatPreview',
-    'waNewChatTemplateParams',
-].map(extraer).join('\n');
+    extraerConst('waEsc'),
+    [
+        'waFormatPreviewHtml',
+        'getWhatsAppTemplateHora',
+        'waTemplateBody',
+        'waRenderInlineTemplatePreview',
+        'waUpdateTemplateForm',
+        'waToggleNewChatLink',
+        'waRenderNewChatPreview',
+        'waNewChatTemplateParams',
+    ].map(extraer).join('\n'),
+].join('\n');
 
 function el(id) {
-    return {
+    const e = {
         id,
         value: '',
-        innerHTML: '',
         style: {},
         textContent: '',
         dataset: {},
         querySelector: () => null,
         addEventListener: () => {},
     };
+    let html = '';
+    Object.defineProperty(e, 'innerHTML', {
+        get: () => html,
+        set: v => {
+            html = String(v);
+            e.textContent = html.replace(/<[^>]*>/g, '');
+        },
+    });
+    return e;
 }
 
 const els = {};

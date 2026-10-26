@@ -41,29 +41,49 @@ const BODY = 'REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestado}}! 👋
     '🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/3qsgqgVaCEepHrA89\n\n' +
     '¡Muchas gracias por tu compromiso y participación!';
 
+function extraerConst(nombre) {
+    const inicio = src.indexOf('const ' + nombre + ' = ');
+    if (inicio === -1) throw new Error('no encontre ' + nombre);
+    const fin = src.indexOf('\n};', inicio);
+    if (fin === -1) throw new Error('no pude cerrar ' + nombre);
+    return src.slice(inicio, fin + 3);
+}
+
 const fns = [
-    'waTemplateLabel',
-    'getWhatsAppTemplateHora',
-    'waTemplateBody',
-    'waRenderInlineTemplatePreview',
-    'waUpdateTemplateForm',
-    'showWhatsAppTemplatePreview',
-    'waToggleNewChatLink',
-    'waRenderNewChatPreview',
-    'waNewChatTemplateParams',
-].map(extraer).join('\n');
+    extraerConst('waEsc'),
+    [
+        'waFormatPreviewHtml',
+        'waTemplateLabel',
+        'getWhatsAppTemplateHora',
+        'waTemplateBody',
+        'waRenderInlineTemplatePreview',
+        'waUpdateTemplateForm',
+        'showWhatsAppTemplatePreview',
+        'waToggleNewChatLink',
+        'waRenderNewChatPreview',
+        'waNewChatTemplateParams',
+    ].map(extraer).join('\n'),
+].join('\n');
 
 function el(id) {
-    return {
+    const e = {
         id,
         value: '',
-        innerHTML: '',
         style: {},
         textContent: '',
         dataset: {},
         querySelector: () => null,
         addEventListener: () => {},
     };
+    let html = '';
+    Object.defineProperty(e, 'innerHTML', {
+        get: () => html,
+        set: v => {
+            html = String(v);
+            e.textContent = html.replace(/<[^>]*>/g, '');
+        },
+    });
+    return e;
 }
 
 const els = {};

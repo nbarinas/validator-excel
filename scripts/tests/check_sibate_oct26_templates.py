@@ -4,6 +4,8 @@
 Pedido del usuario (verbatim):
   * Agregar `plantilla_sibate_2_302_oct_1_26` (es) e `inicio_de_semana_sibate_1_204_oct_26`
     (es) para que el superusuario las vea y las pueda conectar en 1x1 y en envio masivo.
+  * (Cambio posterior) El tramo del suplemento termina en `*codigo 302*` / `*código 204*`
+    (negrita en Meta) y la vista previa del front lo tiene que mostrar en negrita.
   * Desactivar `sibate_encuesta_final`, `recordatorio_diario_semana_19_de_octubre_` e
     `inicio_semana_19_de_octu`: no deben verse mas porque no se van a usar.
 
@@ -22,6 +24,8 @@ Uso:    python scripts/tests/check_sibate_oct26_templates.py
 Salida: 0 = todo OK; 1 = hay diferencias.
 """
 import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -51,7 +55,7 @@ _CUERPO_BASE = (
     "Muchas gracias por seguir participando y por tu compromiso.\n"
     "\n"
     "📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en "
-    "comer su concentrado habitual, mezclado con el suplemento que te enviamos.\n"
+    "comer su concentrado habitual, mezclado con el suplemento que te enviamos__PRODUCTO__.\n"
     "\n"
     "🍽️ ¿Qué debes hacer cada día?\n"
     "\n"
@@ -77,12 +81,14 @@ KEY_204 = "inicio_de_semana_sibate_1_204_oct_26"
 NUEVAS = {
     KEY_302: {
         "params": ["encuestada", "mascota", "censo"],
-        "body": _CUERPO_BASE.replace("__CODIGO__", "codigo de resistro censo: {{censo}}"),
+        "body": _CUERPO_BASE.replace("__CODIGO__", "codigo de resistro censo: {{censo}}")
+        .replace("__PRODUCTO__", " *codigo 302*"),
         "label": "Sibate 2 — producto 302 (segunda fase)",
     },
     KEY_204: {
         "params": ["encuestada", "mascota", "censo"],
-        "body": _CUERPO_BASE.replace("__CODIGO__", "codigo de registro censo: {{censo}}"),
+        "body": _CUERPO_BASE.replace("__CODIGO__", "codigo de registro censo: {{censo}}")
+        .replace("__PRODUCTO__", " *código 204*"),
         "label": "Inicio de semana Sibate 1 — producto 204",
     },
 }
@@ -345,6 +351,29 @@ def correr():
             check(r".replace(/\{\{mascota\}\}/g" in fuente, f"{nombre} sustituye {{{{mascota}}}}")
             check(r".replace(/\{\{censo\}\}/g" in fuente, f"{nombre} sustituye {{{{censo}}}}")
             check(r".replace(/\{\{encuestada\}\}/g" in fuente, f"{nombre} sustituye {{{{encuestada}}}}")
+
+        print("[9] La negrita de la plantilla se ve en las vistas previas")
+        helper = _func_src(js, "waFormatPreviewHtml")
+        check(helper != "", "existe waFormatPreviewHtml")
+        check("waEsc(" in helper, "waFormatPreviewHtml escapa el texto (waEsc)")
+        check(r".replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>')" in helper,
+              "waFormatPreviewHtml convierte *texto* en <strong>")
+        for nombre in ("waRenderInlineTemplatePreview", "waRenderNewChatPreview",
+                       "showWhatsAppTemplatePreview", "bulkLinkRenderTemplatePreview"):
+            fuente = _func_src(js, nombre)
+            check("waFormatPreviewHtml(body)" in fuente, f"{nombre} usa waFormatPreviewHtml")
+
+        print("[10] La negrita se rinde y el texto se escapa (node, codigo real)")
+        waesc = re.search(r"const waEsc = \(s\) => \{.*?\n\};", js, re.S)
+        check(waesc is not None, "encontre waEsc en el front")
+        if waesc is not None and helper:
+            harness = (waesc.group(0) + "\n" + helper +
+                       "\nprocess.stdout.write(waFormatPreviewHtml("
+                       "'Hola <b>Amiga</b> *código 204*.'));")
+            res = subprocess.run(["node", "-e", harness], capture_output=True, text=True)
+            check(res.returncode == 0, f"el helper corre en node ({res.stderr.strip()[:80]})")
+            check(res.stdout == "Hola &lt;b&gt;Amiga&lt;/b&gt; <strong>código 204</strong>.",
+                  f"render: negrita y escape HTML -> {res.stdout!r}")
     finally:
         db.close()
 

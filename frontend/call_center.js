@@ -1048,6 +1048,12 @@ function waTemplateBody(key) {
     return (typeof BULK_TEMPLATE_BODIES !== 'undefined' && BULK_TEMPLATE_BODIES[key]) || '';
 }
 
+// HTML seguro para las vistas previas de plantillas: escapa el texto y respeta
+// la negrita de WhatsApp (*texto*), que es como viaja en el cuerpo aprobado.
+function waFormatPreviewHtml(body) {
+    return waEsc(body).replace(/\*([^*\n]+)\*/g, '<strong>$1</strong>');
+}
+
 async function openStudyTemplatesModal(studyId) {
     const study = manageStudiesById[studyId];
     studyTemplatesCurrentId = studyId;
@@ -5463,8 +5469,8 @@ const WA_TEMPLATE_BODIES = {
     "r2_729": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
     "entrega_sibate_19_oct_sibate_1_204": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 204.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
     "entrega_sibate_19_oct_sibate_2_302": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 302.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
-    "plantilla_sibate_2_302_oct_1_26_fase2": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de resistro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
-    "inicio_de_semana_sibate_1_204_oct_26": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de registro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
+    "plantilla_sibate_2_302_oct_1_26_fase2": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos *codigo 302*.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de resistro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
+    "inicio_de_semana_sibate_1_204_oct_26": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos *código 204*.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de registro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día."
 };
@@ -5524,7 +5530,7 @@ function waRenderInlineTemplatePreview(kind) {
         .replace(/\{\{censo\}\}/g, (currentCallData && currentCallData.census) ? currentCallData.census : '[censo]')
         .replace(/\{\{dia\}\}/g, dia || '[día]')
         .replace(/\{\{hora\}\}/g, hora);
-    box.textContent = body;
+    box.innerHTML = waFormatPreviewHtml(body);
     box.scrollTop = 0;
 }
 
@@ -5680,7 +5686,7 @@ function showWhatsAppTemplatePreview() {
     body = body.replace(/\{\{dia\}\}/g, dia || '[día]');
 
     document.getElementById('waPreviewTemplateName').textContent = waTemplateLabel(kind) + ' — ' + kind;
-    document.getElementById('waPreviewBody').textContent = body;
+    document.getElementById('waPreviewBody').innerHTML = waFormatPreviewHtml(body);
     document.getElementById('waPreviewError').style.display = 'none';
 
     waPendingTemplatePayload = payload;
@@ -5982,7 +5988,7 @@ function waRenderNewChatPreview() {
         .replace(/\{\{censo\}\}/g, '[censo]')
         .replace(/\{\{dia\}\}/g, dia || '[día]')
         .replace(/\{\{hora\}\}/g, '[hora de recogida]');
-    box.textContent = body;
+    box.innerHTML = waFormatPreviewHtml(body);
     box.scrollTop = 0;
 }
 
@@ -6639,7 +6645,7 @@ function bulkLinkRenderTemplatePreview(key) {
     const vars = BULK_TEMPLATE_VARS[key] || '';
     const header = '<div style="font-weight:700;color:#0f172a;margin-bottom:4px;">' + waEsc(label) + '</div>';
     if (body) {
-        box.innerHTML = header + '<div>' + waEsc(body) + '</div>';
+        box.innerHTML = header + '<div>' + waFormatPreviewHtml(body) + '</div>';
     } else {
         box.innerHTML = header
             + '<div style="color:#64748b;">(sin texto de vista previa)</div>'
