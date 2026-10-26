@@ -43,7 +43,7 @@ from backend import auth, database, models  # noqa: E402
 
 FALLAS = []
 
-KEY_302 = "plantilla_sibate_2_302_oct_1_26"
+KEY_302 = "plantilla_sibate_2_302_oct_1_26_fase2"
 KEY_204 = "inicio_de_semana_sibate_1_204_oct_26"
 RETIRADA = "sibate_encuesta_final"
 
