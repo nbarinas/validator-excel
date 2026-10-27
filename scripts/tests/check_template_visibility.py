@@ -10,8 +10,8 @@ Regla:
     usuario ve, con la misma visibilidad que usa GET /studies.
 
 Comprueba contra el codigo real:
-  1. Superusuario: ve todo WHATSAPP_TEMPLATE_MAP, incluidas las 2 nuevas del 26 de octubre,
-     aunque no esten conectadas a ningun estudio. El shape de cada item no cambia.
+  1. Superusuario: ve todo WHATSAPP_TEMPLATE_MAP, incluidas las 2 nuevas de recordatorio
+     Sibate 204/302, aunque no esten conectadas a ningun estudio. El shape de cada item no cambia.
   2. Coordinator (ve todos los estudios): ve solo la plantilla conectada como masiva.
   3. Agent: ve solo lo conectado a estudios ACTIVOS (masivas y 1x1).
   4. Auxiliar: ve solo lo conectado a SUS estudios asignados; sin asignaciones, nada.
@@ -43,8 +43,8 @@ from backend import auth, database, models  # noqa: E402
 
 FALLAS = []
 
-KEY_302 = "plantilla_sibate_2_302_oct_1_26_fase2"
-KEY_204 = "inicio_de_semana_sibate_1_204_oct_26"
+KEY_302 = "recordatorio_sibate_2_302"
+KEY_204 = "recordatorio_sibate_1_204"
 RETIRADA = "sibate_encuesta_final"
 
 # Campos exactos de cada item del catalogo (el shape no cambia con este requerimiento).

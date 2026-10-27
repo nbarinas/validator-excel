@@ -5469,8 +5469,8 @@ const WA_TEMPLATE_BODIES = {
     "r2_729": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
     "entrega_sibate_19_oct_sibate_1_204": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 204.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
     "entrega_sibate_19_oct_sibate_2_302": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 302.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
-    "plantilla_sibate_2_302_oct_1_26_fase2": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos *codigo 302*.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de resistro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
-    "inicio_de_semana_sibate_1_204_oct_26": "Hola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos *código 204*.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo de registro censo: {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/kFrKRWKXFRkp6dhT9\n\n🎁 Bono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp",
+    "recordatorio_sibate_1_204": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{entrevistada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 204).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
+    "recordatorio_sibate_2_302": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 302).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día."
 };
@@ -5521,6 +5521,7 @@ function waRenderInlineTemplatePreview(kind) {
     body = body.replace(/\{\{nombre\}\}/g, personName)
         .replace(/\{\{encuestada\}\}/g, personName)
         .replace(/\{\{encuestado\}\}/g, personName)
+        .replace(/\{\{entrevistada\}\}/g, personName)
         .replace(/\{\{nombre_entrevistada\}\}/g, personName)
         .replace(/\{\{encuestador\}\}/g, agentName)
         .replace(/\{\{categoria\}\}/g, category || '[estudio]')
@@ -5675,6 +5676,7 @@ function showWhatsAppTemplatePreview() {
     body = body.replace(/\{\{nombre\}\}/g, personName);
     body = body.replace(/\{\{encuestada\}\}/g, personName);
     body = body.replace(/\{\{encuestado\}\}/g, personName);
+    body = body.replace(/\{\{entrevistada\}\}/g, personName);
     body = body.replace(/\{\{nombre_entrevistada\}\}/g, personName);
     body = body.replace(/\{\{encuestador\}\}/g, agentName);
     body = body.replace(/\{\{categoria\}\}/g, category || '-');
@@ -5946,7 +5948,7 @@ function waToggleNewChatLink() {
     const kind = document.getElementById('waNewChatKind').value;
     const item = waTemplateCatalogMap[kind];
     const params = (item && Array.isArray(item.params)) ? item.params : [];
-    const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre') || params.includes('nombre_entrevistada'));
+    const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('entrevistada') || params.includes('nombre') || params.includes('nombre_entrevistada'));
     const needsCategory = params.includes('categoria') || kind === 'filter' || kind === 'form';
     const needsDia = params.includes('dia');
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
@@ -5979,6 +5981,7 @@ function waRenderNewChatPreview() {
     body = body.replace(/\{\{nombre\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestada\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestado\}\}/g, name || '[nombre]')
+        .replace(/\{\{entrevistada\}\}/g, name || '[nombre]')
         .replace(/\{\{nombre_entrevistada\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestador\}\}/g, currentUserName || 'Encuestador')
         .replace(/\{\{categoria\}\}/g, subject || '[estudio]')
@@ -5999,7 +6002,7 @@ function waNewChatTemplateParams() {
     const isTemplate = !!item;
     return {
         isTemplate: isTemplate,
-        needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('nombre') || params.includes('nombre_entrevistada')),
+        needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('entrevistada') || params.includes('nombre') || params.includes('nombre_entrevistada')),
         needsCategory: params.includes('categoria') || kind === 'filter' || kind === 'form',
         needsDia: params.includes('dia'),
         needsLink: kind === 'form',
@@ -6120,6 +6123,7 @@ async function sendWhatsAppBulk() {
     const kind = document.getElementById('waNewChatKind').value;
     const params = waNewChatTemplateParams();
     const subject = document.getElementById('waNewChatSubject').value.trim();
+    const dia = (document.getElementById('waNewChatDay').value || '').trim();
 
     errorEl.style.display = 'none';
     statusEl.style.display = 'none';
@@ -6139,12 +6143,18 @@ async function sendWhatsAppBulk() {
         errorEl.style.display = 'block';
         return;
     }
+    if (params.needsDia && !dia) {
+        errorEl.textContent = 'Indica el día del registro antes de enviar.';
+        errorEl.style.display = 'block';
+        return;
+    }
     const payload = {
         template_key: kind,
         category: subject,
         contacts,
         batch_size: batch,
     };
+    if (params.needsDia) payload.dia = dia;
 
     btn.disabled = true;
     const originalText = btn.textContent;
@@ -6627,6 +6637,8 @@ const BULK_TEMPLATE_BODIES = {
 const BULK_TEMPLATE_VARS = {
     'pepe_1': '{{encuestado}} · {{nombre_mascota}} · {{censo}}',
     'sibate_2': '{{encuestado}} · {{nombre_mascota}} · {{censo}} · {{dia}}',
+    'recordatorio_sibate_1_204': '{{dia}} · {{entrevistada}} · {{mascota}} · {{censo}}',
+    'recordatorio_sibate_2_302': '{{dia}} · {{encuestada}} · {{mascota}} · {{censo}}',
     'recordatorio': '{{encuestado}} · {{nombremascota}} · {{fecha}} · {{censo}}',
     'sigue_interesado': '{{encuestada}} · {{mascota}}',
     'registro_diario_fatiga_6_semanas': '{{encuestado}} · {{dia}} · {{perro}} · {{censo}}',
@@ -6634,7 +6646,7 @@ const BULK_TEMPLATE_VARS = {
 };
 
 // Plantillas que requieren que el usuario digite el día antes de enviar.
-const BULK_DAY_TEMPLATES = ['sibate_2', 'registro_diario_fatiga_6_semanas', 'sibate_90mas15_dias'];
+const BULK_DAY_TEMPLATES = ['sibate_2', 'registro_diario_fatiga_6_semanas', 'sibate_90mas15_dias', 'recordatorio_sibate_1_204', 'recordatorio_sibate_2_302'];
 
 function bulkLinkRenderTemplatePreview(key) {
     const box = document.getElementById('bulkLinkTemplatePreview');

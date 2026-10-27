@@ -141,6 +141,61 @@ queda "(sin plantillas conectadas)" o la plantilla desaparece, sin error visible
 Ahora la función vuelve a pedir `/whatsapp/templates` en **cada** llamada y refresca
 `waTemplateCatalog`/`waTemplateCatalogMap`; los 6 call sites son aperturas de modal (no polling).
 
+**S11.** (Cambio de requerimiento, ver L16) El catálogo suma `recordatorio_sibate_1_204` y
+`recordatorio_sibate_2_302` (idioma `es`), habilitadas para el envío 1×1 **y** para el masivo, con
+vista previa en el front. Parámetros en orden de aparición: `dia`, `entrevistada`, `mascota`,
+`censo` para la 204; `dia`, `encuestada`, `mascota`, `censo` para la 302. Cuerpos verbatim del
+pedido:
+
+```
+🐶 REGISTRO DIARIO – DÍA {{dia}}/7
+
+¡Hola, {{entrevistada}}! 👋 Te saluda el equipo de AZ Marketing Plus.
+
+🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 204).
+
+🍽️ Registra una sola comida al día, manteniendo el mismo horario.
+
+⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.
+
+🔢 Código de registro: {{censo}}
+
+🔗 Diligencia aquí la encuesta:
+https://forms.gle/pP9Fd9v5ZSTGjemX8
+
+¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.
+```
+
+```
+🐶 REGISTRO DIARIO – DÍA {{dia}}/7
+
+¡Hola, {{encuestada}}! 👋 Te saluda el equipo de AZ Marketing Plus.
+
+🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 302).
+
+🍽️ Registra una sola comida al día, manteniendo el mismo horario.
+
+⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.
+
+🔢 Código de registro: {{censo}}
+
+🔗 Diligencia aquí la encuesta:
+https://forms.gle/pP9Fd9v5ZSTGjemX8
+
+¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.
+```
+
+El `{{dia}}` se digita antes de enviar, tanto en 1×1 como en el masivo: el campo ya existe y se
+muestra para toda plantilla que declare `dia`; el backend rechaza el envío sin día con
+`400 "Indica el día del registro antes de enviar"`. La vista previa sustituye también
+`{{entrevistada}}`.
+
+En la misma entrega se **retiran** `inicio_de_semana_sibate_1_204_oct_26` (etiqueta
+"Inicio de semana Sibate 1 — producto 204") y `plantilla_sibate_2_302_oct_1_26_fase2`
+(etiqueta "Sibate 2 — producto 302 (segunda fase)"): salen del catálogo, de las etiquetas, de
+los cuerpos, de `WHATSAPP_SINGLE_TEMPLATE_KEYS` y de `BULK_DAY_TEMPLATES`; no se ven más en
+ningún selector y el backend las rechaza con `400 "Plantilla no válida"` en 1×1 y en masivo.
+
 ## Tasks
 
 | ID | Spec | Ruta | Estado |
@@ -165,6 +220,10 @@ Ahora la función vuelve a pedir `/whatsapp/templates` en **cada** llamada y ref
 | T18 | S10 | `backend/main.py`: `_visible_studies_query` extraído de `GET /studies` + `GET /whatsapp/templates` filtrado por rol (masivas + 1×1 de los estudios visibles) | hecho (sin commit) |
 | T19 | S10 | `scripts/tests/check_template_visibility.py` (RED→GREEN) + diferencial contra `HEAD` | hecho (sin commit) |
 | T20 | S10 | fix del blocker: `frontend/call_center.js` `waLoadTemplateCatalog()` sin caché (refresca en cada apertura de modal) + `scripts/tests/check_template_catalog_refresh.js` (RED→GREEN) + `scripts/tests/check_template_visibility_edges.py` (bordes de S10) | hecho (sin commit) |
+| T21 | S11 | `backend/main.py`: 2 plantillas nuevas (map/labels/bodies/single keys), `entrevistada` en `param_values`, retiro de las 2 del 26 oct y `dia` en `send-bulk` | hecho (commit de esta entrega) |
+| T22 | S11 | `frontend/call_center.js`: cuerpos de respaldo, `{{entrevistada}}` en las 3 vistas previas, `BULK_DAY_TEMPLATES`, retiro de las 2 del 26 oct y dia en el envio masivo por lista | hecho (commit de esta entrega) |
+| T23 | S11 | `scripts/tests/check_recordatorio_sibate_204_302.py` + `check_recordatorio_sibate_preview.js`; actualizar `check_template_visibility.py` y dar de baja `check_sibate_oct26_templates.py` | hecho (commit de esta entrega) |
+| T24 | S11 | Verificación: suite, `node --check`, `py_compile` y evidencia en este doc | hecho (commit de esta entrega) |
 
 Work units: backend (fd2c27b), frontend (9a25f0d), tests (a618814), fix de la verificación
 (b5676a1), regresión (3f82582), r2_729 (sin commit), esta doc y el cambio del 26 de octubre
@@ -455,3 +514,78 @@ superusuario la conecte al estudio (botones `Plantillas 1×1` y `Plantillas`).
   visibilidad del usuario, así que el filtro del catálogo no es un control de autorización de
   envío; (2) `/whatsapp/send-bulk` no tiene guard por estudio (no valida que las plantillas del
   payload estén conectadas a un estudio visible). Ninguno de los dos se tocó en este cambio.
+
+**L16** (cambio de requerimiento, pedido del usuario verbatim):
+
+> quiero agregar en 1x1 y plantillas masivas la primera es recordatorio_sibate_1_204 · Spanish y 🐶 REGISTRO DIARIO – DÍA {{dia}}/7
+>
+> ¡Hola, {{entrevistada}}! 👋 Te saluda el equipo de AZ Marketing Plus.
+>
+> 🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 204).
+>
+> 🍽️ Registra una sola comida al día, manteniendo el mismo horario.
+>
+> ⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.
+>
+> 🔢 Código de registro: {{censo}}
+>
+> 🔗 Diligencia aquí la encuesta:
+> https://forms.gle/pP9Fd9v5ZSTGjemX8
+>
+> ¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.
+> 1:41 pm
+> Listo, ya lo llene
+> Mas tarde lo hago la de dia es para que se antes de enviar la persona coloque (digite el numero)  y la otra es recordatorio_sibate_2_302 · Spanish y 🐶 REGISTRO DIARIO – DÍA {{dia}}/7
+>
+> ¡Hola, {{encuestada}}! 👋 Te saluda el equipo de AZ Marketing Plus.
+>
+> 🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 302).
+>
+> 🍽️ Registra una sola comida al día, manteniendo el mismo horario.
+>
+> ⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.
+>
+> 🔢 Código de registro: {{censo}}
+>
+> 🔗 Diligencia aquí la encuesta:
+> https://forms.gle/pP9Fd9v5ZSTGjemX8
+>
+> ¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.
+> 1:45 pm
+> Listo, ya lo llene
+> Ahora lo hago y quiero eliminar para que no aparezca nicio de semana Sibate 1 — producto 204
+>
+> Sibate 2 — producto 302 (segunda fase) que no los vamos a usar
+
+**L17** (implementación del cambio, evidencia):
+- Catálogo: `recordatorio_sibate_1_204` (params `dia`, `entrevistada`, `mascota`, `censo`) y
+  `recordatorio_sibate_2_302` (`dia`, `encuestada`, `mascota`, `censo`), etiquetas "Recordatorio
+  Sibate 1 — producto 204" y "Recordatorio Sibate 2 — producto 302". Cuerpos byte-exactos en
+  `WHATSAPP_TEMPLATE_BODIES` y en `WA_TEMPLATE_BODIES`; ambos conservan el doble espacio de
+  "mas  el" tal como vino en el pedido.
+- `entrevistada` se mapea a `person_name` en `whatsapp_send_template` y en
+  `whatsapp_send_bulk`; las tres vistas previas del front la sustituyen y
+  `waToggleNewChatLink`/`waNewChatTemplateParams` la reconocen como nombre.
+- Día digitado: las dos keys entraron en `BULK_DAY_TEMPLATES`; el modal 1×1 y "Nuevo chat"
+  muestran el campo; el masivo por estudio (`bulk_link=true` con contactos del estudio) ya lo
+  mandaba por contacto, y el "Envío masivo" por lista ahora lee `waNewChatDay`, valida y manda
+  `dia` (`WhatsAppSendBulkRequest.dia`). Sin día: `400 "Indica el día del registro antes de
+  enviar"` en 1×1, en `send-template` masivo y en `send-bulk`, sin request a Meta ni registro.
+- Retiro: `inicio_de_semana_sibate_1_204_oct_26` y
+  `plantilla_sibate_2_302_oct_1_26_fase2` salieron de MAP/LABELS/BODIES/SINGLE_KEYS, del
+  `WA_TEMPLATE_BODIES` del front y de `BULK_DAY_TEMPLATES`; `grep` no los encuentra en
+  `backend/` ni en `frontend/`, y ambos endpoints responden `400 "Plantilla no válida"`.
+- Test-first: `check_recordatorio_sibate_204_302.py` **RED 55 fallas** y
+  `check_recordatorio_sibate_preview.js` **RED 6 fallas**; después **GREEN**. Se dio de baja
+  `check_sibate_oct26_templates.py` (su objeto ya no existe) y `check_template_visibility.py` se
+  reapuntó a las keys nuevas.
+- Verificación: suite `scripts/tests` **15/15 OK** (9 `.py` + 6 `.js`), `py_compile` de
+  `backend/main.py` y `node --check frontend/call_center.js` OK. Diferencial read-only contra
+  `HEAD` (árbol de `git archive` en temporal): 24 keys supervivientes byte-idénticas en
+  name/language/label/params/body/single_eligible y cuerpo renderizado; 96/96 escenarios de
+  envío compartidos con payload y registro idénticos; front con las 24 keys idénticas;
+  `BULK_DAY_TEMPLATES` = las 3 vivas + las 2 nuevas; árbol de trabajo sin mutar.
+- Límite pre-existente, fuera de alcance: el "Envío masivo" por lista (`/whatsapp/send-bulk`)
+  sólo recibe `nombre`/`telefono` por contacto, así que `{{mascota}}` y `{{censo}}` siguen
+  saliendo vacíos ahí; el masivo por estudio (`bulk_link=true`) sí manda mascota y censo. No se
+  cambió el contrato de la lista.
