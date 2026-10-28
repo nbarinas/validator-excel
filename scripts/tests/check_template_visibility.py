@@ -197,7 +197,7 @@ def correr():
         )
         main.set_study_single_templates(
             estudio_a.id,
-            main.StudySingleTemplatesUpdate(template_keys=["r2_729"]),
+            main.StudySingleTemplatesUpdate(template_keys=["fatiga_729_r3"]),
             db=db,
             current_user=admin,
         )
@@ -208,7 +208,7 @@ def correr():
             current_user=admin,
         )
         claves_agent = _claves(db, agent)
-        check(claves_agent == ["manana_3", "r2_729"],
+        check(claves_agent == ["manana_3", "fatiga_729_r3"],
               f"agent ve la masiva y la 1x1 del estudio activo -> {claves_agent}")
         check("shampo_primer" not in claves_agent,
               "agent NO ve shampo_primer (conectada a un estudio inactivo)")
@@ -220,7 +220,7 @@ def correr():
         check("shampo_primer" in claves_admin and "shampo_segundo" in claves_admin,
               "superuser ve lo conectado a estudios activos e inactivos")
         claves_coord = _claves(db, coord)
-        check(claves_coord == ["manana_3", "shampo_primer", "shampo_segundo", "r2_729"],
+        check(claves_coord == ["manana_3", "shampo_primer", "shampo_segundo", "fatiga_729_r3"],
               f"coordinator ve lo conectado a todos los estudios (activos e inactivos) -> {claves_coord}")
         check(all(list(t.keys()) == CAMPOS for t in _catalogo(db, agent)),
               "el shape de los items filtrados es el mismo")
@@ -231,7 +231,7 @@ def correr():
         # un auxiliar deja de ver las plantillas de los estudios que no tiene asignados, y
         # por lo tanto deja de poder mandarlas por 1x1 desde un chat de ese estudio.
         claves_aux = _claves(db, aux)
-        check(claves_aux == ["manana_3", "r2_729"],
+        check(claves_aux == ["manana_3", "fatiga_729_r3"],
               f"auxiliar asignado al estudio A ve solo lo de A -> {claves_aux}")
         check("shampo_primer" not in claves_aux,
               "auxiliar NO ve shampo_primer (estudio B, no asignado)")
@@ -279,7 +279,7 @@ def correr():
         check([s["id"] for s in _estudios(db, aux_libre)] == [],
               "auxiliar sin asignaciones: /studies vacio")
         detalle_a = next(s for s in _estudios(db, admin) if s["id"] == estudio_a.id)
-        check(detalle_a["template_keys"] == ["manana_3"] and detalle_a["single_template_keys"] == ["r2_729"],
+        check(detalle_a["template_keys"] == ["manana_3"] and detalle_a["single_template_keys"] == ["fatiga_729_r3"],
               f"GET /studies sigue devolviendo las keys conectadas por estudio -> "
               f"masivas {detalle_a['template_keys']}, 1x1 {detalle_a['single_template_keys']}")
         check(list(detalle_a.keys()) == ["id", "code", "name", "is_active", "status", "study_type",
@@ -291,7 +291,7 @@ def correr():
         claves_coord, consultas = _contar_consultas_de(db, coord)
         check(len(consultas) == 3,
               f"coordinator (3 estudios) hace 3 consultas (estudios + masivas + 1x1) -> hizo {len(consultas)}")
-        check(claves_coord == ["manana_3", "shampo_primer", "shampo_segundo", "r2_729"],
+        check(claves_coord == ["manana_3", "shampo_primer", "shampo_segundo", "fatiga_729_r3"],
               f"el resultado no cambia al contar consultas -> {claves_coord}")
 
         estudio_d = _crear_estudio(db, "VIS_D", True)

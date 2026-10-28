@@ -6,7 +6,7 @@
  *
  * Evalua el codigo real de frontend/call_center.js con un DOM minimo, sin dependencias.
  * Regresion: las plantillas con dia que ya existian (sibate_2) y las que no lo piden
- * (r2_729) siguen igual.
+ * (in_home_beta_385) siguen igual.
  *
  * Uso: node scripts/tests/check_template_day_preview.js [ruta/call_center.js]
  */
@@ -99,9 +99,9 @@ const catalogo = {
         params: ['dia', 'encuestado', 'perro', 'censo'], body: BODY },
     sibate_2: { key: 'sibate_2', label: 'Recordatorio diario',
         params: ['encuestado', 'nombre_mascota', 'censo', 'dia'], body: 'DÍA {{dia}} de {{encuestado}}' },
-    r2_729: { key: 'r2_729', label: 'Shampoo 729 — segunda videollamada (R2)',
-        params: ['nombre_entrevistada', 'encuestador', 'hora_agendada'],
-        body: 'Hola {{nombre_entrevistada}}, le saluda {{encuestador}} a las {{hora_agendada}}.' },
+    in_home_beta_385: { key: 'in_home_beta_385', label: 'In Home Beta 385',
+        params: ['encuestada', 'encuestador', 'hora_asignada'],
+        body: 'Hola {{encuestada}}, le saluda {{encuestador}} a las {{hora_asignada}}.' },
 };
 
 let radioChecked = { value: KEY };
@@ -189,17 +189,17 @@ check(ctx.waNewChatTemplateParams().needsDia === true, 'sibate_2 sigue pidiendo 
 ctx.waToggleNewChatLink();
 check(els['waNewChatDayLabel'].style.display === 'block', 'sibate_2 sigue mostrando el campo Día');
 
-els['waNewChatKind'].value = 'r2_729';
-check(ctx.waNewChatTemplateParams().needsDia === false, 'r2_729 no pide el dia');
+els['waNewChatKind'].value = 'in_home_beta_385';
+check(ctx.waNewChatTemplateParams().needsDia === false, 'in_home_beta_385 no pide el dia');
 ctx.waToggleNewChatLink();
-check(els['waNewChatDayLabel'].style.display === 'none', 'r2_729 no muestra el campo Día');
+check(els['waNewChatDayLabel'].style.display === 'none', 'in_home_beta_385 no muestra el campo Día');
 
-radioChecked = { value: 'r2_729' };
+radioChecked = { value: 'in_home_beta_385' };
 els['waTemplateDay'].value = '3';
 ctx.waUpdateTemplateForm();
-check(els['waTemplateDayGroup'].style.display === 'none', 'r2_729 no muestra el campo Día en el modal 1x1');
+check(els['waTemplateDayGroup'].style.display === 'none', 'in_home_beta_385 no muestra el campo Día en el modal 1x1');
 check(els['waTemplateInlinePreview'].textContent.includes('Ana') &&
-      els['waTemplateInlinePreview'].textContent.includes('Luis'), 'r2_729 sigue previsualizando bien');
+      els['waTemplateInlinePreview'].textContent.includes('Luis'), 'in_home_beta_385 sigue previsualizando bien');
 
 radioChecked = { value: 'sibate_2' };
 els['waTemplateDay'].value = '6';

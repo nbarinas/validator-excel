@@ -130,7 +130,7 @@ def correr():
             activo.id, main.StudyTemplatesUpdate(template_keys=["manana_3"]),
             db=db, current_user=admin)
         main.set_study_single_templates(
-            activo.id, main.StudySingleTemplatesUpdate(template_keys=["r2_729"]),
+            activo.id, main.StudySingleTemplatesUpdate(template_keys=["fatiga_729_r3"]),
             db=db, current_user=admin)
         main.set_study_templates(
             inactivo.id, main.StudyTemplatesUpdate(template_keys=["shampo_primer"]),
@@ -142,10 +142,10 @@ def correr():
             otro_activo.id, main.StudyTemplatesUpdate(template_keys=["bono_final"]),
             db=db, current_user=admin)
 
-        conectadas_todas = ["manana_3", "shampo_primer", "shampo_segundo", "r2_729", "bono_final"]
+        conectadas_todas = ["manana_3", "shampo_primer", "shampo_segundo", "fatiga_729_r3", "bono_final"]
         esperado_coord = _en_orden_del_catalogo(conectadas_todas)
-        esperado_agent = _en_orden_del_catalogo(["manana_3", "r2_729", "bono_final"])
-        esperado_aux = _en_orden_del_catalogo(["manana_3", "r2_729"])
+        esperado_agent = _en_orden_del_catalogo(["manana_3", "fatiga_729_r3", "bono_final"])
+        esperado_aux = _en_orden_del_catalogo(["manana_3", "fatiga_729_r3"])
 
         # ------------------------------------------------------------------
         print("[1] El rol se compara sin distinguir mayusculas: `SuperUser` ve todo")

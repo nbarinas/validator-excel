@@ -14,8 +14,8 @@
  * estudio es lo que convierte ese cache inocuo en un bug real.
  *
  * Extrae waLoadTemplateCatalog del codigo real y lo ejecuta con un `fetch` falso que
- * primero devuelve ['manana_3'] y despues ['manana_3', 'r2_729'] (simula que, con la
- * pagina abierta, el superusuario conecto r2_729 al estudio del agente).
+ * primero devuelve ['manana_3'] y despues ['manana_3', 'fatiga_729_r3'] (simula que, con la
+ * pagina abierta, el superusuario conecto fatiga_729_r3 al estudio del agente).
  *
  * Uso:    node scripts/tests/check_template_catalog_refresh.js [ruta/call_center.js]
  * Salida: 0 = todo OK; 1 = hay diferencias.
@@ -41,7 +41,7 @@ function extraer(nombre) {
 const fn = extraer('waLoadTemplateCatalog');
 
 // Respuestas del servidor, en orden: la segunda incluye la plantilla recien conectada.
-const respuestas = [['manana_3'], ['manana_3', 'r2_729']];
+const respuestas = [['manana_3'], ['manana_3', 'fatiga_729_r3']];
 let fetchLlamadas = 0;
 
 const ctx = {
@@ -85,23 +85,23 @@ function claves(lista) {
     check(JSON.stringify(claves(primero)) === '["manana_3"]',
         'el primer fetch da ["manana_3"] -> ' + JSON.stringify(claves(primero)));
 
-    console.log('[2] Segunda apertura: el superusuario conecto r2_729 con la pagina abierta');
+    console.log('[2] Segunda apertura: el superusuario conecto fatiga_729_r3 con la pagina abierta');
     const segundo = await ctx.waLoadTemplateCatalog();
     check(fetchLlamadas === 2,
         'volvio a pedir /whatsapp/templates (fetches totales: ' + fetchLlamadas + ')');
-    check(claves(segundo).indexOf('r2_729') !== -1,
-        'el segundo fetch incluye r2_729 -> ' + JSON.stringify(claves(segundo)));
-    check(JSON.stringify(claves(segundo)) === '["manana_3","r2_729"]',
-        'el catalogo vigente es ["manana_3","r2_729"]');
-    check(JSON.stringify(claves(ctx.waTemplateCatalog)) === '["manana_3","r2_729"]',
+    check(claves(segundo).indexOf('fatiga_729_r3') !== -1,
+        'el segundo fetch incluye fatiga_729_r3 -> ' + JSON.stringify(claves(segundo)));
+    check(JSON.stringify(claves(segundo)) === '["manana_3","fatiga_729_r3"]',
+        'el catalogo vigente es ["manana_3","fatiga_729_r3"]');
+    check(JSON.stringify(claves(ctx.waTemplateCatalog)) === '["manana_3","fatiga_729_r3"]',
         'waTemplateCatalog se refresco con el resultado nuevo');
 
     console.log('[3] Los selectores leen waTemplateCatalogMap: la key nueva tiene que estar');
-    check(ctx.waTemplateCatalogMap && ctx.waTemplateCatalogMap['r2_729'] !== undefined,
-        "waTemplateCatalogMap['r2_729'] esta seteado (si falta, el selector tira la key)");
-    check(ctx.waTemplateCatalogMap['r2_729'] &&
-        ctx.waTemplateCatalogMap['r2_729'].key === 'r2_729',
-        "waTemplateCatalogMap['r2_729'] es el item del catalogo");
+    check(ctx.waTemplateCatalogMap && ctx.waTemplateCatalogMap['fatiga_729_r3'] !== undefined,
+        "waTemplateCatalogMap['fatiga_729_r3'] esta seteado (si falta, el selector tira la key)");
+    check(ctx.waTemplateCatalogMap['fatiga_729_r3'] &&
+        ctx.waTemplateCatalogMap['fatiga_729_r3'].key === 'fatiga_729_r3',
+        "waTemplateCatalogMap['fatiga_729_r3'] es el item del catalogo");
     check(ctx.waTemplateCatalogMap['manana_3'] !== undefined,
         "waTemplateCatalogMap['manana_3'] sigue estando");
 

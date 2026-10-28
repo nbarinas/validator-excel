@@ -9,7 +9,7 @@
  *  - Ambas muestran mascota y censo, y no dejan variables sin sustituir.
  *
  * Evalua el codigo real de frontend/call_center.js con un DOM minimo, sin dependencias.
- * Regresion: una plantilla sin dia (r2_729) sigue ocultando el campo.
+ * Regresion: una plantilla sin dia (in_home_beta_385) sigue ocultando el campo.
  *
  * Uso: node scripts/tests/check_recordatorio_sibate_preview.js [ruta/call_center.js]
  */
@@ -102,9 +102,9 @@ const catalogo = {
         params: ['dia', 'entrevistada', 'mascota', 'censo'], body: BODY_204 },
     [KEY_302]: { key: KEY_302, label: 'Recordatorio Sibate 2 — producto 302',
         params: ['dia', 'encuestada', 'mascota', 'censo'], body: BODY_302 },
-    r2_729: { key: 'r2_729', label: 'Shampoo 729 — segunda videollamada (R2)',
-        params: ['nombre_entrevistada', 'encuestador', 'hora_agendada'],
-        body: 'Hola {{nombre_entrevistada}}, le saluda {{encuestador}} a las {{hora_agendada}}.' },
+    in_home_beta_385: { key: 'in_home_beta_385', label: 'In Home Beta 385',
+        params: ['encuestada', 'encuestador', 'hora_asignada'],
+        body: 'Hola {{encuestada}}, le saluda {{encuestador}} a las {{hora_asignada}}.' },
 };
 
 let radioChecked = { value: KEY_204 };
@@ -207,16 +207,16 @@ check(!nuevo.includes('{{'), 'la vista previa de "Nuevo chat" no deja variables'
 
 // 5. Regresion: una plantilla sin dia sigue ocultando el campo.
 console.log('[5] Regresion de una plantilla sin dia');
-els['waNewChatKind'].value = 'r2_729';
-check(ctx.waNewChatTemplateParams().needsDia === false, 'r2_729 no pide el dia');
+els['waNewChatKind'].value = 'in_home_beta_385';
+check(ctx.waNewChatTemplateParams().needsDia === false, 'in_home_beta_385 no pide el dia');
 ctx.waToggleNewChatLink();
-check(els['waNewChatDayLabel'].style.display === 'none', 'r2_729 no muestra el campo Dia');
-radioChecked = { value: 'r2_729' };
+check(els['waNewChatDayLabel'].style.display === 'none', 'in_home_beta_385 no muestra el campo Dia');
+radioChecked = { value: 'in_home_beta_385' };
 els['waTemplateDay'].value = '3';
 ctx.waUpdateTemplateForm();
-check(els['waTemplateDayGroup'].style.display === 'none', 'r2_729 no muestra el campo Dia en 1x1');
+check(els['waTemplateDayGroup'].style.display === 'none', 'in_home_beta_385 no muestra el campo Dia en 1x1');
 check(els['waTemplateInlinePreview'].textContent.includes('Ana') &&
-      els['waTemplateInlinePreview'].textContent.includes('Luis'), 'r2_729 sigue previsualizando bien');
+      els['waTemplateInlinePreview'].textContent.includes('Luis'), 'in_home_beta_385 sigue previsualizando bien');
 
 if (fallas.length) {
     console.log(`\n${fallas.length} fallas.`);

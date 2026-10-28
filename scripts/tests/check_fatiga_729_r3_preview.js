@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
- * Verifica la plantilla r2_729 en el front: la vista previa del modal 1x1 y del
- * modal "Nuevo chat" sustituyen sus variables propias ({{nombre_entrevistada}},
- * {{encuestador}}, {{hora_agendada}}) y el formulario reconoce sus parametros.
+ * Verifica la plantilla fatiga_729_r3 en el front: la vista previa del modal 1x1 y
+ * del modal "Nuevo chat" sustituyen sus variables propias
+ * ({{nombre_entrevistada}}, {{encuestador}}, {{hora_agendada}}) y el formulario
+ * reconoce sus parametros.
  *
  * Regresion: in_home_beta_385 sigue previsualizando bien (codigo compartido).
  *
  * Evalua el codigo real de frontend/call_center.js con un DOM minimo, sin dependencias.
- * Uso: node scripts/tests/check_r2_729_preview.js [ruta/call_center.js]
+ * Uso: node scripts/tests/check_fatiga_729_r3_preview.js [ruta/call_center.js]
  */
 const fs = require('fs');
 const vm = require('vm');
@@ -75,19 +76,24 @@ const els = {};
  'waNewChatPreview', 'waNewChatLink', 'waNewChatLinkLabel', 'waNewChatNameLabel',
  'waNewChatSubjectLabel'].forEach(id => { els[id] = el(id); });
 
-const r2_729_BODY = '¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\n' +
-    'La saluda {{encuestador}}, de AZ Marketing Plus.\n\n' +
-    'Le escribo porque hoy tiene programada la segunda videollamada del estudio de ' +
-    'shampoo 729, a las {{hora_agendada}}.\n\n' +
-    '¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\n' +
-    'Quedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷';
+const fatiga_BODY = `¡Muy buenos días, señora {{nombre_entrevistada}}! 😊
+
+La saluda {{encuestador}}, de AZ Marketing Plus.
+
+Le escribo para recordarle que hoy tiene programada la tercera videollamada del estudio de shampoo 729, a las {{hora_agendada}}.
+
+Al finalizar la videollamada, le explicaremos cómo recibirá su primer bono de $20.000 por su participación en el estudio.
+
+¿Podemos realizar la videollamada en este momento o prefiere que la contactemos más tarde?
+
+¡Muchas gracias por su compromiso! Le deseo un feliz día. 🌷`;
 
 const catalogo = {
-    r2_729: { key: 'r2_729', label: 'Shampoo 729 — segunda videollamada', params: ['nombre_entrevistada', 'encuestador', 'hora_agendada'], body: r2_729_BODY },
+    fatiga_729_r3: { key: 'fatiga_729_r3', label: 'Shampoo 729 — tercera videollamada (R3)', params: ['nombre_entrevistada', 'encuestador', 'hora_agendada'], body: fatiga_BODY },
     in_home_beta_385: { key: 'in_home_beta_385', label: 'In Home Beta 385', params: ['encuestada', 'encuestador', 'hora_asignada'], body: 'Az-Marketing\nHola {{encuestada}}, le saluda {{encuestador}} a las {{hora_asignada}}.' },
 };
 
-let radioChecked = { value: 'r2_729' };
+let radioChecked = { value: 'fatiga_729_r3' };
 
 const ctx = {
     document: {
@@ -108,30 +114,32 @@ function check(cond, msg) {
     if (!cond) fallas.push(msg);
 }
 
-// 1. Modal 1x1: reconoce los parametros de r2_729 y previsualiza bien.
-radioChecked = { value: 'r2_729' };
+// 1. Modal 1x1: reconoce los parametros de fatiga_729_r3 y previsualiza bien.
+radioChecked = { value: 'fatiga_729_r3' };
 els['waTemplateCategory'].value = '';
 ctx.waUpdateTemplateForm();
 check(els['waTemplateHoraGroup'].style.display === 'block',
-    'r2_729 reconocido como plantilla con hora (grupo de hora visible)');
-const inline729 = els['waTemplateInlinePreview'].textContent;
-check(inline729.includes('Ana') && inline729.includes('Luis') && inline729.includes('3:30 pm'),
-    'r2_729 previsualiza nombre_entrevistada / encuestador / hora_agendada');
-check(!inline729.includes('{{'), 'r2_729 no deja variables sin sustituir en la vista previa');
+    'fatiga_729_r3 reconocido como plantilla con hora (grupo de hora visible)');
+const inline = els['waTemplateInlinePreview'].textContent;
+check(inline.includes('Ana') && inline.includes('Luis') && inline.includes('3:30 pm'),
+    'fatiga_729_r3 previsualiza nombre_entrevistada / encuestador / hora_agendada');
+check(inline.includes('tercera videollamada') && inline.includes('$20.000'),
+    'fatiga_729_r3 muestra la tercera videollamada y el bono');
+check(!inline.includes('{{'), 'fatiga_729_r3 no deja variables sin sustituir en la vista previa');
 
 // 2. Modal "Nuevo chat": pide el nombre y previsualiza.
-els['waNewChatKind'].value = 'r2_729';
+els['waNewChatKind'].value = 'fatiga_729_r3';
 els['waNewChatName'].value = 'Ana';
 els['waNewChatSubject'].value = '';
-const params729 = ctx.waNewChatTemplateParams();
-check(params729.needsName === true, 'r2_729 pide el nombre en "Nuevo chat"');
+const params = ctx.waNewChatTemplateParams();
+check(params.needsName === true, 'fatiga_729_r3 pide el nombre en "Nuevo chat"');
 ctx.waToggleNewChatLink();
-check(els['waNewChatNameLabel'].style.display === 'block', 'r2_729 muestra el campo Nombre');
+check(els['waNewChatNameLabel'].style.display === 'block', 'fatiga_729_r3 muestra el campo Nombre');
 ctx.waRenderNewChatPreview();
-const newChat729 = els['waNewChatPreview'].textContent;
-check(newChat729.includes('Ana') && newChat729.includes('Luis') && newChat729.includes('[hora de recogida]'),
-    'r2_729 previsualiza sus variables en "Nuevo chat"');
-check(!newChat729.includes('{{'), 'r2_729 no deja variables sin sustituir en "Nuevo chat"');
+const nuevo = els['waNewChatPreview'].textContent;
+check(nuevo.includes('Ana') && nuevo.includes('Luis') && nuevo.includes('[hora de recogida]'),
+    'fatiga_729_r3 previsualiza sus variables en "Nuevo chat"');
+check(!nuevo.includes('{{'), 'fatiga_729_r3 no deja variables sin sustituir en "Nuevo chat"');
 
 // 3. Regresion: las plantillas existentes siguen previsualizando igual.
 radioChecked = { value: 'in_home_beta_385' };

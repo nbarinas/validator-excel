@@ -4,7 +4,7 @@
 Importa la app con una base SQLite temporal y llama a las funciones reales de los
 endpoints (sin servidor ni token). Comprueba:
 
-  1. El catalogo expone `in_home_beta_385` (es, {{hora_asignada}}) y `r2_729`
+  1. El catalogo expone `in_home_beta_385` (es, {{hora_asignada}}) y `fatiga_729_r3`
      (es, {{hora_agendada}}), y marca solo las 5 elegibles como `single_eligible`.
   2. El render sustituye encuestada/encuestador/hora_asignada y
      nombre_entrevistada/encuestador/hora_agendada.
@@ -83,17 +83,17 @@ def correr():
         check(catalogo.get("bono_final", {}).get("single_eligible") is False, "bono_final NO es elegible 1x1")
         check(catalogo.get("shampo_segundo", {}).get("single_eligible") is True, "shampo_segundo es elegible 1x1")
 
-        cfg729 = catalogo.get("r2_729")
-        check(cfg729 is not None, "r2_729 esta en el catalogo")
-        check(cfg729 and cfg729["name"] == "r2_729", "r2_729 name = r2_729")
-        check(cfg729 and cfg729["language"] == "es", "r2_729 idioma 'es'")
+        cfg729 = catalogo.get("fatiga_729_r3")
+        check(cfg729 is not None, "fatiga_729_r3 esta en el catalogo")
+        check(cfg729 and cfg729["name"] == "fatiga_729_r3", "fatiga_729_r3 name = fatiga_729_r3")
+        check(cfg729 and cfg729["language"] == "es", "fatiga_729_r3 idioma 'es'")
         check(cfg729 and cfg729["params"] == ["nombre_entrevistada", "encuestador", "hora_agendada"],
-              "r2_729 parametros = nombre_entrevistada, encuestador, hora_agendada")
-        check(cfg729 and "shampoo 729" in (cfg729["body"] or ""), "r2_729 el cuerpo menciona shampoo 729")
-        check(cfg729 and "{{hora_agendada}}" in (cfg729["body"] or ""), "r2_729 el cuerpo usa {{hora_agendada}}")
+              "fatiga_729_r3 parametros = nombre_entrevistada, encuestador, hora_agendada")
+        check(cfg729 and "shampoo 729" in (cfg729["body"] or ""), "fatiga_729_r3 el cuerpo menciona shampoo 729")
+        check(cfg729 and "{{hora_agendada}}" in (cfg729["body"] or ""), "fatiga_729_r3 el cuerpo usa {{hora_agendada}}")
         check(cfg729 and "{{nombre_entrevistada}}" in (cfg729["body"] or ""),
-              "r2_729 el cuerpo usa {{nombre_entrevistada}}")
-        check(cfg729 and cfg729["single_eligible"] is True, "r2_729 es elegible 1x1")
+              "fatiga_729_r3 el cuerpo usa {{nombre_entrevistada}}")
+        check(cfg729 and cfg729["single_eligible"] is True, "fatiga_729_r3 es elegible 1x1")
 
         print("[2] Render con hora_asignada")
         body = main._wa_render_template_body(
@@ -106,22 +106,22 @@ def correr():
 
         print("[2b] Render con hora_agendada")
         body729 = main._wa_render_template_body(
-            "r2_729",
+            "fatiga_729_r3",
             {"nombre_entrevistada": "Ana", "encuestador": "Luis", "hora_agendada": "3:30 pm"},
         )
         check(body729 is not None and "Ana" in body729 and "Luis" in body729 and "3:30 pm" in body729,
               "sustituye nombre_entrevistada / encuestador / hora_agendada")
-        check(body729 is not None and "{{" not in body729, "r2_729 no deja variables sin sustituir")
+        check(body729 is not None and "{{" not in body729, "fatiga_729_r3 no deja variables sin sustituir")
 
         print("[3] PUT/GET single-templates")
         main.set_study_single_templates(
             study.id,
-            main.StudySingleTemplatesUpdate(template_keys=["manana_3", "in_home_beta_385", "r2_729", "bono_final", "manana_3"]),
+            main.StudySingleTemplatesUpdate(template_keys=["manana_3", "in_home_beta_385", "fatiga_729_r3", "bono_final", "manana_3"]),
             db=db,
             current_user=admin,
         )
         keys = main.get_study_single_templates(study.id, db=db, current_user=admin)["single_template_keys"]
-        check(keys == ["manana_3", "in_home_beta_385", "r2_729"], f"solo elegibles, sin duplicados -> {keys}")
+        check(keys == ["manana_3", "in_home_beta_385", "fatiga_729_r3"], f"solo elegibles, sin duplicados -> {keys}")
         check(main._study_template_keys(db, study.id) == [], "no toca el conjunto masivo")
 
         print("[3b] El masivo acepta in_home_beta_385")
@@ -133,7 +133,7 @@ def correr():
         )
         check(main._study_template_keys(db, study.id) == ["in_home_beta_385"],
               "in_home_beta_385 conectada al masivo")
-        check(sorted(main._study_single_template_keys(db, study.id)) == ["in_home_beta_385", "manana_3", "r2_729"],
+        check(sorted(main._study_single_template_keys(db, study.id)) == ["fatiga_729_r3", "in_home_beta_385", "manana_3"],
               "la conexion masiva no toca el conjunto 1x1")
 
         print("[4] Resolucion del destino")
@@ -186,11 +186,11 @@ def correr():
               "plantilla conectada se envia (envio simulado)")
 
         res729 = main.whatsapp_send_template(
-            main.WhatsAppSendTemplateRequest(call_id=call.id, template_key="r2_729"),
+            main.WhatsAppSendTemplateRequest(call_id=call.id, template_key="fatiga_729_r3"),
             db=db, current_user=admin,
         )
-        check(res729.get("wa_status") == "sent" and res729.get("template_key") == "r2_729",
-              "r2_729 conectada se envia (envio simulado)")
+        check(res729.get("wa_status") == "sent" and res729.get("template_key") == "fatiga_729_r3",
+              "fatiga_729_r3 conectada se envia (envio simulado)")
 
         print("[6] Sembrado unico")
         db.query(models.StudySingleTemplate).delete()
