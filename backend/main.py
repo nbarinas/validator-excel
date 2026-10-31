@@ -1404,7 +1404,7 @@ WHATSAPP_TEMPLATE_MAP = {
     "shampo_segundo": {"name": "shampo_segundo", "language": "es", "params": ["encuestado"]},
     "in_home_beta_385": {"name": "in_home_beta_385", "language": "es", "params": ["encuestada", "encuestador", "hora_asignada"]},
     "fatiga_729_r3": {"name": "fatiga_729_r3", "language": "es", "params": ["nombre_entrevistada", "encuestador", "hora_agendada"]},
-    "final_beta": {"name": "final_beta", "language": "es", "params": ["nombre_entrevistada", "encuestador", "hora_agendada"]},
+    "final_beta": {"name": "final_beta", "language": "es", "params": ["nombre_entrevistada", "nombre_encuestador", "hora_agendada"]},
     "bono_final": {"name": "bono_final", "language": "es", "params": ["encuestada"]},
     "bono_parcial": {"name": "bono_parcial", "language": "es", "params": ["encuestada", "dia_y_hora", "monto"]},
     "siabate_producto": {"name": "siabate_producto", "language": "es", "params": ["encuestada", "mascota", "censo"]},
@@ -1513,7 +1513,7 @@ WHATSAPP_TEMPLATE_BODIES = {
     "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "in_home_beta_385": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de tratamiento para el cabello de los que se compran listos. Hace 15 días le entregamos el producto 358  y el día de hoy tiene programada una videollamada a las {{hora_asignada}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "fatiga_729_r3": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la tercera videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\nAl finalizar la videollamada, le explicaremos cómo recibirá su primer bono de $20.000 por su participación en el estudio.\n\n¿Podemos realizar la videollamada en este momento o prefiere que la contactemos más tarde?\n\n¡Muchas gracias por su compromiso! Le deseo un feliz día. 🌷",
-    "final_beta": "¡Hola, {{nombre_entrevistada}}! 😊\n\nTe saluda {{encuestador}}, del equipo de AZ Marketing Plus.\n\nTe escribimos porque tienes programada la última videollamada del estudio de tratamiento capilar para hoy a las {{hora_agendada}}.\n\n¿Continúas disponible para realizarla a esa hora o prefieres que la hagamos en este momento?\n\nAl finalizar la videollamada, te brindaremos las indicaciones para recibir tu bono de participación.\n\nQuedamos atentos a tu respuesta.\n\n¡Feliz día! 🌷",
+    "final_beta": "¡Hola, {{nombre_entrevistada}}! 😊\n\nTe saluda {{nombre_encuestador}}, del equipo de AZ Marketing Plus.\n\nTe escribimos porque tienes programada la última videollamada del estudio de tratamiento capilar para hoy a las {{hora_agendada}}.\n\n¿Continúas disponible para realizarla a esa hora o prefieres que la hagamos en este momento?\n\nAl finalizar la videollamada, te brindaremos las indicaciones para recibir tu bono de participación.\n\nQuedamos atentos a tu respuesta.\n\n¡Feliz día! 🌷",
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día.",
     "registro_diario_fatiga_6_semanas": "🐶 ¡Hola, {{encuestado}}! 👋\n\nTe saluda el equipo de AZ Marketing Plus.\n\n📅 Recuerda realizar hoy, es el dia {{dia}}, en el que vamos, el registro del consumo de tu perro {{perro}}, utilizando su alimento habitual junto con el producto que te enviamos.\n\n🍽️ Registra una sola comida al día, procurando mantener el mismo horario y tipo de comida durante toda la semana.\n\n⏱️ Mide el tiempo desde que sirves el alimento hasta que Eli termine de comer.\n\n👀 Observa su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n\n📝 Es muy importante realizar el registro todos los días durante el estudio.\n\n🔢 Código de registro: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/Zwj9RbSh9pn2nQLU8\n\n¡Muchas gracias por tu compromiso y participación! 🐾",
@@ -2776,6 +2776,7 @@ def whatsapp_send_template(
     param_values = {
         "nombre": person_name,
         "encuestador": agent_name,
+        "nombre_encuestador": agent_name,
         "categoria": category,
         "cliente": person_name,
         "encuestada": person_name,
@@ -3130,6 +3131,7 @@ def whatsapp_send_bulk(
             param_values = {
                 "nombre": person_name,
                 "encuestador": agent_name,
+                "nombre_encuestador": agent_name,
                 "categoria": category,
                 "cliente": person_name,
                 "encuestada": person_name,

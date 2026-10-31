@@ -78,7 +78,7 @@ const els = {};
 
 const FINAL_BETA_BODY = `¡Hola, {{nombre_entrevistada}}! 😊
 
-Te saluda {{encuestador}}, del equipo de AZ Marketing Plus.
+Te saluda {{nombre_encuestador}}, del equipo de AZ Marketing Plus.
 
 Te escribimos porque tienes programada la última videollamada del estudio de tratamiento capilar para hoy a las {{hora_agendada}}.
 
@@ -91,7 +91,7 @@ Quedamos atentos a tu respuesta.
 ¡Feliz día! 🌷`;
 
 const catalogo = {
-    final_beta: { key: 'final_beta', label: 'final_beta', params: ['nombre_entrevistada', 'encuestador', 'hora_agendada'], body: FINAL_BETA_BODY },
+    final_beta: { key: 'final_beta', label: 'final_beta', params: ['nombre_entrevistada', 'nombre_encuestador', 'hora_agendada'], body: FINAL_BETA_BODY },
     fatiga_729_r3: { key: 'fatiga_729_r3', label: 'Shampoo 729 — tercera videollamada (R3)', params: ['nombre_entrevistada', 'encuestador', 'hora_agendada'], body: '¡Muy buenos días, señora {{nombre_entrevistada}}! Le saluda {{encuestador}} a las {{hora_agendada}}.' },
 };
 
@@ -132,7 +132,7 @@ check(els['waTemplateHoraGroup'].style.display === 'block',
     'final_beta reconocido como plantilla con hora (grupo de hora visible)');
 const inline = els['waTemplateInlinePreview'].textContent;
 check(inline.includes('Ana') && inline.includes('Luis') && inline.includes('3:30 pm'),
-    'final_beta previsualiza nombre_entrevistada / encuestador / hora_agendada');
+    'final_beta previsualiza nombre_entrevistada / nombre_encuestador / hora_agendada');
 check(inline.includes('última videollamada') && inline.includes('bono de participación'),
     'final_beta muestra la última videollamada y el bono de participación');
 check(!inline.includes('{{'), 'final_beta no deja variables sin sustituir en la vista previa');

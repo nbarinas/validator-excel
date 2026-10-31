@@ -5467,7 +5467,7 @@ const WA_TEMPLATE_BODIES = {
     "shampo_segundo": "AZ Marketing\nHola, señora {{encuestado}}, ¿cómo está?\n\nLe escribo nuevamente, disculpe la interrupción de sus actividades. Es que estoy pendiente de su respuesta para poder realizarle la encuesta del estudio de shampoo.\n\nQuería confirmar en qué momento podemos realizar la llamada. No le tomará mucho tiempo.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "in_home_beta_385": "Az-Marketing\nBuenos días, señora {{encuestada}}, ¿cómo está? Mucho gusto.\n\nMi nombre es {{encuestador}}, trabajo para AZ Marketing Plus.\n\nEl motivo de mi mensaje es que usted nos está colaborando en un estudio de tratamiento para el cabello de los que se compran listos. Hace 15 días le entregamos el producto 358  y el día de hoy tiene programada una videollamada a las {{hora_asignada}}.\n\nQuería confirmar si está disponible a esa hora o si podemos realizar la videollamada en este momento.\n\nQuedo atento a su pronta respuesta.\nMuchas gracias. ¡Feliz día!",
     "fatiga_729_r3": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la tercera videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\nAl finalizar la videollamada, le explicaremos cómo recibirá su primer bono de $20.000 por su participación en el estudio.\n\n¿Podemos realizar la videollamada en este momento o prefiere que la contactemos más tarde?\n\n¡Muchas gracias por su compromiso! Le deseo un feliz día. 🌷",
-    "final_beta": "¡Hola, {{nombre_entrevistada}}! 😊\n\nTe saluda {{encuestador}}, del equipo de AZ Marketing Plus.\n\nTe escribimos porque tienes programada la última videollamada del estudio de tratamiento capilar para hoy a las {{hora_agendada}}.\n\n¿Continúas disponible para realizarla a esa hora o prefieres que la hagamos en este momento?\n\nAl finalizar la videollamada, te brindaremos las indicaciones para recibir tu bono de participación.\n\nQuedamos atentos a tu respuesta.\n\n¡Feliz día! 🌷",
+    "final_beta": "¡Hola, {{nombre_entrevistada}}! 😊\n\nTe saluda {{nombre_encuestador}}, del equipo de AZ Marketing Plus.\n\nTe escribimos porque tienes programada la última videollamada del estudio de tratamiento capilar para hoy a las {{hora_agendada}}.\n\n¿Continúas disponible para realizarla a esa hora o prefieres que la hagamos en este momento?\n\nAl finalizar la videollamada, te brindaremos las indicaciones para recibir tu bono de participación.\n\nQuedamos atentos a tu respuesta.\n\n¡Feliz día! 🌷",
     "entrega_sibate_19_oct_sibate_1_204": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 204.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
     "entrega_sibate_19_oct_sibate_2_302": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 302.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
     "recordatorio_sibate_1_204": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{entrevistada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 204).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
@@ -5525,6 +5525,7 @@ function waRenderInlineTemplatePreview(kind) {
         .replace(/\{\{entrevistada\}\}/g, personName)
         .replace(/\{\{nombre_entrevistada\}\}/g, personName)
         .replace(/\{\{encuestador\}\}/g, agentName)
+        .replace(/\{\{nombre_encuestador\}\}/g, agentName)
         .replace(/\{\{categoria\}\}/g, category || '[estudio]')
         .replace(/\{\{hora_asignada\}\}/g, hora)
         .replace(/\{\{hora_agendada\}\}/g, hora)
@@ -5680,6 +5681,7 @@ function showWhatsAppTemplatePreview() {
     body = body.replace(/\{\{entrevistada\}\}/g, personName);
     body = body.replace(/\{\{nombre_entrevistada\}\}/g, personName);
     body = body.replace(/\{\{encuestador\}\}/g, agentName);
+    body = body.replace(/\{\{nombre_encuestador\}\}/g, agentName);
     body = body.replace(/\{\{categoria\}\}/g, category || '-');
     body = body.replace(/\{\{hora_asignada\}\}/g, hora);
     body = body.replace(/\{\{hora_agendada\}\}/g, hora);
@@ -5985,6 +5987,7 @@ function waRenderNewChatPreview() {
         .replace(/\{\{entrevistada\}\}/g, name || '[nombre]')
         .replace(/\{\{nombre_entrevistada\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestador\}\}/g, currentUserName || 'Encuestador')
+        .replace(/\{\{nombre_encuestador\}\}/g, currentUserName || 'Encuestador')
         .replace(/\{\{categoria\}\}/g, subject || '[estudio]')
         .replace(/\{\{hora_asignada\}\}/g, '[hora de recogida]')
         .replace(/\{\{hora_agendada\}\}/g, '[hora de recogida]')

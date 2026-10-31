@@ -41,11 +41,12 @@ FALLAS = []
 
 KEY = "final_beta"
 VECINA = "fatiga_729_r3"
-PARAMS = ["nombre_entrevistada", "encuestador", "hora_agendada"]
+PARAMS = ["nombre_entrevistada", "nombre_encuestador", "hora_agendada"]
+VECINA_PARAMS = ["nombre_entrevistada", "encuestador", "hora_agendada"]
 LABEL = "final_beta"
 BODY = """¡Hola, {{nombre_entrevistada}}! 😊
 
-Te saluda {{encuestador}}, del equipo de AZ Marketing Plus.
+Te saluda {{nombre_encuestador}}, del equipo de AZ Marketing Plus.
 
 Te escribimos porque tienes programada la última videollamada del estudio de tratamiento capilar para hoy a las {{hora_agendada}}.
 
@@ -114,10 +115,10 @@ def correr():
         print("[2] Render de las 3 variables")
         body = main._wa_render_template_body(
             KEY,
-            {"nombre_entrevistada": "Ana", "encuestador": "Luis", "hora_agendada": "3:30 pm"},
+            {"nombre_entrevistada": "Ana", "nombre_encuestador": "Luis", "hora_agendada": "3:30 pm"},
         )
         check(body is not None and "Ana" in body and "Luis" in body and "3:30 pm" in body,
-              "sustituye nombre_entrevistada / encuestador / hora_agendada")
+              "sustituye nombre_entrevistada / nombre_encuestador / hora_agendada")
         check(body is not None and "{{" not in body, f"{KEY} no deja variables sin sustituir")
 
         print("[3] Respaldo de vista previa del front")
@@ -165,7 +166,7 @@ def correr():
             check(res.get("wa_status") == "sent" and res.get("template_key") == KEY,
                   f"{KEY} conectada se envia por 1x1 (envio simulado)")
             check(parametros_enviados(enviados[0]) ==
-                  [("nombre_entrevistada", "Ana Gomez"), ("encuestador", "Admin Check"),
+                  [("nombre_entrevistada", "Ana Gomez"), ("nombre_encuestador", "Admin Check"),
                    ("hora_agendada", "3:30 pm")],
                   f"payload 1x1 con los 3 parametros llenados -> {parametros_enviados(enviados[0])}")
         except Exception as exc:
@@ -186,7 +187,7 @@ def correr():
                   f"{KEY} se envia por masivo (simulado) -> {res_bulk.get('sent')} enviado(s)")
             check(len(enviados) == antes + 1, "el masivo llamo a Meta una sola vez")
             check(parametros_enviados(enviados[-1]) ==
-                  [("nombre_entrevistada", "Ana Gomez"), ("encuestador", "Admin Check"),
+                  [("nombre_entrevistada", "Ana Gomez"), ("nombre_encuestador", "Admin Check"),
                    ("hora_agendada", "hoy")],
                   f"payload masivo con los 3 parametros -> {parametros_enviados(enviados[-1])}")
         except Exception as exc:
@@ -194,7 +195,7 @@ def correr():
 
         print("[6] Regresion de la vecina con las mismas 3 variables")
         vecina = catalogo.get(VECINA)
-        check(vecina is not None and vecina["params"] == PARAMS,
+        check(vecina is not None and vecina["params"] == VECINA_PARAMS,
               f"{VECINA} conserva sus 3 parametros")
         check(vecina is not None and vecina["body"] == main.WHATSAPP_TEMPLATE_BODIES[VECINA],
               f"{VECINA} conserva su cuerpo")
