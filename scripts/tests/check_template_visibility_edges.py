@@ -40,7 +40,7 @@ from backend import auth, database, models  # noqa: E402
 
 FALLAS = []
 
-RETIRADA = "sibate_encuesta_final"
+RETIRADA = "plantilla_sibate_2_302_oct_1_26_fase2"
 HUERFANA_MASIVA = "in_home_beta_385"
 HUERFANA_1X1 = "sigue_interesado"
 STUDY_ID_INEXISTENTE = 999999

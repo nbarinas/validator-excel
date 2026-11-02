@@ -45,7 +45,7 @@ FALLAS = []
 
 KEY_302 = "recordatorio_sibate_2_302"
 KEY_204 = "recordatorio_sibate_1_204"
-RETIRADA = "sibate_encuesta_final"
+RETIRADA = "plantilla_sibate_2_302_oct_1_26_fase2"
 
 # Campos exactos de cada item del catalogo (el shape no cambia con este requerimiento).
 CAMPOS = ["key", "name", "language", "label", "params", "body", "single_eligible"]
