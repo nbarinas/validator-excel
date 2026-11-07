@@ -1427,6 +1427,7 @@ WHATSAPP_TEMPLATE_MAP = {
     "entrega_sibate_19_oct_sibate_2_302": {"name": "entrega_sibate_19_oct_sibate_2_302", "language": "es", "params": []},
     "recordatorio_sibate_1_204": {"name": "recordatorio_sibate_1_204", "language": "es", "params": ["dia", "entrevistada", "mascota", "censo"]},
     "recordatorio_sibate_2_302": {"name": "recordatorio_sibate_2_302", "language": "es", "params": ["dia", "encuestada", "mascota", "censo"]},
+    "729_sin_bono": {"name": "729_sin_bono", "language": "es", "params": ["nombre_entrevistada", "encuestador", "hora_agendada"]},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1460,6 +1461,7 @@ WHATSAPP_TEMPLATE_LABELS = {
     "entrega_sibate_19_oct_sibate_2_302": "Entrega Sibate 2 — producto 302",
     "recordatorio_sibate_1_204": "Recordatorio Sibate 1 — producto 204",
     "recordatorio_sibate_2_302": "Recordatorio Sibate 2 — producto 302",
+    "729_sin_bono": "Shampoo 729 — cuarta videollamada (sin bono)",
 }
 
 # Plantillas habilitadas para el envío "una por una" (por registro). El resto del
@@ -1479,6 +1481,7 @@ WHATSAPP_SINGLE_TEMPLATE_KEYS = [
     "recordatorio_sibate_1_204",
     "recordatorio_sibate_2_302",
     "recibido",
+    "729_sin_bono",
 ]
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1534,6 +1537,7 @@ WHATSAPP_TEMPLATE_BODIES = {
     "entrega_sibate_19_oct_sibate_2_302": "¡Buenos días! ¿Cómo estás?\n\nTe escribimos para confirmar si el transportador te entregó el muestra que comenzarás a utilizar a partir del lunes 26 de octubre. Por favor, recuerda no utilizarla antes de esa fecha.\n\nEl código del producto que recibiste es 302.\n\n¿Nos puedes confirmar si recibiste la muestra, por favor?\n\n¡Muchas gracias por tu colaboración!",
     "recordatorio_sibate_1_204": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{entrevistada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 204).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
     "recordatorio_sibate_2_302": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 302).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
+    "729_sin_bono": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la cuarta videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Podemos realizar la videollamada en este momento a mas tarde",
 }
 
 
