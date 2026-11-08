@@ -1428,6 +1428,8 @@ WHATSAPP_TEMPLATE_MAP = {
     "recordatorio_sibate_1_204": {"name": "recordatorio_sibate_1_204", "language": "es", "params": ["dia", "entrevistada", "mascota", "censo"]},
     "recordatorio_sibate_2_302": {"name": "recordatorio_sibate_2_302", "language": "es", "params": ["dia", "encuestada", "mascota", "censo"]},
     "729_sin_bono": {"name": "729_sin_bono", "language": "es", "params": ["nombre_entrevistada", "encuestador", "hora_agendada"]},
+    "plantilla_inicio_semana_9_de_noviembre_sibate": {"name": "plantilla_inicio_semana_9_de_noviembre_sibate", "language": "es", "params": ["entrevistada", "mascota", "censo"]},
+    "registro_noviembre_9_2026": {"name": "registro_noviembre_9_2026", "language": "es", "params": ["dia", "encuestada", "mascotica", "censo"]},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1462,6 +1464,8 @@ WHATSAPP_TEMPLATE_LABELS = {
     "recordatorio_sibate_1_204": "Recordatorio Sibate 1 — producto 204",
     "recordatorio_sibate_2_302": "Recordatorio Sibate 2 — producto 302",
     "729_sin_bono": "Shampoo 729 — cuarta videollamada (sin bono)",
+    "plantilla_inicio_semana_9_de_noviembre_sibate": "Inicio semana 9 de noviembre (Sibate) — encuesta diaria",
+    "registro_noviembre_9_2026": "Registro diario 9 de noviembre (Sibate)",
 }
 
 # Plantillas habilitadas para el envío "una por una" (por registro). El resto del
@@ -1482,6 +1486,8 @@ WHATSAPP_SINGLE_TEMPLATE_KEYS = [
     "recordatorio_sibate_2_302",
     "recibido",
     "729_sin_bono",
+    "plantilla_inicio_semana_9_de_noviembre_sibate",
+    "registro_noviembre_9_2026",
 ]
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1538,6 +1544,8 @@ WHATSAPP_TEMPLATE_BODIES = {
     "recordatorio_sibate_1_204": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{entrevistada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 204).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
     "recordatorio_sibate_2_302": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 302).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
     "729_sin_bono": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la cuarta videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Podemos realizar la videollamada en este momento a mas tarde",
+    "plantilla_inicio_semana_9_de_noviembre_sibate": "ENCUESTA DIARIA – 7 DÍAS\n¡Hola, {{entrevistada}}👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos esta dinámica, que tendrá una duración de 7 semanas.\n\nDurante los próximos 7 días, deberás registrar diariamente el tiempo que tu perrito  {{mascota}}  tarda en consumir el concentrado o alimento que habitualmente le das.\n\n⏱️ ¿Qué debes hacer?\n\nToma el tiempo desde el momento en que le sirves el alimento hasta que termina de comer.\nObserva atentamente su comportamiento al momento de alimentarse.\nRegistra si comienza a comer inmediatamente o si primero olfatea el alimento antes de consumirlo.\n\n🍽️ Realiza esta actividad en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: durante estos 7 días, procura mantener el mismo alimento y el mismo horario de alimentación, para garantizar un seguimiento consistente.\n\n📝 Recuerda diligenciar una encuesta cada día durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/cedqXEt1zPQXZcRt6\nMuchas gracias",
+    "registro_noviembre_9_2026": "REGISTRO DIARIO\nDÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascotica}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/HAtyTHjKxLYmtinz5",
 }
 
 
@@ -2803,6 +2811,7 @@ def whatsapp_send_template(
         "monto": monto,
         "nombre_mascota": nombre_mascota,
         "mascota": nombre_mascota,
+        "mascotica": nombre_mascota,
         "nombremascota": nombremascota,
         "perro": nombre_mascota,
         "censo": censo,

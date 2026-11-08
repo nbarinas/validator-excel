@@ -5477,6 +5477,8 @@ const WA_TEMPLATE_BODIES = {
     "bono_final": "Señora {{encuestada}}, ¿cómo está? De antemano, muchas gracias por participar con nosotros. Para AZ Marketing Plus, sus opiniones son muy valiosas. A continuación, le envío la información correspondiente al bono. Recuerde, por favor: El bono puede tardar hasta 15 días hábiles en llegar. No se cuentan sábados, domingos ni días festivos. Por favor, revise el video con las instrucciones sobre cómo redimir el bono. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderla. ¡Muchas gracias por su participación! Que tenga un feliz día.",
     "bono_parcial": "Hola, {{encuestada}}, ¿cómo estás? 😊 De antemano, queremos agradecerte por responder la encuesta el día de hoy. Para nosotros, tus opiniones son muy valiosas y nos ayudan en nuestro estudio de investigación de mercados. 📅 *Recuerda:* Tu próxima videollamada queda programada para el día {{dia_y_hora}} Ese día, al finalizar la videollamada, la persona encargada te enviará el bono por valor de ${{monto}} por haber participado con nosotros. Cualquier duda o inquietud, con el mayor de los gustos estaremos atentos para atenderte. ¡Muchas gracias por tu participación! Que tengas un feliz día.",
     "729_sin_bono": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la cuarta videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Podemos realizar la videollamada en este momento a mas tarde",
+    "plantilla_inicio_semana_9_de_noviembre_sibate": "ENCUESTA DIARIA – 7 DÍAS\n¡Hola, {{entrevistada}}👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos esta dinámica, que tendrá una duración de 7 semanas.\n\nDurante los próximos 7 días, deberás registrar diariamente el tiempo que tu perrito  {{mascota}}  tarda en consumir el concentrado o alimento que habitualmente le das.\n\n⏱️ ¿Qué debes hacer?\n\nToma el tiempo desde el momento en que le sirves el alimento hasta que termina de comer.\nObserva atentamente su comportamiento al momento de alimentarse.\nRegistra si comienza a comer inmediatamente o si primero olfatea el alimento antes de consumirlo.\n\n🍽️ Realiza esta actividad en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: durante estos 7 días, procura mantener el mismo alimento y el mismo horario de alimentación, para garantizar un seguimiento consistente.\n\n📝 Recuerda diligenciar una encuesta cada día durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/cedqXEt1zPQXZcRt6\nMuchas gracias",
+    "registro_noviembre_9_2026": "REGISTRO DIARIO\nDÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascotica}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/HAtyTHjKxLYmtinz5",
 };
 
 function getWhatsAppTemplateHora() {
@@ -5533,6 +5535,7 @@ function waRenderInlineTemplatePreview(kind) {
         .replace(/\{\{hora_asignada\}\}/g, hora)
         .replace(/\{\{hora_agendada\}\}/g, hora)
         .replace(/\{\{mascota\}\}/g, (currentCallData && currentCallData.dog_name) ? currentCallData.dog_name : '[mascota]')
+        .replace(/\{\{mascotica\}\}/g, (currentCallData && currentCallData.dog_name) ? currentCallData.dog_name : '[mascota]')
         .replace(/\{\{censo\}\}/g, (currentCallData && currentCallData.census) ? currentCallData.census : '[censo]')
         .replace(/\{\{dia\}\}/g, dia || '[día]')
         .replace(/\{\{hora\}\}/g, hora);
@@ -5690,6 +5693,7 @@ function showWhatsAppTemplatePreview() {
     body = body.replace(/\{\{hora_agendada\}\}/g, hora);
     body = body.replace(/\{\{hora\}\}/g, hora);
     body = body.replace(/\{\{mascota\}\}/g, (currentCallData && currentCallData.dog_name) ? currentCallData.dog_name : '[mascota]');
+    body = body.replace(/\{\{mascotica\}\}/g, (currentCallData && currentCallData.dog_name) ? currentCallData.dog_name : '[mascota]');
     body = body.replace(/\{\{censo\}\}/g, (currentCallData && currentCallData.census) ? currentCallData.census : '[censo]');
     body = body.replace(/\{\{dia\}\}/g, dia || '[día]');
 
@@ -5995,6 +5999,7 @@ function waRenderNewChatPreview() {
         .replace(/\{\{hora_asignada\}\}/g, '[hora de recogida]')
         .replace(/\{\{hora_agendada\}\}/g, '[hora de recogida]')
         .replace(/\{\{mascota\}\}/g, '[mascota]')
+        .replace(/\{\{mascotica\}\}/g, '[mascota]')
         .replace(/\{\{censo\}\}/g, '[censo]')
         .replace(/\{\{dia\}\}/g, dia || '[día]')
         .replace(/\{\{hora\}\}/g, '[hora de recogida]');
@@ -6649,11 +6654,13 @@ const BULK_TEMPLATE_VARS = {
     'recordatorio': '{{encuestado}} · {{nombremascota}} · {{fecha}} · {{censo}}',
     'sigue_interesado': '{{encuestada}} · {{mascota}}',
     'registro_diario_fatiga_6_semanas': '{{encuestado}} · {{dia}} · {{perro}} · {{censo}}',
-    'sibate_90mas15_dias': '{{dia}} · {{encuestado}} · {{perro}} · {{censo}}'
+    'sibate_90mas15_dias': '{{dia}} · {{encuestado}} · {{perro}} · {{censo}}',
+    'plantilla_inicio_semana_9_de_noviembre_sibate': '{{entrevistada}} · {{mascota}} · {{censo}}',
+    'registro_noviembre_9_2026': '{{dia}} · {{encuestada}} · {{mascotica}} · {{censo}}'
 };
 
 // Plantillas que requieren que el usuario digite el día antes de enviar.
-const BULK_DAY_TEMPLATES = ['sibate_2', 'registro_diario_fatiga_6_semanas', 'sibate_90mas15_dias', 'recordatorio_sibate_1_204', 'recordatorio_sibate_2_302'];
+const BULK_DAY_TEMPLATES = ['sibate_2', 'registro_diario_fatiga_6_semanas', 'sibate_90mas15_dias', 'recordatorio_sibate_1_204', 'recordatorio_sibate_2_302', 'registro_noviembre_9_2026'];
 
 function bulkLinkRenderTemplatePreview(key) {
     const box = document.getElementById('bulkLinkTemplatePreview');

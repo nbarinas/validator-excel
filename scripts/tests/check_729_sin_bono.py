@@ -25,7 +25,7 @@ Comprueba contra el codigo real:
   4. frontend/call_center.js guarda el mismo literal (vista previa).
   5. Regresion: las plantillas hermanas que comparten codigo (fatiga_729_r3,
      primera_recogida_853_ y sibate_encuesta_final) conservan configuracion y
-     cuerpo byte-exacto, y la lista 1x1 solo suma la key nueva.
+     cuerpo byte-exacto, y la lista 1x1 conserva el orden previo y suma la key nueva.
   6. Conectada al 1x1 del estudio, el envio manda los 3 parametros a Meta; una
      key no conectada sigue rechazandose con 403 sin llamar a Meta.
 
@@ -206,8 +206,8 @@ def correr():
             check(hermana in main.WHATSAPP_SINGLE_TEMPLATE_KEYS,
                   f"{hermana} sigue en 1x1")
             check(hermana in catalogo, f"{hermana} sigue en el catalogo")
-        check(main.WHATSAPP_SINGLE_TEMPLATE_KEYS == SINGLE_PREVIAS + [KEY],
-              "la lista 1x1 solo suma la key nueva")
+        check(main.WHATSAPP_SINGLE_TEMPLATE_KEYS[:len(SINGLE_PREVIAS) + 1] == SINGLE_PREVIAS + [KEY],
+              "la lista 1x1 conserva el orden previo y suma la key nueva justo despues")
 
         print("[6] Conexion 1x1 y llenado en el envio")
         estudio = models.Study(code="B729", name="729 Sin Bono", is_active=True)
