@@ -5479,6 +5479,8 @@ const WA_TEMPLATE_BODIES = {
     "729_sin_bono": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la cuarta videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Podemos realizar la videollamada en este momento a mas tarde",
     "plantilla_inicio_semana_9_de_noviembre_sibate": "ENCUESTA DIARIA – 7 DÍAS\n¡Hola, {{entrevistada}}👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos esta dinámica, que tendrá una duración de 7 semanas.\n\nDurante los próximos 7 días, deberás registrar diariamente el tiempo que tu perrito  {{mascota}}  tarda en consumir el concentrado o alimento que habitualmente le das.\n\n⏱️ ¿Qué debes hacer?\n\nToma el tiempo desde el momento en que le sirves el alimento hasta que termina de comer.\nObserva atentamente su comportamiento al momento de alimentarse.\nRegistra si comienza a comer inmediatamente o si primero olfatea el alimento antes de consumirlo.\n\n🍽️ Realiza esta actividad en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: durante estos 7 días, procura mantener el mismo alimento y el mismo horario de alimentación, para garantizar un seguimiento consistente.\n\n📝 Recuerda diligenciar una encuesta cada día durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/cedqXEt1zPQXZcRt6\nMuchas gracias",
     "registro_noviembre_9_2026": "REGISTRO DIARIO\nDÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascotica}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/HAtyTHjKxLYmtinz5",
+    "inicia_avatar": "Hola, {{encuestada}}! 😊 ¿Cómo estás?\n\nTe saluda AZ MARKETING PLUS. Mi nombre es {{encuestador}}.\n\nTe contamos que hoy, 9 de noviembre, iniciamos nuestro estudio sobre el uso de las freidoras de aire (Air Fryer). \n\n📅 ¿Qué debes hacer?\n\nDesde hoy, 9 de noviembre, hasta el 9 de diciembre, debes diligenciar un formulario todos los días.\n\nEs muy sencillo:\n\n✅ Si utilizaste la freidora de aire, cuéntanos qué preparación realizaste y envíanos una fotografía de la preparación.\n\n✅ Si NO la utilizaste, simplemente selecciona la opción NO LA USÉ.\n\n🔢 Tu número de registro es: {{censo}}.\n\n📲 Ingresa diariamente a este enlace para responder el formulario:\n\nhttps://docs.google.com/forms/d/e/1FAIpQLSesadqYtsGrKwJ-un7GIGH1jTinLG_-HgYcdTjPmEiD7zRbcA/formResponse\n\n⚠️ ¡IMPORTANTE! Recuerda diligenciarlo TODOS LOS DÍAS, incluso si no utilizaste la freidora de aire.\n¡Muchas gracias por participar y por confiar en AZ MARKETING",
+    "recordatorio_avatar": "¡Hola, {{entrevistado}}! 😊 ¿Cómo estás?\n\nTe saluda el equipo de AZ MARKETING PLUS.\n\nHoy continuamos con nuestro estudio sobre el uso de tu freidora de aire (Air Fryer). 🍟\n\nTe recordamos que es muy importante seguir diligenciando el formulario TODOS LOS DÍAS, independientemente de si utilizaste o no tu freidora de aire.\n\n✅ Si la usaste, cuéntanos qué preparación realizaste y adjunta una fotografía del plato o alimento preparado.\n\n✅ Si no la usaste, simplemente selecciona la opción NO LA USÉ.\n\n🔢 Recuerda que tu número de registro es: {{censo}}.\n\n📲 Ingresa aquí para diligenciar la encuesta:\n\nhttps://docs.google.com/forms/d/e/1FAIpQLSesadqYtsGrKwJ-un7GIGH1jTinLG_-HgYcdTjPmEiD7zRbcA/viewform\n\nSi tienes alguna duda o inquietud, con mucho gusto estamos disponibles para ayudarte.\n¡Gracias por tu compromiso y por continuar participando con",
 };
 
 function getWhatsAppTemplateHora() {
@@ -5527,6 +5529,7 @@ function waRenderInlineTemplatePreview(kind) {
     body = body.replace(/\{\{nombre\}\}/g, personName)
         .replace(/\{\{encuestada\}\}/g, personName)
         .replace(/\{\{encuestado\}\}/g, personName)
+        .replace(/\{\{entrevistado\}\}/g, personName)
         .replace(/\{\{entrevistada\}\}/g, personName)
         .replace(/\{\{nombre_entrevistada\}\}/g, personName)
         .replace(/\{\{encuestador\}\}/g, agentName)
@@ -5684,6 +5687,7 @@ function showWhatsAppTemplatePreview() {
     body = body.replace(/\{\{nombre\}\}/g, personName);
     body = body.replace(/\{\{encuestada\}\}/g, personName);
     body = body.replace(/\{\{encuestado\}\}/g, personName);
+    body = body.replace(/\{\{entrevistado\}\}/g, personName);
     body = body.replace(/\{\{entrevistada\}\}/g, personName);
     body = body.replace(/\{\{nombre_entrevistada\}\}/g, personName);
     body = body.replace(/\{\{encuestador\}\}/g, agentName);
@@ -5958,7 +5962,7 @@ function waToggleNewChatLink() {
     const kind = document.getElementById('waNewChatKind').value;
     const item = waTemplateCatalogMap[kind];
     const params = (item && Array.isArray(item.params)) ? item.params : [];
-    const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('entrevistada') || params.includes('nombre') || params.includes('nombre_entrevistada'));
+    const needsName = !!item && (params.includes('encuestada') || params.includes('encuestado') || params.includes('entrevistada') || params.includes('entrevistado') || params.includes('nombre') || params.includes('nombre_entrevistada'));
     const needsCategory = params.includes('categoria') || kind === 'filter' || kind === 'form';
     const needsDia = params.includes('dia');
     document.getElementById('waNewChatLinkLabel').style.display = kind === 'form' ? 'block' : 'none';
@@ -5991,6 +5995,7 @@ function waRenderNewChatPreview() {
     body = body.replace(/\{\{nombre\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestada\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestado\}\}/g, name || '[nombre]')
+        .replace(/\{\{entrevistado\}\}/g, name || '[nombre]')
         .replace(/\{\{entrevistada\}\}/g, name || '[nombre]')
         .replace(/\{\{nombre_entrevistada\}\}/g, name || '[nombre]')
         .replace(/\{\{encuestador\}\}/g, currentUserName || 'Encuestador')
@@ -6014,7 +6019,7 @@ function waNewChatTemplateParams() {
     const isTemplate = !!item;
     return {
         isTemplate: isTemplate,
-        needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('entrevistada') || params.includes('nombre') || params.includes('nombre_entrevistada')),
+        needsName: isTemplate && (params.includes('encuestada') || params.includes('encuestado') || params.includes('entrevistada') || params.includes('entrevistado') || params.includes('nombre') || params.includes('nombre_entrevistada')),
         needsCategory: params.includes('categoria') || kind === 'filter' || kind === 'form',
         needsDia: params.includes('dia'),
         needsLink: kind === 'form',
@@ -6656,7 +6661,9 @@ const BULK_TEMPLATE_VARS = {
     'registro_diario_fatiga_6_semanas': '{{encuestado}} · {{dia}} · {{perro}} · {{censo}}',
     'sibate_90mas15_dias': '{{dia}} · {{encuestado}} · {{perro}} · {{censo}}',
     'plantilla_inicio_semana_9_de_noviembre_sibate': '{{entrevistada}} · {{mascota}} · {{censo}}',
-    'registro_noviembre_9_2026': '{{dia}} · {{encuestada}} · {{mascotica}} · {{censo}}'
+    'registro_noviembre_9_2026': '{{dia}} · {{encuestada}} · {{mascotica}} · {{censo}}',
+    'inicia_avatar': '{{encuestada}} · {{encuestador}} · {{censo}}',
+    'recordatorio_avatar': '{{entrevistado}} · {{censo}}'
 };
 
 // Plantillas que requieren que el usuario digite el día antes de enviar.

@@ -27,9 +27,10 @@ Comprueba contra el codigo real:
   5. La plantilla de inicio NO exige el dia; la de recordatorio si: sin dia el 1x1,
      el masivo por estudio y `send-bulk` responden 400 sin llamar a Meta ni guardar
      mensajes.
-  6. Regresion: el catalogo solo suma las 2 keys (las 30 previas quedan identicas),
-     la lista 1x1 solo suma las 2 keys, y las plantillas hermanas que comparten
-     codigo conservan su cuerpo byte-exacto.
+  6. Regresion: el catalogo conserva las 30 keys previas (identicas y en el mismo
+     orden) y suma las 2 nuevas justo despues; la lista 1x1 conserva su prefijo
+     historico y suma las 2 al final. Las aserciones son de prefijo/contencion para
+     que una entrega posterior no las rompa.
   7. El front declara el dia en BULK_DAY_TEMPLATES solo para la de recordatorio.
 
 Uso:    python scripts/tests/check_noviembre_9_sibate_templates.py
@@ -378,12 +379,13 @@ def correr():
               f"{KEY_REGISTRO} render sin variables pendientes")
 
         print("[4] Regresion: el catalogo solo suma las 2 keys")
-        check(set(catalogo) == set(PREVIAS) | set(NUEVAS),
-              "el catalogo es exactamente las 30 previas + las 2 nuevas")
-        check([k for k in catalogo if k not in PREVIAS] == list(NUEVAS),
-              "el orden del catalogo solo agrega las 2 nuevas al final")
-        check(main.WHATSAPP_SINGLE_TEMPLATE_KEYS == SINGLE_PREVIAS + list(NUEVAS),
-              "la lista 1x1 solo suma las 2 keys nuevas")
+        check(set(PREVIAS) | set(NUEVAS) <= set(catalogo),
+              "las 30 previas + las 2 nuevas siguen todas en el catalogo")
+        check([k for k in catalogo if k not in PREVIAS][:len(NUEVAS)] == list(NUEVAS),
+              "el orden del catalogo agrega las 2 nuevas justo despues de las previas")
+        check(main.WHATSAPP_SINGLE_TEMPLATE_KEYS[:len(SINGLE_PREVIAS) + len(NUEVAS)] ==
+              SINGLE_PREVIAS + list(NUEVAS),
+              "la lista 1x1 conserva el orden previo y suma las 2 keys al final")
         for hermana, cuerpo in HERMANAS.items():
             check(main.WHATSAPP_TEMPLATE_BODIES.get(hermana) == cuerpo,
                   f"{hermana} conserva su cuerpo byte-exacto en el backend")
