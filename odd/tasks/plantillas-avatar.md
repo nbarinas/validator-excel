@@ -1,5 +1,9 @@
 # Plantillas de WhatsApp del estudio "Avatar" (freidoras de aire)
 
+> **Estado: eliminadas.** Se entregaron en el commit `29ace47` y el usuario las descartó
+> por estar mal (L4). Este documento queda como registro de qué se hizo y por qué se dio de
+> baja; nada de lo que describe está hoy en el catálogo.
+
 **Feature:** agregar `inicia_avatar` y `recordatorio_avatar` (idioma `es`) al catálogo de
 WhatsApp, al envío **1×1**, al **masivo** y a la **vista previa** del front.
 **Rama:** `main` (misma convención que las entregas anteriores de plantillas).
@@ -183,3 +187,25 @@ chat" ni en el masivo, y el envío no lo exige ni lo manda.
   estudio**.
 - Pendiente fuera del código: que Meta tenga las dos (`es`) aprobadas con esos `parameter_name` y
   cuerpos, y que el superusuario las conecte al estudio en "Plantillas 1×1" y "Plantillas".
+
+**L4** (cambio de requerimiento: se dan de baja, pedido del usuario verbatim):
+
+> revisa que tenmos dos plantillas que dicen avatar, quiero eliminarlas que estan mal
+
+Implementación de la baja:
+
+- Salen del catálogo: `WHATSAPP_TEMPLATE_MAP`, `WHATSAPP_TEMPLATE_LABELS`,
+  `WHATSAPP_TEMPLATE_BODIES` y `WHATSAPP_SINGLE_TEMPLATE_KEYS` en `backend/main.py`, y
+  `WA_TEMPLATE_BODIES` y `BULK_TEMPLATE_VARS` en `frontend/call_center.js`. El catálogo vuelve a
+  **32 keys** y la lista 1×1 a **16**, exactamente como quedaron después de `5d65757`.
+- Se dan de baja `scripts/tests/check_avatar_templates.py` y
+  `scripts/tests/check_avatar_preview.js`: su objeto ya no existe y fallarían por diseño.
+- El backend las rechaza ahora como cualquier key desconocida: `400 "Plantilla no válida"` en
+  1×1 y en masivo, sin llamar a Meta.
+- **Se conserva** el alias `entrevistado -> nombre de la persona` (en `whatsapp_send_template`,
+  `whatsapp_send_bulk` y las tres vistas previas, más `needsName` en "Nuevo chat"): es una
+  variable genérica, no una plantilla, no cambia el comportamiento de ninguna otra key y evita
+  que una plantilla futura con `{{entrevistado}}` mande el campo vacío. Si se quiere afuera
+  también, es una baja aparte.
+- Verificación: `__SUITE__`; `python -m py_compile backend/main.py` y
+  `node --check frontend/call_center.js` OK.
