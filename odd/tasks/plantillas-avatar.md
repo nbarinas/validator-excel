@@ -1,8 +1,10 @@
 # Plantillas de WhatsApp del estudio "Avatar" (freidoras de aire)
 
-> **Estado: eliminadas.** Se entregaron en el commit `29ace47` y el usuario las descartó
-> por estar mal (L4). Este documento queda como registro de qué se hizo y por qué se dio de
-> baja; nada de lo que describe está hoy en el catálogo.
+> **Estado:** las dos plantillas originales (`inicia_avatar`, `recordatorio_avatar`) se
+> entregaron en `29ace47` y el usuario las descartó por estar mal (L4), así que se dieron de
+> baja en `60ea7da`. En su lugar entró una versión corregida,
+> `nuevo_recordatorio_avatar_noviembre` (L5), que es la única viva hoy: el resto de este
+> documento queda como registro histórico de las que se dieron de baja.
 
 **Feature:** agregar `inicia_avatar` y `recordatorio_avatar` (idioma `es`) al catálogo de
 WhatsApp, al envío **1×1**, al **masivo** y a la **vista previa** del front.
@@ -207,5 +209,70 @@ Implementación de la baja:
   variable genérica, no una plantilla, no cambia el comportamiento de ninguna otra key y evita
   que una plantilla futura con `{{entrevistado}}` mande el campo vacío. Si se quiere afuera
   también, es una baja aparte.
-- Verificación: `__SUITE__`; `python -m py_compile backend/main.py` y
+- Verificación: suite `scripts/tests` **26/26 OK** (17 `.py` + 9 `.js`); `python -m py_compile backend/main.py` y
   `node --check frontend/call_center.js` OK.
+
+**L5** (cambio de requerimiento: versión corregida del recordatorio, pedido del usuario verbatim):
+
+> ahora agregar es nuevo_recordatorio_avatar_noviembre · Spanish que dice ¡Hola, {{encuestada}}! 😊 ¿Cómo estás?
+>
+> Te saluda el equipo de AZ MARKETING PLUS.
+>
+> Hoy continuamos con nuestro estudio sobre el uso de tu freidora de aire (Air Fryer). 🍟
+>
+> Te recordamos que es muy importante seguir diligenciando el formulario TODOS LOS DÍAS, independientemente de si utilizaste o no tu freidora de aire.
+>
+> ✅ Si la usaste, cuéntanos qué preparación realizaste y adjunta una fotografía del plato o alimento preparado.
+>
+> ✅ Si no la usaste, simplemente selecciona la opción NO LA USÉ.
+>
+> 🔢 Recuerda que tu número de registro es: {{censo}}.
+>
+> 📲 Ingresa aquí para diligenciar la encuesta:
+> https://forms.gle/jhwUsEbh1Bf6rMG79
+>
+> Si tienes alguna duda o inquietud, con mucho gusto estamos disponibles para ayudarte.
+>
+> ¡Gracias por tu compromiso y por continuar participando con AZ Marketing Plus!
+> 4:58 pm
+> Listo, ya la llene
+> Mas tarde la lleno
+
+Diferencias con la plantilla que se dio de baja (L4), todas a favor de este texto:
+
+- Nombre nuevo: `nuevo_recordatorio_avatar_noviembre`.
+- Saluda con `{{encuestada}}` (la dada de baja usaba `{{entrevistado}}`), y solo lleva `censo`
+  como segundo parámetro.
+- Link nuevo y corto: `https://forms.gle/jhwUsEbh1Bf6rMG79`, en la línea siguiente a
+  "…diligenciar la encuesta:" (sin línea en blanco en medio).
+- El texto viene **completo**: cierra en "…participando con AZ Marketing Plus!", sin el corte
+  que tenía la versión anterior. El ruido del chat ("4:58 pm", "Listo, ya la llene", "Mas tarde
+  la lleno") queda afuera.
+
+Implementación:
+
+- Entra en `WHATSAPP_TEMPLATE_MAP` (name = key, `es`, params `encuestada` y `censo`), en
+  `WHATSAPP_TEMPLATE_LABELS` ("Recordatorio Avatar — noviembre (Air Fryer)"), en
+  `WHATSAPP_TEMPLATE_BODIES` y en `WHATSAPP_SINGLE_TEMPLATE_KEYS` (al final), más
+  `WA_TEMPLATE_BODIES` y `BULK_TEMPLATE_VARS` en el front. Vista previa byte-idéntica al backend
+  (795 chars).
+- No usa `{{dia}}`: no está en `BULK_DAY_TEMPLATES` y el envío no lo exige ni lo manda. No hizo
+  falta tocar el mapeo de variables: `encuestada` y `censo` ya se resuelven en
+  `whatsapp_send_template` y en `whatsapp_send_bulk`.
+- Test-first: `check_recordatorio_avatar_noviembre.py` y
+  `check_recordatorio_avatar_noviembre_preview.js` fallan contra `HEAD` (la key no existe:
+  `git show HEAD:backend/main.py | grep -c nuevo_recordatorio_avatar_noviembre` → 0, y el js
+  contra el `call_center.js` de `HEAD` → exit 1) y quedan **GREEN** con el cambio.
+- Regresión cubierta: el catálogo es las 32 keys previas + esta al final; la lista 1×1 es su
+  prefijo de 16 + esta; `plantilla_inicio_semana_9_de_noviembre_sibate` (1021) y
+  `registro_noviembre_9_2026` (692) conservan el largo exacto de su cuerpo;
+  `registro_noviembre_9_2026` sigue exigiendo el día y `in_home_beta_385` sigue sin pedirlo.
+- Envío cubierto: 1×1, masivo por estudio (`bulk_link`) y masivo por lista (`send-bulk`) con el
+  payload exacto contra Meta simulado; una key 1×1 no conectada al estudio sigue rechazándose
+  con 403 sin llamar a Meta.
+- Verificación: suite `scripts/tests` **28/28 OK** (18 `.py` + 10 `.js`); `python -m py_compile backend/main.py` y
+  `node --check frontend/call_center.js` OK. El cuerpo se comparó byte a byte contra el texto de
+  L5 (tipeado de nuevo en un script aparte, no leído del código).
+- Pendiente fuera del código: que Meta tenga la plantilla (`es`) aprobada con esos
+  `parameter_name` y que el superusuario la conecte al estudio en "Plantillas 1×1" y
+  "Plantillas".
