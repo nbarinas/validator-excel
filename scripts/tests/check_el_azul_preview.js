@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 /**
- * Verifica la vista previa de `nuevo_recordatorio_avatar_noviembre` en el 1x1,
- * en "Nuevo chat" y en el masivo por estudio.
+ * Verifica la vista previa de `el_azul` en el 1x1, en "Nuevo chat" y en el masivo por estudio.
  *
- * Reglas del pedido (ver odd/tasks/plantillas-avatar.md, L5):
- *  - Saluda con {{encuestada}} y usa {{censo}}; no usa dia.
- *  - El cuerpo viene completo (cierra en "con AZ Marketing Plus!") y el link es
+ * Reglas del pedido (ver odd/tasks/plantillas-avatar.md, L6):
+ *  - El cuerpo arranca con "Saludos" y sigue "¡Hola, {{encuestada}}! 😊 ...".
+ *  - Usa {{censo}} y no usa dia.
+ *  - El cierre va tal cual, cortado en "...participando con", y el link es
  *    https://forms.gle/jhwUsEbh1Bf6rMG79.
  *
- * El cuerpo exacto lo fija check_recordatorio_avatar_noviembre.py; aca se evalua el
- * comportamiento de la vista previa contra el codigo real de frontend/call_center.js.
+ * El cuerpo exacto lo fija check_el_azul.py; aca se evalua el comportamiento de la
+ * vista previa contra el codigo real de frontend/call_center.js.
  *
- * Uso: node scripts/tests/check_recordatorio_avatar_noviembre_preview.js [ruta/call_center.js]
+ * Uso: node scripts/tests/check_el_azul_preview.js [ruta/call_center.js]
  */
 const fs = require('fs');
 const vm = require('vm');
@@ -19,7 +19,7 @@ const vm = require('vm');
 const ruta = process.argv[2] || 'frontend/call_center.js';
 const src = fs.readFileSync(ruta, 'utf8');
 
-const KEY = 'nuevo_recordatorio_avatar_noviembre';
+const KEY = 'el_azul';
 const KEY_REGISTRO = 'registro_noviembre_9_2026';
 
 function extraer(nombre) {
@@ -161,16 +161,17 @@ function previewInline(key, dia) {
 
 // 0. Guarda del cuerpo del front.
 console.log('[0] Cuerpo de vista previa presente');
-check(BODY.startsWith('¡Hola, {{encuestada}}! 😊') &&
+check(BODY.startsWith('Saludos\n¡Hola, {{encuestada}}! 😊') &&
       BODY.includes('https://forms.gle/jhwUsEbh1Bf6rMG79') &&
-      BODY.endsWith('continuar participando con AZ Marketing Plus!'),
-    'el front tiene el cuerpo completo (link corto y cierre entero)');
+      BODY.endsWith('continuar participando con'),
+    'el front tiene el cuerpo con Saludos, el link corto y el cierre cortado');
 
 // 1. Modal 1x1.
 console.log('[1] Modal 1x1');
 const inline = previewInline(KEY, '');
 check(els['waTemplateDayGroup'].style.display === 'none', 'no muestra el campo Dia');
-check(inline.startsWith('¡Hola, Maria! 😊'), 'sustituye {{encuestada}} por el nombre');
+check(inline.startsWith('Saludos\n¡Hola, Maria! 😊'),
+    'arranca con Saludos y sustituye {{encuestada}} por el nombre');
 check(inline.includes('registro es: 8877.'), 'sustituye {{censo}}');
 check(inline.includes('freidora de aire (Air Fryer). 🍟'), 'conserva el cuerpo aprobado');
 check(!inline.includes('{{'), 'no deja variables sin sustituir');
@@ -200,7 +201,7 @@ els['waNewChatName'].value = 'Maria';
 els['waNewChatSubject'].value = '';
 ctx.waRenderNewChatPreview();
 const nuevo = els['waNewChatPreview'].textContent;
-check(nuevo.startsWith('¡Hola, Maria! 😊'), 'sustituye el nombre digitado');
+check(nuevo.startsWith('Saludos\n¡Hola, Maria! 😊'), 'sustituye el nombre digitado');
 check(!nuevo.includes('{{'), 'no deja variables sin sustituir');
 
 // 4. Masivo por estudio.
@@ -208,7 +209,7 @@ console.log('[4] Masivo por estudio');
 els['bulkLinkTemplate'].value = KEY;
 ctx.bulkLinkOnTemplateChange();
 check(els['bulkLinkDayLabel'].style.display === 'none', 'no muestra el campo Dia');
-check(els['bulkLinkTemplatePreview'].textContent.includes('¡Hola, {{encuestada}}! 😊'),
+check(els['bulkLinkTemplatePreview'].textContent.includes('Saludos\n¡Hola, {{encuestada}}! 😊'),
     'se previsualiza con las variables sin sustituir');
 
 // 5. Regresion.

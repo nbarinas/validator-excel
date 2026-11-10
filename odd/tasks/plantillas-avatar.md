@@ -276,3 +276,64 @@ Implementación:
 - Pendiente fuera del código: que Meta tenga la plantilla (`es`) aprobada con esos
   `parameter_name` y que el superusuario la conecte al estudio en "Plantillas 1×1" y
   "Plantillas".
+
+**L6** (cambio de requerimiento: sale la que quedó en revisión, entra `el_azul`; pedido del usuario verbatim):
+
+> tuve que crear otra plantilla porque esta que acabamos de crear quedo en revision elimina esa y agrega esta el_azul · SpanishSaludos
+> ¡Hola, {{encuestada}}! 😊 ¿Cómo estás?
+>
+> Te saluda el equipo de AZ MARKETING PLUS.
+>
+> Hoy continuamos con nuestro estudio sobre el uso de tu freidora de aire (Air Fryer). 🍟
+>
+> Te recordamos que es muy importante seguir diligenciando el formulario TODOS LOS DÍAS, independientemente de si utilizaste o no tu freidora de aire.
+>
+> ✅ Si la usaste, cuéntanos qué preparación realizaste y adjunta una fotografía del plato o alimento preparado.
+>
+> ✅ Si no la usaste, simplemente selecciona la opción NO LA USÉ.
+>
+> 🔢 Recuerda que tu número de registro es: {{censo}}.
+>
+> 📲 Ingresa aquí para diligenciar la encuesta:
+> https://forms.gle/jhwUsEbh1Bf6rMG79
+>
+> Si tienes alguna duda o inquietud, con mucho gusto estamos disponibles para ayudarte.
+> ¡Gracias por tu compromiso y por continuar participando con
+> 7:02 pm
+> Listo, ya lo llene
+> Mas tarde lo lleno y has el commit
+
+Decisiones del usuario sobre este pegado (se preguntaron antes de escribir código):
+
+- **"Saludos" es la primera línea del cuerpo**, seguida de "¡Hola, {{encuestada}}! 😊 ¿Cómo estás?"
+  en la línea siguiente y sin línea en blanco entre las dos.
+- **El cierre va tal cual**, cortado en "…por continuar participando con", igual que se eligió
+  para las plantillas avatar que se dieron de baja (L2). Ojo: esta vez tampoco hay línea en
+  blanco entre "…ayudarte." y "¡Gracias…".
+
+Implementación:
+
+- `nuevo_recordatorio_avatar_noviembre` **sale** del catálogo (quedó en revisión en Meta: ofrecerla
+  solo generaría envíos con 132001) y `el_azul` entra en su lugar, en los mismos seis puntos:
+  `WHATSAPP_TEMPLATE_MAP`, `WHATSAPP_TEMPLATE_LABELS` ("Air Fryer — recordatorio diario (azul)"),
+  `WHATSAPP_TEMPLATE_BODIES` y `WHATSAPP_SINGLE_TEMPLATE_KEYS` del backend, más
+  `WA_TEMPLATE_BODIES` y `BULK_TEMPLATE_VARS` del front. Catálogo: 33 keys; lista 1×1: 17.
+- Mismos parámetros que la anterior: `encuestada` y `censo` (sin `dia`), así que no hizo falta
+  tocar el mapeo de variables.
+- Los dos checks se renombran y se reapuntan: `check_el_azul.py` y `check_el_azul_preview.js`
+  (antes `check_recordatorio_avatar_noviembre*`, cuyo objeto ya no existe).
+- Incidencia durante la implementación: el primer intento de escribir el cuerpo pasó el texto por
+  un heredoc del shell y perdió un nivel de escapes, dejando saltos de línea reales dentro de la
+  cadena; el script de arreglo además ubicó la primera entrada `el_azul` (la de `LABELS`) y borró
+  el tramo intermedio (`SINGLE_KEYS`, `WHATSAPP_WINDOW_HOURS` y la cabecera de
+  `WHATSAPP_TEMPLATE_BODIES`). Se restauraron los dos archivos desde `1525233`
+  (`git checkout HEAD -- backend/main.py frontend/call_center.js`) y se rehizo con ediciones
+  exactas. `py_compile` y `node --check` lo detectaron y hoy los dos pasan.
+- Test-first: los dos checks fallan contra `HEAD` (la key no existe:
+  `git show HEAD:backend/main.py | grep -c '"el_azul": {'` → 0, y el js contra el `call_center.js`
+  de `HEAD` → exit 1) y quedan **GREEN** con el cambio.
+- Verificación: suite `scripts/tests` **28/28 OK** (18 `.py` + 10 `.js`); `python -m py_compile backend/main.py` y
+  `node --check frontend/call_center.js` OK. El cuerpo se comparó byte a byte contra el pedido de
+  L6 (20 líneas, 783 chars, primera "Saludos", última "…participando con").
+- Pendiente fuera del código: que Meta apruebe `el_azul` (`es`) con esos `parameter_name` y que el
+  superusuario la conecte al estudio en "Plantillas 1×1" y "Plantillas".

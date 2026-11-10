@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
-"""Verifica la plantilla `nuevo_recordatorio_avatar_noviembre` (estudio Air Fryer).
+"""Verifica la plantilla `el_azul` (recordatorio del estudio Air Fryer).
 
-Pedido del usuario (verbatim, L5 de odd/tasks/plantillas-avatar.md):
+Pedido del usuario (verbatim, L6 de odd/tasks/plantillas-avatar.md):
 
-    ahora agregar es nuevo_recordatorio_avatar_noviembre · Spanish que dice
+    el_azul · SpanishSaludos
     ¡Hola, {{encuestada}}! 😊 ¿Cómo estás? ... ¡Gracias por tu compromiso y por
-    continuar participando con AZ Marketing Plus!
+    continuar participando con
+
+Decisiones del usuario sobre el pegado: "Saludos" es la primera linea del cuerpo, y
+el cierre se copia tal cual, cortado en "...participando con".
 
 Notas del pedido:
-  - Es el reemplazo corregido de las dos plantillas avatar que se dieron de baja en
-    `60ea7da`: saluda con {{encuestada}} (no {{entrevistado}}), usa el link corto
-    https://forms.gle/jhwUsEbh1Bf6rMG79 y el texto viene completo (L4 habia quedado
-    cortado en "...participando con").
-  - El ruido del chat ("4:58 pm", "Listo, ya la llene", "Mas tarde la lleno") queda afuera.
+  - Entra en lugar de `nuevo_recordatorio_avatar_noviembre`, que quedo en revision en
+    Meta: misma familia, mismo link corto https://forms.gle/jhwUsEbh1Bf6rMG79, mismo
+    saludo {{encuestada}} y {{censo}} como unicos parametros.
+  - El ruido del chat ("7:02 pm", "Listo, ya lo llene", "Mas tarde lo lleno") queda afuera.
   - No usa {{dia}}.
 
 Comprueba contra el codigo real:
@@ -47,11 +49,12 @@ from fastapi import HTTPException  # noqa: E402
 import backend.main as main  # noqa: E402
 from backend import auth, database, models  # noqa: E402
 
-KEY = "nuevo_recordatorio_avatar_noviembre"
-LABEL = "Recordatorio Avatar — noviembre (Air Fryer)"
+KEY = "el_azul"
+LABEL = "Air Fryer — recordatorio diario (azul)"
 PARAMS = ["encuestada", "censo"]
 
 CUERPO = (
+    "Saludos\n"
     "¡Hola, {{encuestada}}! 😊 ¿Cómo estás?\n"
     "\n"
     "Te saluda el equipo de AZ MARKETING PLUS.\n"
@@ -74,8 +77,7 @@ CUERPO = (
     "\n"
     "Si tienes alguna duda o inquietud, con mucho gusto estamos disponibles para "
     "ayudarte.\n"
-    "\n"
-    "¡Gracias por tu compromiso y por continuar participando con AZ Marketing Plus!"
+    "¡Gracias por tu compromiso y por continuar participando con"
 )
 
 # --- Baseline: las 32 keys vigentes antes de esta entrega ---
@@ -184,13 +186,13 @@ def correr():
 
         print("[3] Render de las variables")
         body = main._wa_render_template_body(KEY, {"encuestada": "Maria", "censo": "8877"})
-        check(body is not None and body.startswith("¡Hola, Maria! 😊"),
-              f"{KEY} sustituye encuestada")
+        check(body is not None and body.startswith("Saludos\n¡Hola, Maria! 😊"),
+              f"{KEY} arranca con Saludos y sustituye encuestada")
         check(body is not None and "registro es: 8877." in body, f"{KEY} sustituye censo")
         check(body is not None and "forms.gle/jhwUsEbh1Bf6rMG79" in body,
               f"{KEY} conserva el link corto del formulario")
-        check(body is not None and body.endswith("participando con AZ Marketing Plus!"),
-              f"{KEY} cierra el texto completo (no queda cortado)")
+        check(body is not None and body.endswith("participando con"),
+              f"{KEY} cierra el texto tal cual, cortado en 'participando con'")
         check(body is not None and "{{" not in body, f"{KEY} render sin variables pendientes")
 
         print("[4] Regresion: el catalogo solo suma esta key")
