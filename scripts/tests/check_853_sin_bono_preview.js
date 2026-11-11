@@ -19,7 +19,7 @@ const ruta = process.argv[2] || 'frontend/call_center.js';
 const src = fs.readFileSync(ruta, 'utf8');
 
 const KEY = '853_sin_bono';
-const KEY_REGISTRO = 'registro_noviembre_9_2026';
+const KEY_REGISTRO = 'recordatorio_semana_9_de_noviembre_sibate';
 
 function extraer(nombre) {
     const inicio = src.indexOf('function ' + nombre + '(');
@@ -212,13 +212,13 @@ check(els['bulkLinkTemplatePreview'].textContent.includes('{{encuestada}}'),
 
 // 5. Regresion.
 console.log('[5] Regresion del flujo previo');
-check(previewInline(KEY_REGISTRO, '4').includes('DÍA 4/7') &&
+check(previewInline(KEY_REGISTRO, '4').includes('Día 4 de 7') &&
       els['waTemplateDayGroup'].style.display === 'block',
-    'registro_noviembre_9_2026 sigue pidiendo y mostrando el dia');
+    'recordatorio_semana_9_de_noviembre_sibate sigue pidiendo y mostrando el dia');
 els['bulkLinkTemplate'].value = KEY_REGISTRO;
 ctx.bulkLinkOnTemplateChange();
 check(els['bulkLinkDayLabel'].style.display === 'block',
-    'registro_noviembre_9_2026 sigue pidiendo el dia en el masivo');
+    'recordatorio_semana_9_de_noviembre_sibate sigue pidiendo el dia en el masivo');
 
 if (fallas.length) {
     console.log(`\n${fallas.length} fallas.`);

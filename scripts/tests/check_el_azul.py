@@ -90,7 +90,8 @@ PREVIAS = [
     "producto_203_90_dias", "producto_402_90_dias", "sibate_encuesta_final",
     "entrega_sibate_19_oct_sibate_1_204", "entrega_sibate_19_oct_sibate_2_302",
     "recordatorio_sibate_1_204", "recordatorio_sibate_2_302", "729_sin_bono",
-    "plantilla_inicio_semana_9_de_noviembre_sibate", "registro_noviembre_9_2026",
+    "plantilla_inicio_semana_9_de_noviembre_sibate",
+    "recordatorio_semana_9_de_noviembre_sibate",
 ]
 
 SINGLE_PREVIAS = [
@@ -98,7 +99,8 @@ SINGLE_PREVIAS = [
     "sibate_encuesta_final", "final_beta", "primera_recogida_853_",
     "entrega_sibate_19_oct_sibate_1_204", "entrega_sibate_19_oct_sibate_2_302",
     "recordatorio_sibate_1_204", "recordatorio_sibate_2_302", "recibido", "729_sin_bono",
-    "plantilla_inicio_semana_9_de_noviembre_sibate", "registro_noviembre_9_2026",
+    "plantilla_inicio_semana_9_de_noviembre_sibate",
+    "recordatorio_semana_9_de_noviembre_sibate",
 ]
 
 FALLAS = []
@@ -204,7 +206,7 @@ def correr():
               SINGLE_PREVIAS + [KEY],
               "la lista 1x1 conserva el prefijo previo y suma la nueva al final")
         for hermana, largo in (("plantilla_inicio_semana_9_de_noviembre_sibate", 1021),
-                               ("registro_noviembre_9_2026", 692)):
+                               ("recordatorio_semana_9_de_noviembre_sibate", 581)):
             actual = main.WHATSAPP_TEMPLATE_BODIES.get(hermana)
             check(actual is not None and len(actual) == largo,
                   f"{hermana} conserva su cuerpo (largo {largo})")

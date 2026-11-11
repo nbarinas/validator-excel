@@ -1429,7 +1429,9 @@ WHATSAPP_TEMPLATE_MAP = {
     "recordatorio_sibate_2_302": {"name": "recordatorio_sibate_2_302", "language": "es", "params": ["dia", "encuestada", "mascota", "censo"]},
     "729_sin_bono": {"name": "729_sin_bono", "language": "es", "params": ["nombre_entrevistada", "encuestador", "hora_agendada"]},
     "plantilla_inicio_semana_9_de_noviembre_sibate": {"name": "plantilla_inicio_semana_9_de_noviembre_sibate", "language": "es", "params": ["entrevistada", "mascota", "censo"]},
-    "registro_noviembre_9_2026": {"name": "registro_noviembre_9_2026", "language": "es", "params": ["dia", "encuestada", "mascotica", "censo"]},
+    # Key interna != nombre en Meta (precedente: sibate_5_de_octubre -> sibate5octubre).
+    # "tal_cual" es el nombre que quedo aprobado en Meta; el key no se puede renombrar alla.
+    "recordatorio_semana_9_de_noviembre_sibate": {"name": "tal_cual", "language": "es", "params": ["dia", "encuestada", "mascotica", "censo"]},
     "el_azul": {"name": "el_azul", "language": "es", "params": ["encuestada", "censo"]},
     "853_sin_bono": {"name": "853_sin_bono", "language": "es", "params": ["encuestada", "encuestador", "hora"]},
 }
@@ -1467,7 +1469,7 @@ WHATSAPP_TEMPLATE_LABELS = {
     "recordatorio_sibate_2_302": "Recordatorio Sibate 2 — producto 302",
     "729_sin_bono": "Shampoo 729 — cuarta videollamada (sin bono)",
     "plantilla_inicio_semana_9_de_noviembre_sibate": "Inicio semana 9 de noviembre (Sibate) — encuesta diaria",
-    "registro_noviembre_9_2026": "Registro diario 9 de noviembre (Sibate)",
+    "recordatorio_semana_9_de_noviembre_sibate": "Recordatorio semana 9 de noviembre (Sibate)",
     "el_azul": "Air Fryer — recordatorio diario (azul)",
     "853_sin_bono": "Shampoo 853 — segunda videollamada (sin bono)",
 }
@@ -1491,7 +1493,7 @@ WHATSAPP_SINGLE_TEMPLATE_KEYS = [
     "recibido",
     "729_sin_bono",
     "plantilla_inicio_semana_9_de_noviembre_sibate",
-    "registro_noviembre_9_2026",
+    "recordatorio_semana_9_de_noviembre_sibate",
     "el_azul",
     "853_sin_bono",
 ]
@@ -1551,7 +1553,7 @@ WHATSAPP_TEMPLATE_BODIES = {
     "recordatorio_sibate_2_302": "🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 302).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/pP9Fd9v5ZSTGjemX8\n\n¡Gracias por tu compromiso! 💚 Recuerda completar el registro durante los 7 días del estudio.",
     "729_sin_bono": "¡Muy buenos días, señora {{nombre_entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la cuarta videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n\n¿Podemos realizar la videollamada en este momento a mas tarde",
     "plantilla_inicio_semana_9_de_noviembre_sibate": "ENCUESTA DIARIA – 7 DÍAS\n¡Hola, {{entrevistada}}👋\nTe saluda el equipo de AZ Marketing Plus.\n\nHoy iniciamos esta dinámica, que tendrá una duración de 7 semanas.\n\nDurante los próximos 7 días, deberás registrar diariamente el tiempo que tu perrito  {{mascota}}  tarda en consumir el concentrado o alimento que habitualmente le das.\n\n⏱️ ¿Qué debes hacer?\n\nToma el tiempo desde el momento en que le sirves el alimento hasta que termina de comer.\nObserva atentamente su comportamiento al momento de alimentarse.\nRegistra si comienza a comer inmediatamente o si primero olfatea el alimento antes de consumirlo.\n\n🍽️ Realiza esta actividad en una sola comida al día: desayuno, almuerzo o cena.\n\n📌 Importante: durante estos 7 días, procura mantener el mismo alimento y el mismo horario de alimentación, para garantizar un seguimiento consistente.\n\n📝 Recuerda diligenciar una encuesta cada día durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/cedqXEt1zPQXZcRt6\nMuchas gracias",
-    "registro_noviembre_9_2026": "REGISTRO DIARIO\nDÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋\nTe saluda el equipo de AZ Marketing Plus.\n\nRecuerda realizar hoy el registro del consumo de concentrado o purina de tu perro {{mascotica}}.\n\n📌 Recuerda:\n\n🍽️ Realiza el registro en una sola comida al día y procura mantener la misma comida y el mismo horario durante toda la semana.\n⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de comer.\n👀 Observa atentamente su comportamiento durante la alimentación y registra tus observaciones en la encuesta.\n📝 Recuerda realizar un registro diario durante los 7 días.\n\nTu código de registro es: {{censo}}\n\n🔗 INGRESA AQUÍ A LA ENCUESTA:\nhttps://forms.gle/HAtyTHjKxLYmtinz5",
+    "recordatorio_semana_9_de_noviembre_sibate": "Hola como estas?\nDía {{dia}} de 7 del seguimiento.\n\nHola, {{encuestada}} 👋\nSomos el equipo de AZ Marketing Plus.\n\nHoy corresponde registrar el consumo de concentrado de {{mascotica}}.\n\nRegistro de hoy:\n1. Sirve el alimento en la misma comida y a la misma hora de siempre.\n2. Cronometra el tiempo que tarda tu perro en terminarlo.\n3. Escribe qué observaste de su comportamiento.\n4. Envía el formulario una vez al día durante los 7 días.\n\nCódigo de registro: {{censo}}\n\nEnlace del formulario:\nhttps://forms.gle/HAtyTHjKxLYmtinz5\n\nCualquier duda, escríbenos por aquí y te respondemos.",
     "el_azul": "Saludos\n¡Hola, {{encuestada}}! 😊 ¿Cómo estás?\n\nTe saluda el equipo de AZ MARKETING PLUS.\n\nHoy continuamos con nuestro estudio sobre el uso de tu freidora de aire (Air Fryer). 🍟\n\nTe recordamos que es muy importante seguir diligenciando el formulario TODOS LOS DÍAS, independientemente de si utilizaste o no tu freidora de aire.\n\n✅ Si la usaste, cuéntanos qué preparación realizaste y adjunta una fotografía del plato o alimento preparado.\n\n✅ Si no la usaste, simplemente selecciona la opción NO LA USÉ.\n\n🔢 Recuerda que tu número de registro es: {{censo}}.\n\n📲 Ingresa aquí para diligenciar la encuesta:\nhttps://forms.gle/jhwUsEbh1Bf6rMG79\n\nSi tienes alguna duda o inquietud, con mucho gusto estamos disponibles para ayudarte.\n¡Gracias por tu compromiso y por continuar participando con",
     "853_sin_bono": "Muy buenos días, señora {{encuestada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 853, a la(s) {{hora}} .\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
 }

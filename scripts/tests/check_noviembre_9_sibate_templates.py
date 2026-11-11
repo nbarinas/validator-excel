@@ -5,14 +5,18 @@ Pedido del usuario (verbatim, L1 y L4 de odd/tasks/plantillas-noviembre-9-sibate
 
     quiero agregar las plantillas de 1x1, masivo y en previu
     plantilla_inicio_semana_9_de_noviembre_sibate · Spanish que dice ENCUESTA DIARIA
-    – 7 DÍAS ... y (L4, tras el rechazo en Meta) registro_noviembre_9_2026 · Spanish
-    (SPA) REGISTRO DIARIO DÍA {{dia}}/7 ...
+    – 7 DÍAS ... y (L6) recordatorio_semana_9_de_noviembre_sibate · Spanish, plantilla
+    de Meta `tal_cual`, que empieza con "Hola como estas?" y sigue con el dia.
 
 Decisiones del usuario:
   * L2: el nombre en Meta de la primera es `plantilla_inicio_semana_9_de_noviembre_sibate`
     (con el prefijo `plantilla_`, tal cual lo pego).
-  * L4: la de recordatorio se rechazo y la aprobada se llama `registro_noviembre_9_2026`,
-    saluda con `{{encuestada}}` y usa `{{mascotica}}` (literal, con t) en vez de `{{mascota}}`.
+  * L4/L6: la de recordatorio usa `{{mascotica}}` (literal, con t), que es el
+    `parameter_name` aprobado en Meta.
+  * L6: Meta rechazo la variante `REGISTRO DIARIO` / `DÍA {{dia}}/7` y aprobo esta redaccion
+    con el nombre de plantilla `tal_cual`; el key interno (que es el que ve el CRM) pasa a
+    `recordatorio_semana_9_de_noviembre_sibate`. key != name tiene precedente en el catalogo
+    (`sibate_5_de_octubre` -> `sibate5octubre`).
   * L2/L4: el ruido del chat pegajado ("6:17 pm", "Listo, ya lo llene", "Mas tarde lo
     lleno") no forma parte del cuerpo; el cuerpo cierra en "Muchas gracias" y en el link.
 
@@ -58,7 +62,9 @@ import backend.main as main  # noqa: E402
 from backend import auth, database, models  # noqa: E402
 
 KEY_INICIO = "plantilla_inicio_semana_9_de_noviembre_sibate"
-KEY_REGISTRO = "registro_noviembre_9_2026"
+KEY_REGISTRO = "recordatorio_semana_9_de_noviembre_sibate"
+# Nombre de la plantilla en Meta: no coincide con el key interno (L6).
+NAME_REGISTRO = "tal_cual"
 
 # --- Cuerpos aprobados (verbatim del pedido; el ruido del chat queda afuera) ---
 BODY_INICIO = (
@@ -95,42 +101,41 @@ BODY_INICIO = (
 )
 
 BODY_REGISTRO = (
-    "REGISTRO DIARIO\n"
-    "DÍA {{dia}}/7\n"
+    "Hola como estas?\n"
+    "Día {{dia}} de 7 del seguimiento.\n"
     "\n"
-    "¡Hola, {{encuestada}}! 👋\n"
-    "Te saluda el equipo de AZ Marketing Plus.\n"
+    "Hola, {{encuestada}} 👋\n"
+    "Somos el equipo de AZ Marketing Plus.\n"
     "\n"
-    "Recuerda realizar hoy el registro del consumo de concentrado o purina de tu "
-    "perro {{mascotica}}.\n"
+    "Hoy corresponde registrar el consumo de concentrado de {{mascotica}}.\n"
     "\n"
-    "📌 Recuerda:\n"
+    "Registro de hoy:\n"
+    "1. Sirve el alimento en la misma comida y a la misma hora de siempre.\n"
+    "2. Cronometra el tiempo que tarda tu perro en terminarlo.\n"
+    "3. Escribe qué observaste de su comportamiento.\n"
+    "4. Envía el formulario una vez al día durante los 7 días.\n"
     "\n"
-    "🍽️ Realiza el registro en una sola comida al día y procura mantener la misma "
-    "comida y el mismo horario durante toda la semana.\n"
-    "⏱️ Mide el tiempo desde que sirves el alimento hasta que tu perro termina de "
-    "comer.\n"
-    "👀 Observa atentamente su comportamiento durante la alimentación y registra tus "
-    "observaciones en la encuesta.\n"
-    "📝 Recuerda realizar un registro diario durante los 7 días.\n"
+    "Código de registro: {{censo}}\n"
     "\n"
-    "Tu código de registro es: {{censo}}\n"
+    "Enlace del formulario:\n"
+    "https://forms.gle/HAtyTHjKxLYmtinz5\n"
     "\n"
-    "🔗 INGRESA AQUÍ A LA ENCUESTA:\n"
-    "https://forms.gle/HAtyTHjKxLYmtinz5"
+    "Cualquier duda, escríbenos por aquí y te respondemos."
 )
 
 NUEVAS = {
     KEY_INICIO: {
+        "name": KEY_INICIO,
         "params": ["entrevistada", "mascota", "censo"],
         "body": BODY_INICIO,
         "label": "Inicio semana 9 de noviembre (Sibate) — encuesta diaria",
         "dia": False,
     },
     KEY_REGISTRO: {
+        "name": NAME_REGISTRO,
         "params": ["dia", "encuestada", "mascotica", "censo"],
         "body": BODY_REGISTRO,
-        "label": "Registro diario 9 de noviembre (Sibate)",
+        "label": "Recordatorio semana 9 de noviembre (Sibate)",
         "dia": True,
     },
 }
@@ -324,7 +329,8 @@ def correr():
             cfg = main.WHATSAPP_TEMPLATE_MAP.get(key)
             check(cfg is not None, f"{key} esta en WHATSAPP_TEMPLATE_MAP")
             if cfg:
-                check(cfg.get("name") == key, f"{key} name de Meta: {cfg.get('name')}")
+                check(cfg.get("name") == esperado["name"],
+                      f"{key} name de Meta: {cfg.get('name')}")
                 check(cfg.get("language") == "es", f"{key} language: {cfg.get('language')}")
                 check(cfg.get("params") == esperado["params"],
                       f"{key} params: {cfg.get('params')}")
@@ -333,7 +339,7 @@ def correr():
             item = catalogo.get(key)
             check(item is not None, f"{key} esta en /whatsapp/templates")
             if item:
-                check(item["name"] == key and item["language"] == "es",
+                check(item["name"] == esperado["name"] and item["language"] == "es",
                       f"{key} el catalogo publica name/idioma a Meta")
                 check(item["params"] == esperado["params"],
                       f"{key} el catalogo publica los params en orden")
@@ -367,11 +373,12 @@ def correr():
         body = main._wa_render_template_body(
             KEY_REGISTRO,
             {"dia": "3", "encuestada": "Maria", "mascotica": "Luna", "censo": "8877"})
-        check(body is not None and body.startswith("REGISTRO DIARIO\nDÍA 3/7"),
-              f"{KEY_REGISTRO} el encabezado usa el dia digitado en su propia linea")
-        check(body is not None and "¡Hola, Maria! 👋" in body,
+        check(body is not None and body.startswith(
+            "Hola como estas?\nDía 3 de 7 del seguimiento."),
+              f"{KEY_REGISTRO} arranca con el saludo y usa el dia digitado en la 2da linea")
+        check(body is not None and "Hola, Maria 👋" in body,
               f"{KEY_REGISTRO} sustituye encuestada")
-        check(body is not None and "perro Luna." in body,
+        check(body is not None and "concentrado de Luna." in body,
               f"{KEY_REGISTRO} sustituye mascotica (el nombre del parametro aprobado)")
         check(body is not None and "https://forms.gle/HAtyTHjKxLYmtinz5" in body,
               f"{KEY_REGISTRO} conserva su link de encuesta")
@@ -516,7 +523,8 @@ def correr():
             check(len(enviados) == antes + 1, f"1x1 {key} hace exactamente 1 request a Meta")
             if len(enviados) == antes + 1:
                 plantilla = enviados[-1].get("template") or {}
-                check(plantilla.get("name") == key, f"1x1 {key} usa el name de Meta")
+                check(plantilla.get("name") == NUEVAS[key]["name"],
+                      f"1x1 {key} usa el name de Meta: {plantilla.get('name')}")
                 parametros = (plantilla.get("components") or [{}])[0].get("parameters") or []
                 check(parametros == payload_esperado(key, dia),
                       f"1x1 {key} payload exacto: {parametros}")

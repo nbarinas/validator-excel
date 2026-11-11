@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
  * Verifica las vistas previas de las plantillas del 9 de noviembre (Sibate):
- * `plantilla_inicio_semana_9_de_noviembre_sibate` y `registro_noviembre_9_2026`
- * (la segunda es la que Meta aprobo despues de rechazar el primer nombre).
+ * `plantilla_inicio_semana_9_de_noviembre_sibate` y
+ * `recordatorio_semana_9_de_noviembre_sibate` (esta segunda viaja a Meta con el nombre de
+ * plantilla `tal_cual`; L6 de odd/tasks/plantillas-noviembre-9-sibate.md).
  *
  * Reglas del pedido (ver odd/tasks/plantillas-noviembre-9-sibate.md):
  *  - Las dos tienen que verse en la vista previa del 1x1, en "Nuevo chat" y en el masivo.
  *  - La de inicio NO usa dia (entrevistada, mascota, censo).
- *  - La de registro pide el dia digitado antes de enviar (DÍA {{dia}}/7) y lo manda en
+ *  - La de registro pide el dia digitado antes de enviar (Día {{dia}} de 7) y lo manda en
  *    el payload; sin dia no se pasa a la confirmacion. Usa {{encuestada}} y
  *    {{mascotica}} (nombre de parametro aprobado en Meta, con t).
  *
@@ -27,7 +28,7 @@ const ruta = process.argv[2] || 'frontend/call_center.js';
 const src = fs.readFileSync(ruta, 'utf8');
 
 const KEY_INICIO = 'plantilla_inicio_semana_9_de_noviembre_sibate';
-const KEY_REGISTRO = 'registro_noviembre_9_2026';
+const KEY_REGISTRO = 'recordatorio_semana_9_de_noviembre_sibate';
 const KEY_204 = 'recordatorio_sibate_1_204';
 
 function extraer(nombre) {
@@ -130,7 +131,7 @@ const catalogo = {
     },
     [KEY_REGISTRO]: {
         key: KEY_REGISTRO,
-        label: 'Registro diario 9 de noviembre (Sibate)',
+        label: 'Recordatorio semana 9 de noviembre (Sibate)',
         params: ['dia', 'encuestada', 'mascotica', 'censo'],
         body: BODY_REGISTRO,
     },
@@ -187,7 +188,7 @@ console.log('[0] Cuerpos de vista previa presentes');
 check(BODY_INICIO.includes('ENCUESTA DIARIA – 7 DÍAS') &&
       BODY_INICIO.includes('https://forms.gle/cedqXEt1zPQXZcRt6'),
     'el front tiene el cuerpo de la plantilla de inicio');
-check(BODY_REGISTRO.startsWith('REGISTRO DIARIO\nDÍA {{dia}}/7') &&
+check(BODY_REGISTRO.startsWith('Hola como estas?\nDía {{dia}} de 7 del seguimiento.') &&
       BODY_REGISTRO.includes('https://forms.gle/HAtyTHjKxLYmtinz5'),
     'el front tiene el cuerpo de la plantilla de registro');
 
@@ -206,14 +207,15 @@ check(!inlineInicio.includes('{{'), 'no deja variables sin sustituir');
 // 2. Modal 1x1 de la plantilla de registro: pide dia y lo muestra.
 console.log('[2] Modal 1x1 de la plantilla de registro');
 const inlineSinDia = previewInline(KEY_REGISTRO, '');
-check(inlineSinDia.startsWith('REGISTRO DIARIO') && inlineSinDia.includes('DÍA [día]/7') &&
+check(inlineSinDia.startsWith('Hola como estas?') && inlineSinDia.includes('Día [día] de 7') &&
       els['waTemplateDayGroup'].style.display === 'block',
     'sin dia digitado muestra el campo Dia y el marcador [día]');
 const inlineRec = previewInline(KEY_REGISTRO, '3');
-check(inlineRec.startsWith('REGISTRO DIARIO') && inlineRec.includes('DÍA 3/7'),
+check(inlineRec.startsWith('Hola como estas?') &&
+      inlineRec.includes('Día 3 de 7 del seguimiento.'),
     'la vista previa muestra el dia digitado (3)');
-check(inlineRec.includes('¡Hola, Maria! 👋'), 'sustituye {{encuestada}} por el nombre');
-check(inlineRec.includes('perro Luna.'), 'sustituye {{mascotica}} por el nombre del perro');
+check(inlineRec.includes('Hola, Maria 👋'), 'sustituye {{encuestada}} por el nombre');
+check(inlineRec.includes('concentrado de Luna.'), 'sustituye {{mascotica}} por el nombre del perro');
 check(inlineRec.includes('8877') && inlineRec.includes('https://forms.gle/HAtyTHjKxLYmtinz5'),
     'muestra el censo y el link de la encuesta');
 check(!inlineRec.includes('{{'), 'no deja variables sin sustituir');
@@ -236,8 +238,8 @@ ctx.showWhatsAppTemplatePreview();
 const payloadRec = ctx.waPendingTemplatePayload || {};
 check(payloadRec.dia === '5', 'el payload de registro manda dia = 5');
 check(payloadRec.template_key === KEY_REGISTRO, 'el payload conserva la plantilla elegida');
-check(els['waPreviewBody'].textContent.startsWith('REGISTRO DIARIO') &&
-      els['waPreviewBody'].textContent.includes('DÍA 5/7'),
+check(els['waPreviewBody'].textContent.startsWith('Hola como estas?') &&
+      els['waPreviewBody'].textContent.includes('Día 5 de 7'),
     'la confirmacion muestra el dia digitado');
 
 radioChecked = { value: KEY_INICIO };
@@ -262,9 +264,9 @@ els['waNewChatName'].value = 'Maria';
 els['waNewChatSubject'].value = '';
 ctx.waRenderNewChatPreview();
 const nuevo = els['waNewChatPreview'].textContent;
-check(nuevo.startsWith('REGISTRO DIARIO') && nuevo.includes('DÍA 6/7'),
+check(nuevo.startsWith('Hola como estas?') && nuevo.includes('Día 6 de 7'),
     'la vista previa de "Nuevo chat" muestra el dia digitado (6)');
-check(nuevo.includes('¡Hola, Maria! 👋') && !nuevo.includes('{{'),
+check(nuevo.includes('Hola, Maria 👋') && !nuevo.includes('{{'),
     'la vista previa de "Nuevo chat" sustituye encuestada sin dejar variables');
 
 els['waNewChatKind'].value = KEY_INICIO;
@@ -284,8 +286,8 @@ els['bulkLinkTemplate'].value = KEY_REGISTRO;
 ctx.bulkLinkOnTemplateChange();
 check(els['bulkLinkDayLabel'].style.display === 'block',
     'la de registro muestra el campo Dia en el masivo');
-check(els['bulkLinkTemplatePreview'].textContent.includes('DÍA {{dia}}/7') &&
-      els['bulkLinkTemplatePreview'].textContent.includes('¡Hola, {{encuestada}}!'),
+check(els['bulkLinkTemplatePreview'].textContent.includes('Día {{dia}} de 7') &&
+      els['bulkLinkTemplatePreview'].textContent.includes('Hola, {{encuestada}}'),
     'el masivo previsualiza la de registro con sus variables sin sustituir');
 
 els['bulkLinkTemplate'].value = KEY_INICIO;

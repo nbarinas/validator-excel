@@ -254,3 +254,65 @@ Decisiones del usuario en L4:
 - Pendiente fuera del código: que Meta tenga `plantilla_inicio_semana_9_de_noviembre_sibate` y
   `registro_noviembre_9_2026` aprobadas (`es`) con esos parámetros y cuerpos, y que el
   superusuario las conecte al estudio en "Plantillas 1×1" y "Plantillas".
+
+**L6** (cambio de requerimiento: Meta rechazó la variante `REGISTRO DIARIO` y aprobó otra
+redacción cuyo nombre de plantilla quedó `tal_cual`; pedido del usuario verbatim):
+
+> quedo asi tal_cual · SpanishHola como estas?
+> Día {{dia}} de 7 del seguimiento.
+>
+> Hola, {{encuestada}} 👋
+> Somos el equipo de AZ Marketing Plus.
+>
+> Hoy corresponde registrar el consumo de concentrado de {{mascotica}}.
+>
+> Registro de hoy:
+> 1. Sirve el alimento en la misma comida y a la misma hora de siempre.
+> 2. Cronometra el tiempo que tarda tu perro en terminarlo.
+> 3. Escribe qué observaste de su comportamiento.
+> 4. Envía el formulario una vez al día durante los 7 días.
+>
+> Código de registro: {{censo}}
+>
+> Enlace del formulario:
+> https://forms.gle/HAtyTHjKxLYmtinz5
+>
+> Cualquier duda, escríbenos por aquí y te respondemos.
+> Hecho
+> Mas tarde pero en el nombre en el crm dejalo como recordatorio semana 9 de noviembre sibate,
+> toca que quitar ese
+
+Decisiones del usuario (consultadas antes de escribir código):
+
+- `tal_cual` es el nombre **literal** de la plantilla en Meta; viaja como `name` en el payload.
+- "Hola como estas?" es la **primera línea del cuerpo aprobado**, no un saludo de chat (se
+  confirmó explícitamente porque cambia el cuerpo byte-exacto).
+- La key interna (la que se ve en el CRM) pasa a `recordatorio_semana_9_de_noviembre_sibate`,
+  así que en esta entrada **key != name**. Ya había precedente en el catálogo:
+  `sibate_5_de_octubre` viaja a Meta como `sibate5octubre`.
+- `registro_noviembre_9_2026` **sale** del catálogo: lo reemplaza esta.
+
+Detalle de la redacción nueva (por qué se ve así):
+
+- Arranca con "Hola como estas?" y el `{{dia}}` deja de estar pegado a una barra (`DÍA {{dia}}/7`
+  pasa a `Día {{dia}} de 7 del seguimiento.`).
+- Se van el encabezado en mayúsculas, `📌 Recuerda:` y los emojis de viñeta; el CTA en
+  mayúsculas `🔗 INGRESA AQUÍ A LA ENCUESTA` pasa a `Enlace del formulario:`.
+- Cierra con una frase completa ("Cualquier duda, escríbenos por aquí y te respondemos."), en
+  lugar de la variante incompleta que se había pegado ("Si tienes dudas quedamos atentos").
+- Los 4 parámetros conservan nombre y orden de aparición (`dia`, `encuestada`, `mascotica`,
+  `censo`), así que `whatsapp_send_template` y las tres vistas previas no cambian de lógica.
+
+Cambios de código:
+
+- `backend/main.py`: `WHATSAPP_TEMPLATE_MAP` (key nueva, `name` `tal_cual`),
+  `WHATSAPP_TEMPLATE_LABELS` ("Recordatorio semana 9 de noviembre (Sibate)"),
+  `WHATSAPP_SINGLE_TEMPLATE_KEYS` y `WHATSAPP_TEMPLATE_BODIES`.
+- `frontend/call_center.js`: `WA_TEMPLATE_BODIES` (vista previa byte-idéntica),
+  `BULK_TEMPLATE_VARS` y `BULK_DAY_TEMPLATES`.
+- Checks: los dos de esta entrega más `check_el_azul.py`, `check_el_azul_preview.js` y
+  `check_853_sin_bono_preview.js`, que usaban la key vieja como ancla de regresión del campo
+  día. Las aserciones de `name` ahora comparan contra el nombre de Meta esperado y no contra
+  la key (en esta plantilla ya no coinciden).
+- Datos: no hay ninguna referencia a `registro_noviembre_9_2026` en `az_marketing.db`, así que
+  ninguna conexión estudio↔plantilla quedó huérfana.
