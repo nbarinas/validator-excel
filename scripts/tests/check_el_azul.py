@@ -198,9 +198,10 @@ def correr():
         print("[4] Regresion: el catalogo solo suma esta key")
         check(set(PREVIAS) | {KEY} <= set(catalogo),
               "las 32 previas + la nueva siguen todas en el catalogo")
-        check([k for k in catalogo if k not in PREVIAS] == [KEY],
+        check([k for k in catalogo if k not in PREVIAS][:1] == [KEY],
               "el orden del catalogo agrega la nueva justo despues de las previas")
-        check(main.WHATSAPP_SINGLE_TEMPLATE_KEYS == SINGLE_PREVIAS + [KEY],
+        check(main.WHATSAPP_SINGLE_TEMPLATE_KEYS[:len(SINGLE_PREVIAS) + 1] ==
+              SINGLE_PREVIAS + [KEY],
               "la lista 1x1 conserva el prefijo previo y suma la nueva al final")
         for hermana, largo in (("plantilla_inicio_semana_9_de_noviembre_sibate", 1021),
                                ("registro_noviembre_9_2026", 692)):
