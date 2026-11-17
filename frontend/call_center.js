@@ -5481,6 +5481,7 @@ const WA_TEMPLATE_BODIES = {
     "recordatorio_semana_9_de_noviembre_sibate": "Hola como estas?\nDía {{dia}} de 7 del seguimiento.\n\nHola, {{encuestada}} 👋\nSomos el equipo de AZ Marketing Plus.\n\nHoy corresponde registrar el consumo de concentrado de {{mascotica}}.\n\nRegistro de hoy:\n1. Sirve el alimento en la misma comida y a la misma hora de siempre.\n2. Cronometra el tiempo que tarda tu perro en terminarlo.\n3. Escribe qué observaste de su comportamiento.\n4. Envía el formulario una vez al día durante los 7 días.\n\nCódigo de registro: {{censo}}\n\nEnlace del formulario:\nhttps://forms.gle/HAtyTHjKxLYmtinz5\n\nCualquier duda, escríbenos por aquí y te respondemos.",
     "el_azul": "Saludos\n¡Hola, {{encuestada}}! 😊 ¿Cómo estás?\n\nTe saluda el equipo de AZ MARKETING PLUS.\n\nHoy continuamos con nuestro estudio sobre el uso de tu freidora de aire (Air Fryer). 🍟\n\nTe recordamos que es muy importante seguir diligenciando el formulario TODOS LOS DÍAS, independientemente de si utilizaste o no tu freidora de aire.\n\n✅ Si la usaste, cuéntanos qué preparación realizaste y adjunta una fotografía del plato o alimento preparado.\n\n✅ Si no la usaste, simplemente selecciona la opción NO LA USÉ.\n\n🔢 Recuerda que tu número de registro es: {{censo}}.\n\n📲 Ingresa aquí para diligenciar la encuesta:\nhttps://forms.gle/jhwUsEbh1Bf6rMG79\n\nSi tienes alguna duda o inquietud, con mucho gusto estamos disponibles para ayudarte.\n¡Gracias por tu compromiso y por continuar participando con",
     "853_sin_bono": "Muy buenos días, señora {{encuestada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo porque hoy tiene programada la segunda videollamada del estudio de shampoo 853, a la(s) {{hora}} .\n\n¿Sería posible realizarla en este momento o prefiere que la contactemos más tarde?\n\nQuedo atento a su respuesta. ¡Muchas gracias y feliz día! 🌷",
+    "shampo_729": "¡Muy buenos días, señora {{entrevistada}}! 😊\n\nLa saluda {{encuestador}}, de AZ Marketing Plus.\n\nLe escribo para recordarle que hoy tiene programada la quinta videollamada del estudio de shampoo 729, a las {{hora_agendada}}.\n.\n\n¿Podemos realizar la videollamada en este momento a mas tarde?",
 };
 
 function getWhatsAppTemplateHora() {
@@ -6664,6 +6665,7 @@ const BULK_TEMPLATE_VARS = {
     'recordatorio_semana_9_de_noviembre_sibate': '{{dia}} · {{encuestada}} · {{mascotica}} · {{censo}}',
     'el_azul': '{{encuestada}} · {{censo}}',
     '853_sin_bono': '{{encuestada}} · {{encuestador}} · {{hora}}',
+    'shampo_729': '{{entrevistada}} · {{encuestador}} · {{hora_agendada}}',
 };
 
 // Plantillas que requieren que el usuario digite el día antes de enviar.

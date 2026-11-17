@@ -48,6 +48,7 @@ SCOPES: dict[str, list[str]] = {
         "check_primera_recogida_853.py",
         "check_recibido_hoy.py",
         "check_recordatorio_sibate_204_302.py",
+        "check_shampo_729.py",
         "check_shampo_primer_853.py",
         "check_sibate_encuesta_final.py",
         "check_single_templates.py",
@@ -61,6 +62,7 @@ SCOPES: dict[str, list[str]] = {
         "check_noviembre_9_sibate_preview.js",
         "check_primera_recogida_853_preview.js",
         "check_recordatorio_sibate_preview.js",
+        "check_shampo_729_preview.js",
         "check_template_catalog_refresh.js",
         "check_template_day_preview.js",
         # Valida que el select compartido 1x1/masivo quede con una key valida del catalogo:

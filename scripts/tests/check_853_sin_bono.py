@@ -165,8 +165,12 @@ def correr():
         sin_label = [k for k in main.WHATSAPP_TEMPLATE_MAP
                      if not main.WHATSAPP_TEMPLATE_LABELS.get(k)]
         check(sin_label == [], f"toda key del catalogo tiene etiqueta (faltan: {sin_label})")
-        check(main.WHATSAPP_SINGLE_TEMPLATE_KEYS[-1] == KEY,
-              f"{KEY} se agrega al final de la lista 1x1")
+        check(KEY in main.WHATSAPP_SINGLE_TEMPLATE_KEYS,
+              f"{KEY} sigue en la lista 1x1")
+        single_lista = main.WHATSAPP_SINGLE_TEMPLATE_KEYS
+        check("el_azul" in single_lista and
+              single_lista.index("el_azul") < single_lista.index(KEY),
+              f"{KEY} se agrega despues de el_azul")
         for hermana, params in HERMANAS.items():
             check(main.WHATSAPP_TEMPLATE_MAP.get(hermana, {}).get("params") == params,
                   f"{hermana} conserva sus parametros")
