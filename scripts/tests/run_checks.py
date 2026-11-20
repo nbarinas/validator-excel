@@ -49,6 +49,7 @@ SCOPES: dict[str, list[str]] = {
         "check_primera_recogida_853.py",
         "check_recibido_hoy.py",
         "check_recordatorio_sibate_204_302.py",
+        "check_serum_1_llamada.py",
         "check_shampo_729.py",
         "check_shampo_primer_853.py",
         "check_sibate_encuesta_final.py",

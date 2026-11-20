@@ -1440,6 +1440,8 @@ WHATSAPP_TEMPLATE_MAP = {
     # Nombre con doble guion bajo tal como quedo en Meta (verbatim del pedido).
     "concentrado__producto_semana_16_de_noviembre_250": {"name": "concentrado__producto_semana_16_de_noviembre_250", "language": "es", "params": ["encuestada", "mascota", "censo"]},
     "recordatorio_sibate_semana_16_de_noviembre_250": {"name": "recordatorio_sibate_semana_16_de_noviembre_250", "language": "es", "params": ["dia", "encuestada", "mascota", "censo"]},
+    # El texto no menciona la hora de la videollamada: solo encuestada y encuestador.
+    "serum_1_llamada": {"name": "serum_1_llamada", "language": "es", "params": ["encuestada", "encuestador"]},
 }
 
 # Etiquetas legibles para mostrar en el selector y en la conexión estudio-plantilla.
@@ -1483,6 +1485,7 @@ WHATSAPP_TEMPLATE_LABELS = {
     "entrega_sibate_250": "Sibate 250 — confirmación de entrega del producto",
     "concentrado__producto_semana_16_de_noviembre_250": "Sibate 250 — concentrado + producto (semana 16 de noviembre)",
     "recordatorio_sibate_semana_16_de_noviembre_250": "Sibate 250 — recordatorio diario (semana 16 de noviembre)",
+    "serum_1_llamada": "Sérum / óleo — primera videollamada",
 }
 
 # Plantillas habilitadas para el envío "una por una" (por registro). El resto del
@@ -1512,6 +1515,7 @@ WHATSAPP_SINGLE_TEMPLATE_KEYS = [
     "entrega_sibate_250",
     "concentrado__producto_semana_16_de_noviembre_250",
     "recordatorio_sibate_semana_16_de_noviembre_250",
+    "serum_1_llamada",
 ]
 
 # Ventana de atención al cliente de WhatsApp (24 h). Con un pequeño margen para
@@ -1577,6 +1581,7 @@ WHATSAPP_TEMPLATE_BODIES = {
     "entrega_sibate_250": "Hola, {{encuestada}} 😊\n\nTe saluda el equipo de AZ Marketing Plus.\n\nTe escribimos para confirmar que el transportador ya te hizo entrega del producto, que comenzarás a utilizar a partir  de hoy\n\nPor favor, respóndenos \"RECIBIDO\" para confirmar que ya lo tienes.\n\n¡Muchas gracias! 🙌",
     "concentrado__producto_semana_16_de_noviembre_250": "AZ Marketing Plus\nHola, {{encuestada}}. ¡Buenos días! Te saluda el equipo de AZ Marketing Plus.\n\n¡Hoy comenzamos la segunda fase del estudio con tu mascota {{mascota}}! 🐾 Muchas gracias por seguir participando y por tu compromiso.\n\n📅 Durante los próximos 7 días, deberás medir el tiempo que tu perrito tarda en comer su concentrado habitual, mezclado con el suplemento que te enviamos.\n\n🍽️ ¿Qué debes hacer cada día?\n\n1. Sirve el alimento mezclado con el suplemento.\n2. Mide el tiempo desde que le sirves hasta que termine de comer.\n3. Observa si empieza a comer de inmediato o si primero olfatea el alimento.\n4. Al finalizar, diligencia la encuesta del día.\n\n⏰ La actividad se realiza una sola vez al día. Puedes elegir el desayuno, almuerzo o cena, procurando mantener el mismo horario durante los 7 días.\n\ncodigo {{censo}}\n\n🔗 Enlace para registrar tu actividad diaria:\nhttps://forms.gle/FQpVjm9oxPRACPUt8\n\nBono de $30.000: Al completar los 7 días, nos comunicaremos contigo por WhatsApp para realizar la última encuesta y explicar",
     "recordatorio_sibate_semana_16_de_noviembre_250": "Saludos\n🐶 REGISTRO DIARIO – DÍA {{dia}}/7\n\n¡Hola, {{encuestada}}! 👋 Te saluda el equipo de AZ Marketing Plus.\n\n🐾 Hoy debes registrar el consumo de tu mascota, {{mascota}}, del concentrado mas  el producto entregado (código 204).\n\n🍽️ Registra una sola comida al día, manteniendo el mismo horario.\n\n⏱️ Mide el tiempo que tarda en comer y registra su comportamiento en la encuesta.\n\n🔢 Código de registro: {{censo}}\n\n🔗 Diligencia aquí la encuesta:\nhttps://forms.gle/FQpVjm9oxPRACPUt8\n\n¡Gracias por tu compromiso! 💚\nRecuerda completar el registro durante los 7 días del estudi",
+    "serum_1_llamada": "Hola, señora {{encuestada}}! 😊 ¿Cómo está?\n\nLe saluda {{encuestador}}, del equipo de AZ Marketing Plus.\n\nHace aproximadamente 15 días nos comunicamos con usted y le dejamos un producto para el cuidado del cabello (sérum, óleo o aceite).\n\nEl día de hoy tenemos programada nuestra primera videollamada para conocer cómo le ha ido con el producto.\n\nQuería preguntarle si tiene unos minuticos disponibles para realizarla en este momento o si prefiere que la contactemos un poquito más tarde.\n\nQuedo atento a su respuesta. ¡Muchas gracias y que tenga un feliz día! 🌷",
 }
 
 
